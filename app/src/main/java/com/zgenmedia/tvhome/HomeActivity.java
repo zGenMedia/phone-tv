@@ -99,9 +99,14 @@ public class HomeActivity extends Activity {
     private TileArt tileArt;
     private CatalogRepository catalog;
     private PlexClient plex;
+    private TraktClient trakt;
 
     private List<MediaItem> plexContinue = Collections.emptyList();
     private List<MediaItem> plexRecent = Collections.emptyList();
+    private String plexError;   // last Plex failure, shown on the home screen until it clears
+    private List<TraktClient.TraktRow> traktRows = Collections.emptyList();
+    private List<String> traktErrors = Collections.emptyList();
+    private volatile boolean plexLinking;
 
     // Screen state
     private FrameLayout root;
@@ -141,6 +146,7 @@ public class HomeActivity extends Activity {
         tileArt = new TileArt(this, ui);
         catalog = new CatalogRepository(this, io);
         plex = new PlexClient(prefs);
+        trakt = new TraktClient(this, prefs);
 
         try { HttpResponseCache.install(new File(getCacheDir(), "http"), 20L * 1024 * 1024); }
         catch (IOException ignored) { /* runs fine uncached */ }
@@ -157,6 +163,7 @@ public class HomeActivity extends Activity {
     protected void onResume() {
         super.onResume();
         applySystemBars();
+        if (!plex.isLinked() && prefs.plexPendingPin() != 0 && !plexLinking) pollPlexPin(prefs.plexPendingPin(), null);
         boolean appsChanged = apps.reload();
         if (catalog.isOlderThan(CONTENT_TTL_MS)) refreshContent();
         if (appsChanged) renderPreservingScroll();
@@ -274,6 +281,7 @@ public class HomeActivity extends Activity {
             renderPreservingScroll();
         });
         refreshPlex();
+        refreshTrakt();
     }
 
     private void refreshPlex() {
@@ -285,11 +293,26 @@ public class HomeActivity extends Activity {
                 recent = plex.recentlyAdded();
             } catch (IOException | JSONException e) {
                 final String reason = CatalogRepository.describe(e);
-                main.post(() -> toast(getString(R.string.plex_failed, reason)));
+                main.post(() -> { plexError = reason; renderPreservingScroll(); });
                 return;
             }
             final List<MediaItem> c = cont, r = recent;
-            main.post(() -> { plexContinue = c; plexRecent = r; renderPreservingScroll(); });
+            main.post(() -> { plexContinue = c; plexRecent = r; plexError = null; renderPreservingScroll(); });
+        });
+    }
+
+    /** Opt-in rows from public Trakt lists; a no-op unless the user configured them. */
+    private void refreshTrakt() {
+        if (!trakt.isConfigured()) {
+            if (!traktRows.isEmpty() || !traktErrors.isEmpty()) {
+                traktRows = Collections.emptyList(); traktErrors = Collections.emptyList(); renderPreservingScroll();
+            }
+            return;
+        }
+        io.execute(() -> {
+            List<String> errors = new ArrayList<>();
+            List<TraktClient.TraktRow> rows = trakt.fetchAll(errors);
+            main.post(() -> { traktRows = rows; traktErrors = errors; renderPreservingScroll(); });
         });
     }
 
@@ -364,9 +387,14 @@ public class HomeActivity extends Activity {
             if (plex.isLinked()) {
                 backdropRow(column, getString(R.string.row_plex_continue), plexContinue);
                 posterRow(column, getString(R.string.row_plex_recent), plexRecent);
+                if (plexError != null) column.addView(noticeCard(getString(R.string.plex_status_title),
+                        getString(R.string.plex_status_body, plexError), this::refreshPlex));
             } else if (apps.byPackage(PlexClient.PACKAGE) != null && !prefs.plexPromptDismissed()) {
                 column.addView(plexPrompt());
             }
+            for (TraktClient.TraktRow row : traktRows) posterRow(column, row.title, row.items);
+            if (!traktErrors.isEmpty()) column.addView(noticeCard(getString(R.string.trakt_status_title),
+                    TextUtils.join("\n", traktErrors), this::refreshTrakt));
         }
 
         if (catalog.isEmpty()) {
@@ -533,10 +561,26 @@ public class HomeActivity extends Activity {
         dlp.leftMargin = ui.dp(8);
         buttons.addView(details, dlp);
         info.addView(buttons);
+        // Keyboard / D-pad: Left on Watch and Right on Details page the carousel,
+        // the same way a TV remote moves past the edge of the hero buttons.
+        watch.setOnKeyListener((v, code, e) -> e.getAction() == android.view.KeyEvent.ACTION_DOWN
+                && code == android.view.KeyEvent.KEYCODE_DPAD_LEFT && stepHero(-1));
+        details.setOnKeyListener((v, code, e) -> e.getAction() == android.view.KeyEvent.ACTION_DOWN
+                && code == android.view.KeyEvent.KEYCODE_DPAD_RIGHT && stepHero(1));
+        if (!heroItems.isEmpty() && !root.isInTouchMode()) watch.post(watch::requestFocus);
 
+        // Dots with previous/next arrows for mouse users (BlueStacks, Chromebooks).
+        LinearLayout pager = new LinearLayout(this);
+        pager.setGravity(Gravity.CENTER_VERTICAL);
+        pager.setPadding(0, ui.dp(10), 0, 0);
+        pager.addView(pagerArrow("‹", -1), new LinearLayout.LayoutParams(ui.dp(28), ui.dp(28)));
         heroDots = new LinearLayout(this);
-        heroDots.setPadding(0, ui.dp(14), 0, 0);
-        info.addView(heroDots);
+        heroDots.setGravity(Gravity.CENTER_VERTICAL);
+        heroDots.setPadding(ui.dp(6), 0, ui.dp(1), 0);
+        pager.addView(heroDots);
+        pager.addView(pagerArrow("›", 1), new LinearLayout.LayoutParams(ui.dp(28), ui.dp(28)));
+        if (heroItems.size() < 2) pager.setVisibility(View.GONE);
+        info.addView(pager);
 
         if (heroItems.isEmpty()) {
             heroTitle.setText(R.string.app_name);
@@ -549,16 +593,32 @@ public class HomeActivity extends Activity {
             @Override public boolean onDown(MotionEvent e) { return true; }
             @Override public boolean onFling(MotionEvent a, MotionEvent b, float vx, float vy) {
                 if (heroItems.size() < 2 || Math.abs(vx) < Math.abs(vy) * 1.5f) return false;
-                int n = heroItems.size();
-                showHero(vx < 0 ? (heroIndex + 1) % n : (heroIndex - 1 + n) % n);
-                restartHeroTimer();
-                return true;
+                return stepHero(vx < 0 ? 1 : -1);
             }
             @Override public boolean onSingleTapUp(MotionEvent e) { return hero.performClick(); }
         });
         hero.setOnClickListener(v -> { MediaItem m = currentHero(); if (m != null) showDetails(m); });
         hero.setOnTouchListener((v, e) -> gestures.onTouchEvent(e));
         return hero;
+    }
+
+    private TextView pagerArrow(String glyph, int step) {
+        TextView a = ui.label(glyph, 18, Ui.TEXT, Ui.BOLD);
+        a.setGravity(Gravity.CENTER);
+        a.setBackground(ui.ripple(ui.round(0x26FFFFFF, 14)));
+        a.setFocusable(true);
+        a.setContentDescription(step < 0 ? "Previous" : "Next");
+        a.setOnClickListener(v -> stepHero(step));
+        return a;
+    }
+
+    /** Moves the carousel by one and holds auto-advance off for a moment. */
+    private boolean stepHero(int step) {
+        int n = heroItems.size();
+        if (n < 2) return false;
+        showHero((heroIndex + step + n) % n);
+        restartHeroTimer();
+        return true;
     }
 
     private MediaItem currentHero() { return heroItems.isEmpty() ? null : heroItems.get(Math.min(heroIndex, heroItems.size() - 1)); }
@@ -851,6 +911,25 @@ public class HomeActivity extends Activity {
         return c;
     }
 
+    /** Small card that explains a failure and offers a retry, instead of a silent toast. */
+    private View noticeCard(String title, String body, Runnable retry) {
+        LinearLayout c = new LinearLayout(this);
+        c.setOrientation(LinearLayout.VERTICAL);
+        c.setPadding(ui.dp(16), ui.dp(14), ui.dp(16), ui.dp(14));
+        c.setBackground(ui.round(Ui.SURFACE, 14));
+        c.addView(ui.label(title, 14, Ui.TEXT, Ui.MEDIUM));
+        TextView b = ui.label(body, 12, Ui.MUTED, null);
+        b.setPadding(0, ui.dp(4), 0, ui.dp(10));
+        c.addView(b);
+        TextView again = ui.pill(getString(R.string.retry), 0x26FFFFFF, Ui.TEXT);
+        again.setOnClickListener(v -> retry.run());
+        c.addView(again, new LinearLayout.LayoutParams(-2, -2));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+        lp.setMargins(gutter(), ui.dp(18), insetRight + ui.dp(20), 0);
+        c.setLayoutParams(lp);
+        return c;
+    }
+
     private View plexPrompt() {
         LinearLayout c = new LinearLayout(this);
         c.setOrientation(LinearLayout.VERTICAL);
@@ -1003,12 +1082,22 @@ public class HomeActivity extends Activity {
         actions.add(this::choosePlayer);
 
         if (plex.isLinked()) {
-            labels.add(getString(R.string.settings_plex_disconnect, prefs.plexServerName()));
-            actions.add(() -> { prefs.clearPlex(); plexContinue = Collections.emptyList(); plexRecent = Collections.emptyList(); renderPreservingScroll(); });
+            String server = prefs.plexServerName().isEmpty() ? getString(R.string.plex_no_server_short) : prefs.plexServerName();
+            labels.add(getString(R.string.settings_plex_disconnect, server));
+            actions.add(() -> {
+                prefs.clearPlex(); prefs.clearPlexPendingPin();
+                plexContinue = Collections.emptyList(); plexRecent = Collections.emptyList(); plexError = null;
+                renderPreservingScroll();
+            });
         } else {
             labels.add(getString(R.string.settings_plex_connect));
             actions.add(this::linkPlex);
         }
+
+        labels.add(trakt.isConfigured()
+                ? getString(R.string.settings_trakt_on, trakt.refs().size())
+                : getString(R.string.settings_trakt_off));
+        actions.add(this::editTrakt);
 
         labels.add(getString(R.string.settings_refresh));
         actions.add(() -> { toast(getString(R.string.refreshing)); refreshContent(); });
@@ -1020,8 +1109,65 @@ public class HomeActivity extends Activity {
         actions.add(() -> openUrl(KOFI_URL, null));
 
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(getString(R.string.settings_title, BuildConfig.VERSION_NAME))
+                .setCustomTitle(settingsHeader())
                 .setItems(labels.toArray(new String[0]), (d, which) -> actions.get(which).run())
+                .show();
+    }
+
+    /** "Phone TV" on the left, version on the right, inset from the dialog edge. */
+    private View settingsHeader() {
+        LinearLayout h = new LinearLayout(this);
+        h.setGravity(Gravity.CENTER_VERTICAL);
+        int pad = (int) (24 * getResources().getDisplayMetrics().density);
+        h.setPadding(pad, pad, pad, pad / 2);
+        TextView name = new TextView(this);
+        name.setText(R.string.app_name);
+        name.setTextColor(Ui.TEXT);
+        name.setTextSize(20);
+        name.setTypeface(Ui.MEDIUM);
+        h.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView version = new TextView(this);
+        version.setText(getString(R.string.settings_version, BuildConfig.VERSION_NAME));
+        version.setTextColor(Ui.MUTED);
+        version.setTextSize(14);
+        h.addView(version);
+        return h;
+    }
+
+    /** Advanced: Trakt Client ID + public list URLs. Casual users never need this. */
+    private void editTrakt() {
+        float d = getResources().getDisplayMetrics().density;
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding((int) (24 * d), (int) (8 * d), (int) (24 * d), 0);
+        TextView help = new TextView(this);
+        help.setText(R.string.trakt_help);
+        help.setTextColor(Ui.MUTED);
+        help.setTextSize(13);
+        form.addView(help);
+        EditText clientId = new EditText(this);
+        clientId.setHint(R.string.trakt_client_hint);
+        clientId.setSingleLine(true);
+        clientId.setText(prefs.traktClientId());
+        form.addView(clientId);
+        EditText lists = new EditText(this);
+        lists.setHint(R.string.trakt_lists_hint);
+        lists.setMinLines(3);
+        lists.setGravity(Gravity.TOP | Gravity.START);
+        lists.setText(prefs.traktLists());
+        form.addView(lists);
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.trakt_title)
+                .setView(form)
+                .setPositiveButton(R.string.save, (dlg, w) -> {
+                    prefs.saveTrakt(clientId.getText().toString(), lists.getText().toString());
+                    int valid = trakt.refs().size();
+                    if (!prefs.traktLists().isEmpty() && valid == 0) toast(getString(R.string.trakt_no_valid_urls));
+                    refreshTrakt();
+                })
+                .setNeutralButton(R.string.trakt_turn_off, (dlg, w) -> { prefs.saveTrakt("", ""); refreshTrakt(); })
+                .setNegativeButton(R.string.cancel, null)
                 .show();
     }
 
@@ -1061,47 +1207,67 @@ public class HomeActivity extends Activity {
     }
 
     /**
-     * Plex PIN link flow. The dialog shows the code, and we poll plex.tv until
-     * the user approves it (or cancels / five minutes pass).
+     * Plex PIN link flow. Shows the code and polls plex.tv until the user
+     * approves it. Polling runs on its own thread and the PIN is persisted, so
+     * linking still completes if the user switches to a browser to enter the
+     * code and Android closes this dialog (or the whole activity) meanwhile.
      */
     private void linkPlex() {
         AlertDialog dialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle(R.string.plex_link_title)
                 .setMessage(R.string.plex_link_waiting)
                 .setPositiveButton(R.string.plex_open_link, null)
-                .setNegativeButton(R.string.cancel, null)
+                .setNegativeButton(R.string.cancel, (d, w) -> { prefs.clearPlexPendingPin(); plexLinking = false; })
                 .create();
         dialog.setOnShowListener(x -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
                 .setOnClickListener(v -> openUrl(PlexClient.LINK_URL, null)));
         dialog.show();
 
-        io.execute(() -> {
+        new Thread(() -> {
             try {
                 PlexClient.Pin pin = plex.createPin();
+                prefs.setPlexPendingPin(pin.id, System.currentTimeMillis() + 10 * 60_000);
                 main.post(() -> dialog.setMessage(getString(R.string.plex_link_body, pin.code)));
-                long deadline = System.currentTimeMillis() + 5 * 60_000;
-                String token = null;
-                while (dialog.isShowing() && token == null && System.currentTimeMillis() < deadline) {
-                    Thread.sleep(PLEX_POLL_MS);
-                    token = plex.pollPin(pin.id);
-                }
-                if (token == null) return; // cancelled or timed out
-                PlexClient.Server server = plex.discoverServer(token);
-                final String accountToken = token;
-                main.post(() -> {
-                    dialog.dismiss();
-                    if (server == null) { toast(getString(R.string.plex_no_server)); return; }
-                    plex.save(accountToken, server);
-                    toast(getString(R.string.plex_connected, server.name));
-                    refreshPlex();
-                });
+                pollPlexPin(pin.id, dialog);
             } catch (IOException | JSONException e) {
                 final String reason = CatalogRepository.describe(e);
                 main.post(() -> { dialog.dismiss(); toast(getString(R.string.plex_failed, reason)); });
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
             }
-        });
+        }, "phonetv-plex-pin").start();
+    }
+
+    /** Polls a pending PIN until approved, cancelled or expired. Safe to call from any thread. */
+    private void pollPlexPin(long pinId, AlertDialog dialog) {
+        if (Looper.myLooper() == Looper.getMainLooper()) { new Thread(() -> pollPlexPin(pinId, dialog), "phonetv-plex-pin").start(); return; }
+        plexLinking = true;
+        try {
+            String token = null;
+            while (token == null && prefs.plexPendingPin() == pinId) {
+                Thread.sleep(PLEX_POLL_MS);
+                try { token = plex.pollPin(pinId); }
+                catch (IOException | JSONException e) { /* transient network error: keep polling */ }
+            }
+            if (token == null) return; // cancelled or expired
+            prefs.savePlexAccount(token);
+            prefs.clearPlexPendingPin();
+            PlexClient.Server server = null;
+            String error = null;
+            try { server = plex.refreshServer(); }
+            catch (IOException | JSONException e) { error = CatalogRepository.describe(e); }
+            final PlexClient.Server s = server;
+            final String err = error;
+            main.post(() -> {
+                if (dialog != null) dialog.dismiss();
+                if (s == null) toast(err != null ? getString(R.string.plex_failed, err) : getString(R.string.plex_no_server));
+                else toast(getString(s.reachable ? R.string.plex_connected : R.string.plex_connected_offline, s.name));
+                refreshPlex();
+                renderPreservingScroll();
+            });
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            plexLinking = false;
+        }
     }
 
     // ==================================================================== actions

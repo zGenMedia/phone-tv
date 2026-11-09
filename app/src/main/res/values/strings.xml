@@ -62,7 +62,6 @@
     <string name="details_play_plex">▶  Play in Plex</string>
 
     <!-- Settings -->
-    <string name="settings_title">Phone TV %1$s</string>
     <string name="settings_size">Display size: %1$s</string>
     <string name="settings_bars">System bars: %1$s</string>
     <string name="bars_hidden">Hidden</string>
@@ -95,6 +94,24 @@
     <string name="not_now">Not now</string>
     <string name="cancel">Cancel</string>
     <string name="close">Close</string>
+
+    <string name="settings_version">v%1$s</string>
+    <string name="save">Save</string>
+    <string name="plex_connected_offline">Plex linked: %1$s (not reachable right now, will retry)</string>
+    <string name="plex_no_server_short">no server yet</string>
+    <string name="plex_status_title">Couldn\'t reach your Plex server</string>
+    <string name="plex_status_body">Your account is still linked. Details: %1$s</string>
+
+    <!-- Trakt (advanced) -->
+    <string name="settings_trakt_off">Trakt lists (advanced): Off</string>
+    <string name="settings_trakt_on">Trakt lists (advanced): %1$d on</string>
+    <string name="trakt_title">Trakt lists</string>
+    <string name="trakt_help">Add rows from any public Trakt list, like a Black cinema or anime list. Needs your own free Client ID from trakt.tv/oauth/applications. Paste up to 5 list links, one per line (…/users/NAME/lists/LIST or …/users/NAME/watchlist).</string>
+    <string name="trakt_client_hint">Trakt Client ID</string>
+    <string name="trakt_lists_hint">https://trakt.tv/users/…/lists/…</string>
+    <string name="trakt_turn_off">Turn off</string>
+    <string name="trakt_no_valid_urls">None of those look like Trakt list links</string>
+    <string name="trakt_status_title">Some Trakt lists didn\'t load</string>
 
     <!-- Footer -->
     <string name="footer">Phone TV %1$s  ·  by zGenMedia</string>

@@ -10,7 +10,7 @@ A free, open-source, TV-style home screen that turns any Android phone — espec
 
 ![Build](https://github.com/zGenMedia/phone-tv/actions/workflows/build.yml/badge.svg)
 ![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3ddc84)
-![APK size](https://img.shields.io/badge/APK-~62%20KB-informational)
+![APK size](https://img.shields.io/badge/APK-~70%20KB-informational)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 
 </div>
@@ -22,7 +22,7 @@ A free, open-source, TV-style home screen that turns any Android phone — espec
   &nbsp;
   <img src="docs/assets/screens/phone-portrait.jpg" width="22%" alt="Phone TV in portrait on an Android phone">
 </p>
-<p align="center"><sub>Real screenshots, v0.5.0: Windows PC via BlueStacks (left) and an Android phone in portrait (right).</sub></p>
+<p align="center"><sub>Real screenshots: Windows PC via BlueStacks (left) and an Android phone in portrait (right).</sub></p>
 
 ## Why
 
@@ -36,8 +36,10 @@ Plenty of us have a 2–6 year old phone that still has a great screen, Wi-Fi, H
 | **Runs Android TV apps** | Detects TV (leanback) editions of apps you've sideloaded and launches them correctly |
 | **TV-style tiles** | Real Android TV banners when an app ships one; otherwise a banner built from the app's adaptive icon — or any image you choose |
 | **Plex** | Link with a 4-character code at plex.tv/link. *Continue watching* with progress bars, *Recently added* |
+| **Your lists (optional)** | Power users can add public Trakt lists (e.g. Black cinema, Nollywood, anime) as extra rows with their own Trakt Client ID. Off by default |
+| **Keyboard & remote friendly** | Arrow keys page the hero carousel; D-pad focus everywhere; on-screen arrows for mouse users |
 | **Your choice of player** | Open titles in Stremio, search them in Plex, or watch the trailer |
-| **Made for old hardware** | No dependencies, ~62 KB APK, lazy image loading, downsized disk cache, background-priority threads |
+| **Made for old hardware** | No dependencies, ~70 KB APK, lazy image loading, downsized disk cache, background-priority threads |
 | **Fullscreen** | Hides status and navigation bars; portrait and landscape layouts |
 | **Private** | No accounts, analytics or ads. Network calls: the public catalog, image CDN, and your Plex server if you link it |
 

@@ -23,7 +23,9 @@ final class Prefs {
             K_PLAY_WITH = "playWith", K_FAVORITES = "favs", K_PLEX_PROMPT = "plexPromptDismissed",
             K_PLEX_CLIENT = "plexClientId", K_PLEX_ACCOUNT = "plexAccountToken",
             K_PLEX_URI = "plexServerUri", K_PLEX_SERVER_TOKEN = "plexServerToken",
-            K_PLEX_SERVER_ID = "plexServerId", K_PLEX_SERVER_NAME = "plexServerName";
+            K_PLEX_SERVER_ID = "plexServerId", K_PLEX_SERVER_NAME = "plexServerName",
+            K_PLEX_PIN_ID = "plexPinId", K_PLEX_PIN_EXPIRES = "plexPinExpires",
+            K_TRAKT_CLIENT = "traktClientId", K_TRAKT_LISTS = "traktLists";
 
     private final SharedPreferences sp;
 
@@ -66,6 +68,15 @@ final class Prefs {
     String plexServerId() { return sp.getString(K_PLEX_SERVER_ID, null); }
     String plexServerName() { return sp.getString(K_PLEX_SERVER_NAME, ""); }
 
+    /** Saved as soon as the PIN is approved, so the link survives even if no server answers yet. */
+    void savePlexAccount(String accountToken) { sp.edit().putString(K_PLEX_ACCOUNT, accountToken).apply(); }
+
+    // A PIN the user may still be entering at plex.tv/link. Persisted so linking
+    // completes even if Android kills the activity while they're in the browser.
+    long plexPendingPin() { return sp.getLong(K_PLEX_PIN_EXPIRES, 0) > System.currentTimeMillis() ? sp.getLong(K_PLEX_PIN_ID, 0) : 0; }
+    void setPlexPendingPin(long id, long expiresAt) { sp.edit().putLong(K_PLEX_PIN_ID, id).putLong(K_PLEX_PIN_EXPIRES, expiresAt).apply(); }
+    void clearPlexPendingPin() { sp.edit().remove(K_PLEX_PIN_ID).remove(K_PLEX_PIN_EXPIRES).apply(); }
+
     void savePlex(String accountToken, String uri, String serverToken, String serverId, String serverName) {
         sp.edit().putString(K_PLEX_ACCOUNT, accountToken).putString(K_PLEX_URI, uri)
                 .putString(K_PLEX_SERVER_TOKEN, serverToken).putString(K_PLEX_SERVER_ID, serverId)
@@ -75,6 +86,13 @@ final class Prefs {
         sp.edit().remove(K_PLEX_ACCOUNT).remove(K_PLEX_URI).remove(K_PLEX_SERVER_TOKEN)
                 .remove(K_PLEX_SERVER_ID).remove(K_PLEX_SERVER_NAME).apply();
     }
+    // --- Trakt (advanced, opt-in) ---
+    String traktClientId() { return sp.getString(K_TRAKT_CLIENT, "").trim(); }
+    String traktLists() { return sp.getString(K_TRAKT_LISTS, ""); }
+    void saveTrakt(String clientId, String lists) {
+        sp.edit().putString(K_TRAKT_CLIENT, clientId.trim()).putString(K_TRAKT_LISTS, lists.trim()).apply();
+    }
+
     boolean plexPromptDismissed() { return sp.getBoolean(K_PLEX_PROMPT, false); }
     void dismissPlexPrompt() { sp.edit().putBoolean(K_PLEX_PROMPT, true).apply(); }
 

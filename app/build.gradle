@@ -1,0 +1,55 @@
+plugins { id 'com.android.application' }
+
+// Release signing is read from keystore.properties (not committed). Without it,
+// builds fall back to the standard debug key so anyone can build and sideload.
+def keystoreProps = new Properties()
+def keystorePropsFile = rootProject.file('keystore.properties')
+if (keystorePropsFile.exists()) keystorePropsFile.withInputStream { keystoreProps.load(it) }
+
+android {
+    namespace 'com.zgenmedia.tvhome'
+    compileSdk 36
+
+    defaultConfig {
+        // NOTE: applicationId predates the Phone TV name. Changing it would make
+        // Android treat new builds as a different app and break in-place updates.
+        applicationId 'com.kinglifer.tvlauncher'
+        minSdk 26
+        targetSdk 35
+        versionCode 6
+        versionName '0.6.0'
+    }
+
+    signingConfigs {
+        if (keystorePropsFile.exists()) {
+            zgen {
+                storeFile rootProject.file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            if (keystorePropsFile.exists()) signingConfig signingConfigs.zgen
+        }
+        release {
+            minifyEnabled false
+            if (keystorePropsFile.exists()) signingConfig signingConfigs.zgen
+        }
+    }
+
+    buildFeatures { buildConfig true }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        // UI strings live in res/values/strings.xml; remaining hits are format-only labels.
+        disable 'SetTextI18n', 'OldTargetApi', 'ObsoleteSdkInt'
+    }
+}

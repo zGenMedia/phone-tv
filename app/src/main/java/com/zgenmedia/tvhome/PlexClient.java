@@ -26,7 +26,7 @@ final class PlexClient {
     static final String LINK_URL = "https://plex.tv/link";
 
     private static final String PLEX_TV = "https://plex.tv/api/v2";
-    private static final int PROBE_TIMEOUT_MS = 2_500;
+    private static final int PROBE_TIMEOUT_MS = 4_000;
 
     static final class Pin {
         final long id; final String code;
@@ -35,13 +35,28 @@ final class PlexClient {
 
     static final class Server {
         String name, uri, token, machineId;
+        boolean reachable;
     }
 
     private final Prefs prefs;
 
     PlexClient(Prefs prefs) { this.prefs = prefs; }
 
-    boolean isLinked() { return prefs.plexServerUri() != null && prefs.plexServerToken() != null; }
+    /** Linked = the user approved a PIN. A server may still be unknown or offline. */
+    boolean isLinked() { return prefs.plexAccountToken() != null; }
+
+    boolean hasServer() { return prefs.plexServerUri() != null && prefs.plexServerToken() != null; }
+
+    /**
+     * Finds the account's server and saves it. Called after linking and again
+     * whenever the saved address stops answering (new IP, remote access toggled).
+     * @return the server, or null if the account has none.
+     */
+    Server refreshServer() throws IOException, JSONException {
+        Server s = discoverServer(prefs.plexAccountToken());
+        if (s != null) save(prefs.plexAccountToken(), s);
+        return s;
+    }
 
     // ---------------------------------------------------------------- linking
 
@@ -77,6 +92,8 @@ final class PlexClient {
         String token = best.optString("accessToken", accountToken);
         JSONArray conns = best.optJSONArray("connections");
         if (conns == null) return null;
+        Server fallback = null;
+        int fallbackPass = -1;
         for (int pass = 0; pass < 3; pass++) {
             for (int i = 0; i < conns.length(); i++) {
                 JSONObject c = conns.getJSONObject(i);
@@ -85,17 +102,19 @@ final class PlexClient {
                 String uri = c.optString("uri");
                 // Cleartext is disabled app-wide; Plex offers https (plex.direct) for every connection.
                 if (!wanted || !uri.startsWith("https://")) continue;
-                if (reachable(uri, token)) {
-                    Server s = new Server();
-                    s.name = best.optString("name", "Plex");
-                    s.uri = uri;
-                    s.token = token;
-                    s.machineId = best.optString("clientIdentifier");
-                    return s;
-                }
+                Server s = new Server();
+                s.name = best.optString("name", "Plex");
+                s.uri = uri;
+                s.token = token;
+                s.machineId = best.optString("clientIdentifier");
+                if (reachable(uri, token)) { s.reachable = true; return s; }
+                // Keep the best remote address even if it didn't answer this time, so
+                // the link is saved and the next refresh simply retries.
+                // Prefer a remote (pass 1) address as the fallback: it works away from home too.
+                if (fallback == null || (pass == 1 && fallbackPass != 1)) { fallback = s; fallbackPass = pass; }
             }
         }
-        return null;
+        return fallback;
     }
 
     void save(String accountToken, Server s) { prefs.savePlex(accountToken, s.uri, s.token, s.machineId, s.name); }
@@ -103,7 +122,14 @@ final class PlexClient {
     // ---------------------------------------------------------------- library
 
     List<MediaItem> continueWatching() throws IOException, JSONException {
-        return metadata("/library/onDeck?X-Plex-Container-Size=20");
+        if (!hasServer() && refreshServer() == null) throw new IOException("no Plex Media Server on this account");
+        try {
+            return metadata("/library/onDeck?X-Plex-Container-Size=20");
+        } catch (IOException first) {
+            // The saved address may be stale; look the server up again and retry once.
+            if (refreshServer() == null) throw first;
+            return metadata("/library/onDeck?X-Plex-Container-Size=20");
+        }
     }
 
     List<MediaItem> recentlyAdded() throws IOException, JSONException {
