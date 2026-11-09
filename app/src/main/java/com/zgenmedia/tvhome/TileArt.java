@@ -9,6 +9,7 @@ import android.graphics.drawable.AdaptiveIconDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.widget.FrameLayout;
@@ -58,7 +59,7 @@ final class TileArt {
             if (banner != null) { tile.setBackgroundColor(Color.BLACK); tile.addView(cover(banner)); return; }
 
             Drawable icon = icon(app);
-            if (icon instanceof AdaptiveIconDrawable) {
+            if (Build.VERSION.SDK_INT >= 26 && icon instanceof AdaptiveIconDrawable) {
                 AdaptiveIconDrawable adaptive = (AdaptiveIconDrawable) icon;
                 if (adaptive.getBackground() != null) {
                     ImageView bg = new ImageView(ctx);

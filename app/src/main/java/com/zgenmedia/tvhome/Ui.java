@@ -7,6 +7,7 @@ import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
+import android.graphics.drawable.StateListDrawable;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
 import android.view.View;
@@ -29,6 +30,11 @@ final class Ui {
 
     static final Typeface MEDIUM = Typeface.create("sans-serif-medium", Typeface.NORMAL);
     static final Typeface BOLD = Typeface.create("sans-serif", Typeface.BOLD);
+
+    /** Told whenever a focusable view gains focus, so the screen can scroll it into view smoothly. */
+    interface FocusListener { void onFocused(View v); }
+
+    FocusListener onFocus;
 
     private final Context ctx;
     private float scale;
@@ -79,15 +85,44 @@ final class Ui {
         b.setBackground(ripple(round(bg, 20)));
         b.setFocusable(true);
         b.setClickable(true);
+        focusRing(b, 20);
         return b;
     }
 
-    /** D-pad / keyboard focus gets the same grow-on-focus treatment as a TV launcher. */
+    /**
+     * Cards and tiles: grow on focus and show a white ring, so someone ten feet
+     * away with a remote can always see where they are. Touch keeps its ripple.
+     */
     void focusable(View v) {
         v.setFocusable(true);
         v.setClickable(true);
-        v.setOnFocusChangeListener((view, has) ->
-                view.animate().scaleX(has ? 1.06f : 1f).scaleY(has ? 1.06f : 1f).setDuration(150).start());
+        StateListDrawable fx = new StateListDrawable();
+        fx.addState(new int[]{android.R.attr.state_focused}, ring(12));
+        fx.addState(new int[]{}, ripple(null));
+        v.setForeground(fx);
+        // ScrollView's built-in reveal jumps instantly; we scroll ourselves (see FocusListener).
+        v.setRevealOnFocusHint(false);
+        v.setOnFocusChangeListener((view, has) -> {
+            view.animate().scaleX(has ? 1.06f : 1f).scaleY(has ? 1.06f : 1f).setDuration(120).start();
+            if (has && onFocus != null) onFocus.onFocused(view);
+        });
+    }
+
+    /** Ring only (no scaling, no focus listener) for buttons and chips that already have a ripple. */
+    void focusRing(View v, float radiusDp) {
+        StateListDrawable fx = new StateListDrawable();
+        fx.addState(new int[]{android.R.attr.state_focused}, ring(radiusDp));
+        v.setForeground(fx);
+        v.setRevealOnFocusHint(false);
+        v.setOnFocusChangeListener((view, has) -> { if (has && onFocus != null) onFocus.onFocused(view); });
+    }
+
+    private GradientDrawable ring(float radiusDp) {
+        GradientDrawable d = new GradientDrawable();
+        d.setColor(Color.TRANSPARENT);
+        d.setStroke(Math.max(3, dp(2.5f)), Color.WHITE);
+        d.setCornerRadius(dp(radiusDp));
+        return d;
     }
 
     private DisplayMetrics metrics() { return ctx.getResources().getDisplayMetrics(); }

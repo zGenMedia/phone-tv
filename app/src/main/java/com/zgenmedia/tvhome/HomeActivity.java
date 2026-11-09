@@ -66,7 +66,7 @@ import java.util.concurrent.Executors;
  * Views are built in code instead of XML so the screen can be rebuilt in one
  * pass when the size setting or orientation changes. Rows are short (at most a
  * few dozen cards) and artwork is lazy-loaded, so we skip RecyclerView and the
- * androidx dependency chain it brings; the APK stays well under 100 KB.
+ * androidx dependency chain it brings; the APK stays around 100 KB.
  *
  * Copyright (c) 2026 zGenMedia — https://zgenmedia.com
  */
@@ -102,6 +102,14 @@ public class HomeActivity extends Activity {
     private TraktClient trakt;
     private HeroMood heroMood;
     private Updater updater;
+    private boolean tvDevice;          // Shield, Fire TV, Google TV: remote-first, no touch
+    private boolean autoFocusHero = true;
+
+    // Remote navigation: named focus targets so focus survives a rebuild of the screen.
+    private final java.util.Map<String, View> focusTargets = new java.util.HashMap<>();
+    private String restoreFocusKey;
+    private int rowSeq, heroHeightPx, heroBackdropWidthPx, selectedChipId, heroWatchId;
+    private volatile AlertDialog plexDialog;
     private Updater.Release readyUpdate;   // downloaded and verified, waiting for the user's tap
     private java.io.File readyApk;
     private List<MediaItem> moodItems = Collections.emptyList();
@@ -148,7 +156,10 @@ public class HomeActivity extends Activity {
         prefs = new Prefs(this);
         ui = new Ui(this, prefs.scale());
         images = new ImageLoader(this);
-        apps = new AppRepository(this, prefs);
+        tvDevice = isTvDevice();
+        if (tvDevice) { prefs.setDefaultSizeIndex(2); ui.setScale(prefs.scale()); }
+        ui.onFocus = this::reveal;
+        apps = new AppRepository(this, prefs, tvDevice);
         tileArt = new TileArt(this, ui);
         catalog = new CatalogRepository(this, io);
         plex = new PlexClient(prefs);
@@ -161,7 +172,7 @@ public class HomeActivity extends Activity {
 
         setupWindow();
         apps.reload();
-        apps.seedFavorites(STREMIO_PACKAGE, TVMATE_HINT, PlexClient.PACKAGE);
+        apps.seedFavorites(STREMIO_PACKAGE, TVMATE_HINT, PlexClient.PACKAGE, "netflix", "youtube", "primevideo", "disney", "kodi");
         catalog.loadCached();
         render();
         refreshContent();
@@ -202,7 +213,113 @@ public class HomeActivity extends Activity {
         goHome();
     }
 
-    @Override public void onBackPressed() { goHome(); } // a launcher never finishes on Back
+    /**
+     * As the Home app, Back never exits. When Phone TV is just an app (a Fire TV
+     * or Shield without the home replacement on), Back at the top leaves it,
+     * like any other TV app.
+     */
+    @Override
+    public void onBackPressed() {
+        boolean atTop = tab == TAB_FOR_YOU && (scroll == null || scroll.getScrollY() == 0);
+        if (atTop && !isDefaultHome() && !homeKeeperEnabled()) { moveTaskToBack(true); return; }
+        goHome();
+    }
+
+    /** Remote MENU button: options for the focused app tile, otherwise Settings. */
+    @Override
+    public boolean onKeyDown(int keyCode, android.view.KeyEvent event) {
+        if (keyCode == android.view.KeyEvent.KEYCODE_MENU) {
+            View focused = getCurrentFocus();
+            Object tag = focused == null ? null : focused.getTag();
+            if (tag instanceof AppRepository.App) showAppMenu((AppRepository.App) tag); else showSettings();
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    /** If nothing has focus (e.g. after touch use), the first D-pad press lands on the banner. */
+    @Override
+    public boolean dispatchKeyEvent(android.view.KeyEvent e) {
+        int c = e.getKeyCode();
+        boolean dpad = c == android.view.KeyEvent.KEYCODE_DPAD_UP || c == android.view.KeyEvent.KEYCODE_DPAD_DOWN
+                || c == android.view.KeyEvent.KEYCODE_DPAD_LEFT || c == android.view.KeyEvent.KEYCODE_DPAD_RIGHT
+                || c == android.view.KeyEvent.KEYCODE_DPAD_CENTER;
+        if (dpad && e.getAction() == android.view.KeyEvent.ACTION_DOWN && getCurrentFocus() == null) {
+            View t = focusTargets.get("hero:watch");
+            if (t == null || t.getVisibility() != View.VISIBLE || !t.isShown()) t = focusTargets.get("tab:" + tab);
+            if (t != null && t.requestFocus()) return true;
+        }
+        return super.dispatchKeyEvent(e);
+    }
+
+    /** Names a focusable view so {@link #render} can return focus to it after rebuilding. */
+    private <T extends View> T focusKey(T v, String key) {
+        v.setTag(R.id.focus_key, key);
+        focusTargets.put(key, v);
+        return v;
+    }
+
+    /**
+     * Glides the focused view into place: centred in its row, and its row about
+     * mid-screen. Anything inside the banner scrolls the page back to the top.
+     */
+    private void reveal(View v) {
+        if (scroll == null) return;
+        HorizontalScrollView shelf = null;
+        boolean inPage = false;
+        for (android.view.ViewParent p = v.getParent(); p != null; p = p.getParent()) {
+            if (shelf == null && p instanceof HorizontalScrollView) shelf = (HorizontalScrollView) p;
+            if (p == scroll) { inPage = true; break; }
+        }
+        if (!inPage) return;
+        if (shelf != null && shelf.getChildCount() > 0 && v.getParent() == shelf.getChildAt(0)) {
+            int visible = shelf.getWidth() - shelf.getPaddingLeft() - shelf.getPaddingRight();
+            shelf.smoothScrollTo(Math.max(0, v.getLeft() - (visible - v.getWidth()) / 2), 0);
+        }
+        android.graphics.Rect r = new android.graphics.Rect();
+        v.getDrawingRect(r);
+        scroll.offsetDescendantRectToMyCoords(v, r);
+        int y = r.bottom <= heroHeightPx ? 0 : r.centerY() - scroll.getHeight() / 2;
+        scroll.smoothScrollTo(0, Math.max(0, y));
+        if (y <= 0) setTopBarVisible(true);
+    }
+
+    /** TV on-screen keyboards only open on request; do it whenever a text box is selected. */
+    private void keyboardOnSelect(EditText box) {
+        box.setOnClickListener(v -> showKeyboard(box));
+        box.setOnKeyListener((v, code, e) -> {
+            boolean select = code == android.view.KeyEvent.KEYCODE_DPAD_CENTER || code == android.view.KeyEvent.KEYCODE_ENTER
+                    || code == android.view.KeyEvent.KEYCODE_NUMPAD_ENTER || code == android.view.KeyEvent.KEYCODE_BUTTON_A;
+            if (select && e.getAction() == android.view.KeyEvent.ACTION_UP) { showKeyboard(box); return true; }
+            return false;
+        });
+    }
+
+    private void showKeyboard(EditText box) {
+        box.requestFocus();
+        android.view.inputmethod.InputMethodManager imm =
+                (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        if (imm != null) imm.showSoftInput(box, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+    }
+
+    private boolean isTvDevice() {
+        android.app.UiModeManager ui = (android.app.UiModeManager) getSystemService(UI_MODE_SERVICE);
+        android.content.pm.PackageManager pm = getPackageManager();
+        return (ui != null && ui.getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION)
+                || pm.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)
+                || pm.hasSystemFeature("amazon.hardware.fire_tv");
+    }
+
+    private boolean isDefaultHome() {
+        android.content.pm.ResolveInfo home = getPackageManager().resolveActivity(
+                new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), android.content.pm.PackageManager.MATCH_DEFAULT_ONLY);
+        return home != null && home.activityInfo != null && getPackageName().equals(home.activityInfo.packageName);
+    }
+
+    private boolean homeKeeperEnabled() {
+        String enabled = Settings.Secure.getString(getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+        return enabled != null && enabled.contains(getPackageName() + "/" + HomeKeeperService.class.getName());
+    }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -319,8 +436,10 @@ public class HomeActivity extends Activity {
         if (readyApk == null) return;
         if (!updater.canInstall()) {
             // One-time permission: Android asks the user to allow this app to install updates.
-            toast(getString(R.string.update_allow));
-            startSafely(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName())));
+            // Fire TV has no per-app screen for this; it lives under My Fire TV > Developer options.
+            boolean opened = Build.VERSION.SDK_INT >= 26
+                    && startSafely(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName())));
+            toast(getString(opened ? R.string.update_allow : R.string.update_allow_tv));
             return;
         }
         java.io.File apk = readyApk;
@@ -438,7 +557,10 @@ public class HomeActivity extends Activity {
 
     private void renderPreservingScroll() {
         int y = scroll == null ? 0 : scroll.getScrollY();
+        // Don't yank a remote user's focus (and the scroll position) back to the hero mid-browse.
+        autoFocusHero = y == 0;
         render();
+        autoFocusHero = true;
         if (y > 0) scroll.post(() -> scroll.scrollTo(0, y));
     }
 
@@ -446,6 +568,15 @@ public class HomeActivity extends Activity {
         if (root == null) return;
         main.removeCallbacks(heroAdvance);
         images.clearDeferred();
+        View had = getCurrentFocus();
+        Object key = had == null ? null : had.getTag(R.id.focus_key);
+        restoreFocusKey = key instanceof String ? (String) key : null;
+        focusTargets.clear();
+        rowSeq = 0;
+        heroHeightPx = 0;
+        heroBackdropWidthPx = 0;
+        heroWatchId = 0;
+        selectedChipId = View.generateViewId();
         root.removeAllViews();
         topBarHidden = false;
         heroOnScreen = true;
@@ -472,6 +603,8 @@ public class HomeActivity extends Activity {
         }
         topBar = buildTopBar();
         root.addView(topBar, new FrameLayout.LayoutParams(-1, -2, Gravity.TOP));
+        View target = restoreFocusKey == null ? null : focusTargets.get(restoreFocusKey);
+        if (target != null) target.post(target::requestFocus);
     }
 
     private void buildMediaTab(LinearLayout column) {
@@ -560,7 +693,7 @@ public class HomeActivity extends Activity {
         bar.setPadding(gutter() - ui.dp(4), insetTop + ui.dp(10), insetRight + ui.dp(land() ? 36 : 16), ui.dp(12));
         bar.setBackground(Ui.gradient(GradientDrawable.Orientation.TOP_BOTTOM, 0xCC000000, 0x00000000));
 
-        bar.addView(roundIcon(android.R.drawable.ic_menu_search, v -> { tab = TAB_APPS; render(); }),
+        bar.addView(focusKey(roundIcon(android.R.drawable.ic_menu_search, v -> { tab = TAB_APPS; render(); }), "top:search"),
                 new LinearLayout.LayoutParams(ui.dp(34), ui.dp(34)));
 
         HorizontalScrollView tabsScroller = new HorizontalScrollView(this);
@@ -574,6 +707,11 @@ public class HomeActivity extends Activity {
             chip.setPadding(ui.dp(13), ui.dp(6), ui.dp(13), ui.dp(6));
             chip.setBackground(ui.ripple(ui.round(selected ? Ui.CHIP_SELECTED : Color.TRANSPARENT, 16)));
             chip.setFocusable(true);
+            focusKey(chip, "tab:" + i);
+            if (selected) chip.setId(selectedChipId);
+            if (heroWatchId != 0) chip.setNextFocusDownId(heroWatchId);
+            ui.focusRing(chip, 16);
+            chip.setOnFocusChangeListener((v, has) -> { if (has) setTopBarVisible(true); });
             chip.setOnClickListener(v -> { if (tab != index) { tab = index; heroIndex = 0; render(); } });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
             lp.rightMargin = ui.dp(2);
@@ -591,7 +729,7 @@ public class HomeActivity extends Activity {
         clock.setPadding(ui.dp(8), 0, ui.dp(10), 0);
         bar.addView(clock);
 
-        bar.addView(roundIcon(android.R.drawable.ic_menu_preferences, v -> showSettings()),
+        bar.addView(focusKey(roundIcon(android.R.drawable.ic_menu_preferences, v -> showSettings()), "top:settings"),
                 new LinearLayout.LayoutParams(ui.dp(34), ui.dp(34)));
         return bar;
     }
@@ -603,6 +741,9 @@ public class HomeActivity extends Activity {
         iv.setPadding(ui.dp(7), ui.dp(7), ui.dp(7), ui.dp(7));
         iv.setBackground(ui.ripple(ui.round(0x26FFFFFF, 18)));
         iv.setFocusable(true);
+        ui.focusRing(iv, 18);
+        if (heroWatchId != 0) iv.setNextFocusDownId(heroWatchId);
+        iv.setOnFocusChangeListener((v, has) -> { if (has) setTopBarVisible(true); });
         iv.setOnClickListener(onClick);
         return iv;
     }
@@ -614,15 +755,27 @@ public class HomeActivity extends Activity {
     private View buildHero() {
         DisplayMetrics dm = metrics();
         boolean land = land();
-        // Short enough that the "Your apps" row peeks above the fold, as on Google TV.
-        int height = land ? (int) (dm.heightPixels * 0.72f) : Math.max(ui.dp(380), (int) (dm.widthPixels * 0.98f));
+        // A little over half the screen, so "Your apps" and the first row sit above the fold.
+        int height = land ? (int) (dm.heightPixels * 0.58f) : Math.max(ui.dp(330), (int) (dm.widthPixels * 0.82f));
+        heroHeightPx = height;
+        // Landscape default: artwork on the left at its natural 16:9, details in a column on the right.
+        boolean detailsRight = land && prefs.heroDetailsRight();
         FrameLayout hero = new FrameLayout(this);
         hero.setLayoutParams(new LinearLayout.LayoutParams(-1, height));
 
         heroBackdrop = new ImageView(this);
         heroBackdrop.setScaleType(ImageView.ScaleType.CENTER_CROP);
         heroBackdrop.setBackground(Ui.gradient(GradientDrawable.Orientation.TL_BR, 0xFF2F3D56, 0xFF1D2331, 0xFF28223B));
-        hero.addView(heroBackdrop, new FrameLayout.LayoutParams(-1, -1));
+        if (detailsRight) {
+            int w = Math.min(dm.widthPixels, Math.max(height * 16 / 9, (int) (dm.widthPixels * 0.58f)));
+            heroBackdropWidthPx = w;
+            hero.addView(heroBackdrop, new FrameLayout.LayoutParams(w, -1, Gravity.START));
+            View fade = new View(this); // dissolve the artwork's right edge into the page
+            fade.setBackground(Ui.gradient(GradientDrawable.Orientation.LEFT_RIGHT, 0x000E0F13, 0x000E0F13, 0x990E0F13, Ui.BG));
+            hero.addView(fade, new FrameLayout.LayoutParams(w, -1, Gravity.START));
+        } else {
+            hero.addView(heroBackdrop, new FrameLayout.LayoutParams(-1, -1));
+        }
 
         // Scrims: top for the menu, bottom (and left in landscape) for the text block.
         View top = new View(this);
@@ -633,7 +786,7 @@ public class HomeActivity extends Activity {
                 ? Ui.gradient(GradientDrawable.Orientation.TOP_BOTTOM, 0x00000000, 0x000E0F13, 0x990E0F13, Ui.BG)
                 : Ui.gradient(GradientDrawable.Orientation.TOP_BOTTOM, 0x00000000, 0x000E0F13, 0x660E0F13, 0xE60E0F13, Ui.BG));
         hero.addView(bottom, new FrameLayout.LayoutParams(-1, -1));
-        if (land) {
+        if (land && !detailsRight) {
             View left = new View(this);
             left.setBackground(Ui.gradient(GradientDrawable.Orientation.LEFT_RIGHT, 0xF00E0F13, 0x800E0F13, 0x000E0F13));
             hero.addView(left, new FrameLayout.LayoutParams((int) (dm.widthPixels * 0.65f), -1));
@@ -642,14 +795,16 @@ public class HomeActivity extends Activity {
         LinearLayout info = new LinearLayout(this);
         info.setOrientation(LinearLayout.VERTICAL);
         info.setGravity(Gravity.BOTTOM | Gravity.START);
-        info.setPadding(gutter(), 0, ui.dp(20), ui.dp(land ? 22 : 16));
-        hero.addView(info, new FrameLayout.LayoutParams(land ? (int) (dm.widthPixels * 0.46f) : -1, -2, Gravity.BOTTOM | Gravity.START));
+        if (detailsRight) info.setPadding(ui.dp(28), 0, insetRight + ui.dp(40), ui.dp(18));
+        else info.setPadding(gutter(), 0, ui.dp(20), ui.dp(land ? 18 : 16));
+        hero.addView(info, new FrameLayout.LayoutParams(land ? (int) (dm.widthPixels * 0.44f) : -1, -2,
+                Gravity.BOTTOM | (detailsRight ? Gravity.END : Gravity.START)));
 
         heroLogo = new ImageView(this);
         heroLogo.setScaleType(ImageView.ScaleType.FIT_START);
         heroLogo.setAdjustViewBounds(true);
         LinearLayout.LayoutParams logoLp = new LinearLayout.LayoutParams(
-                (int) (dm.widthPixels * (land ? 0.26f : 0.55f)), ui.dp(land ? 64 : 76));
+                (int) (dm.widthPixels * (land ? 0.26f : 0.55f)), ui.dp(land ? 56 : 68));
         logoLp.bottomMargin = ui.dp(8);
         info.addView(heroLogo, logoLp);
 
@@ -662,9 +817,9 @@ public class HomeActivity extends Activity {
         heroMeta.setPadding(0, ui.dp(3), 0, ui.dp(5));
         info.addView(heroMeta);
 
-        heroSummary = ui.label("", 13, Ui.TEXT_DIM, null);
+        heroSummary = ui.label("", land ? 15 : 14, Ui.TEXT_DIM, null);
         heroSummary.setLineSpacing(0, 1.15f);
-        heroSummary.setMaxLines(2);
+        heroSummary.setMaxLines(land ? 3 : 2);
         heroSummary.setEllipsize(TextUtils.TruncateAt.END);
         info.addView(heroSummary);
 
@@ -693,18 +848,26 @@ public class HomeActivity extends Activity {
                 && code == android.view.KeyEvent.KEYCODE_DPAD_LEFT && stepHero(-1));
         tune.setOnKeyListener((v, code, e) -> e.getAction() == android.view.KeyEvent.ACTION_DOWN
                 && code == android.view.KeyEvent.KEYCODE_DPAD_RIGHT && stepHero(1));
-        if (!heroItems.isEmpty() && !root.isInTouchMode()) watch.post(watch::requestFocus);
+        // Focus plumbing: names for focus restore, an explicit Up path to the tabs, and
+        // focusing any banner button brings the page (and the top menu) back to the top.
+        heroWatchId = View.generateViewId();
+        watch.setId(heroWatchId);
+        focusKey(watch, "hero:watch");
+        focusKey(details, "hero:details");
+        focusKey(tune, "hero:tune");
+        for (View b : new View[]{watch, details, tune}) b.setNextFocusUpId(selectedChipId);
+        if (!heroItems.isEmpty() && restoreFocusKey == null && autoFocusHero && (tvDevice || !root.isInTouchMode())) watch.post(watch::requestFocus);
 
         // Dots with previous/next arrows for mouse users (BlueStacks, Chromebooks).
         LinearLayout pager = new LinearLayout(this);
         pager.setGravity(Gravity.CENTER_VERTICAL);
         pager.setPadding(0, ui.dp(10), 0, 0);
-        pager.addView(pagerArrow("‹", -1), new LinearLayout.LayoutParams(ui.dp(28), ui.dp(28)));
+        pager.addView(focusKey(pagerArrow("‹", -1), "hero:prev"), new LinearLayout.LayoutParams(ui.dp(28), ui.dp(28)));
         heroDots = new LinearLayout(this);
         heroDots.setGravity(Gravity.CENTER_VERTICAL);
         heroDots.setPadding(ui.dp(6), 0, ui.dp(1), 0);
         pager.addView(heroDots);
-        pager.addView(pagerArrow("›", 1), new LinearLayout.LayoutParams(ui.dp(28), ui.dp(28)));
+        pager.addView(focusKey(pagerArrow("›", 1), "hero:next"), new LinearLayout.LayoutParams(ui.dp(28), ui.dp(28)));
         if (heroItems.size() < 2) pager.setVisibility(View.GONE);
         info.addView(pager);
 
@@ -733,6 +896,7 @@ public class HomeActivity extends Activity {
         a.setGravity(Gravity.CENTER);
         a.setBackground(ui.ripple(ui.round(0x26FFFFFF, 14)));
         a.setFocusable(true);
+        ui.focusRing(a, 14);
         a.setContentDescription(step < 0 ? "Previous" : "Next");
         a.setOnClickListener(v -> stepHero(step));
         return a;
@@ -761,8 +925,9 @@ public class HomeActivity extends Activity {
         heroSummary.setText(m.summary);
 
         int screenW = metrics().widthPixels;
+        int backdropW = heroBackdropWidthPx > 0 ? heroBackdropWidthPx : land() ? screenW : screenW * 7 / 4;
         // Portrait crops a 16:9 backdrop into a tall frame, so it needs ~1.75x screen width.
-        images.load(heroBackdrop, m.backdrop(land() ? screenW : screenW * 7 / 4), land() ? screenW : screenW * 7 / 4, false, null);
+        images.load(heroBackdrop, m.backdrop(backdropW), backdropW, false, null);
         final ImageView logo = heroLogo;
         final TextView title = heroTitle;
         images.load(heroLogo, m.logo(), screenW / 2, true, () -> { logo.setVisibility(View.VISIBLE); title.setVisibility(View.GONE); });
@@ -808,6 +973,7 @@ public class HomeActivity extends Activity {
         plus.setGravity(Gravity.CENTER);
         add.addView(plus, new FrameLayout.LayoutParams(-1, -1));
         ui.focusable(add);
+        focusKey(add, "fav:+");
         add.setOnClickListener(v -> { tab = TAB_APPS; render(); toast(getString(R.string.fav_add_hint)); });
         row.addView(add, new LinearLayout.LayoutParams(empty ? w * 3 / 2 : h, h));
         return scroller;
@@ -819,9 +985,10 @@ public class HomeActivity extends Activity {
         tileArt.bind(tile, app, heightPx, prefs.tvStyleTiles());
         if (!onShelf && apps.isFavorite(app.pkg)) tile.addView(badge("★"), new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END));
         if (!onShelf && app.tvEdition) tile.addView(badge("TV"), new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.START));
-        tile.setForeground(ui.ripple(null));
         tile.setClipToOutline(true);
         ui.focusable(tile);
+        tile.setTag(app); // read by the remote's MENU key
+        focusKey(tile, (onShelf ? "fav:" : "app:") + app.pkg);
         tile.setOnClickListener(v -> { if (!apps.launch(app)) toast(getString(R.string.open_failed, app.label)); });
         tile.setOnLongClickListener(v -> { showAppMenu(app); return true; });
         return tile;
@@ -846,6 +1013,7 @@ public class HomeActivity extends Activity {
         search.setPadding(ui.dp(16), 0, ui.dp(16), 0);
         search.setBackground(ui.round(Ui.SURFACE, 22));
         search.setText(appFilter);
+        keyboardOnSelect(search);
         LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(-1, ui.dp(44));
         slp.setMargins(g, ui.dp(6), insetRight + ui.dp(20), ui.dp(6));
         column.addView(search, slp);
@@ -877,7 +1045,7 @@ public class HomeActivity extends Activity {
         int tileH = (avail / cols - ui.dp(10)) * 9 / 16;
         int count = 0;
         LinearLayout row = null;
-        for (AppRepository.App app : apps.all()) {
+        for (AppRepository.App app : apps.visible()) {
             if (!app.label.toLowerCase(Locale.ROOT).contains(q)) continue;
             if (count % cols == 0) {
                 row = new LinearLayout(this);
@@ -988,6 +1156,7 @@ public class HomeActivity extends Activity {
     }
 
     private void bindItem(View v, MediaItem m) {
+        focusKey(v, "row" + rowSeq + ":" + m.id);
         v.setOnClickListener(x -> showDetails(m));
         v.setOnLongClickListener(x -> { play(m); return true; });
     }
@@ -1005,6 +1174,7 @@ public class HomeActivity extends Activity {
         hs.setClipToPadding(false);
         hs.setPadding(gutter(), ui.dp(2), insetRight + ui.dp(10), ui.dp(4));
         hs.setOnScrollChangeListener((v, x, y, ox, oy) -> images.flush());
+        rowSeq++;
         LinearLayout row = new LinearLayout(this);
         hs.addView(row);
         if (parent != null) parent.addView(hs);
@@ -1151,6 +1321,7 @@ public class HomeActivity extends Activity {
         d.setContentView(sheet, new ViewGroup.LayoutParams(w, -2));
         if (d.getWindow() != null) d.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         d.show();
+        if (actions.getChildCount() > 0) actions.getChildAt(0).requestFocus(); // remote lands on the main action
     }
 
     private void addAction(LinearLayout row, Dialog d, String label, boolean primary, Runnable action) {
@@ -1175,8 +1346,13 @@ public class HomeActivity extends Activity {
         labels.add(getString(R.string.menu_tile_image));
         actions.add(() -> pickTileImage(app.pkg));
         if (tileArt.hasCustomImage(app.pkg)) { labels.add(getString(R.string.menu_tile_reset)); actions.add(() -> tileArt.resetCustomImage(app.pkg)); }
+        boolean hidden = apps.isHidden(app.pkg);
+        labels.add(getString(hidden ? R.string.menu_unhide : R.string.menu_hide));
+        actions.add(() -> apps.setHidden(app.pkg, !hidden));
         labels.add(getString(R.string.menu_app_info));
         actions.add(() -> startSafely(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + app.pkg))));
+        labels.add(getString(R.string.menu_uninstall));
+        actions.add(() -> { if (!startSafely(new Intent(Intent.ACTION_DELETE, Uri.parse("package:" + app.pkg)))) toast(getString(R.string.open_failed, app.label)); });
 
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle(app.label)
@@ -1203,6 +1379,9 @@ public class HomeActivity extends Activity {
 
         labels.add(getString(R.string.settings_tiles, getString(prefs.tvStyleTiles() ? R.string.tiles_tv : R.string.tiles_phone)));
         actions.add(() -> { prefs.setTvStyleTiles(!prefs.tvStyleTiles()); renderPreservingScroll(); });
+
+        labels.add(getString(R.string.settings_hero_layout, getString(prefs.heroDetailsRight() ? R.string.hero_layout_right : R.string.hero_layout_left)));
+        actions.add(() -> { prefs.setHeroDetailsRight(!prefs.heroDetailsRight()); render(); });
 
         labels.add(getString(R.string.settings_play, playWithLabel(prefs.playWith())));
         actions.add(this::choosePlayer);
@@ -1231,8 +1410,24 @@ public class HomeActivity extends Activity {
         labels.add(getString(R.string.settings_refresh));
         actions.add(() -> { toast(getString(R.string.refreshing)); refreshContent(); });
 
-        labels.add(getString(R.string.settings_home));
-        actions.add(() -> { if (!startSafely(new Intent(Settings.ACTION_HOME_SETTINGS))) startSafely(new Intent(Settings.ACTION_SETTINGS)); });
+        if (tvDevice) {
+            // TVs have no "choose Home app" setting; the opt-in HomeKeeperService stands in for it.
+            if (homeKeeperEnabled()) {
+                labels.add(getString(R.string.settings_keeper_pause));
+                actions.add(() -> { prefs.pauseKeeper(System.currentTimeMillis() + 60_000); toast(getString(R.string.keeper_paused)); moveTaskToBack(true); });
+            }
+            labels.add(getString(homeKeeperEnabled() ? R.string.settings_keeper_on : R.string.settings_keeper_off));
+            actions.add(this::explainHomeKeeper);
+        } else {
+            labels.add(getString(R.string.settings_home));
+            actions.add(() -> { if (!startSafely(new Intent(Settings.ACTION_HOME_SETTINGS))) startSafely(new Intent(Settings.ACTION_SETTINGS)); });
+        }
+
+        int hiddenCount = prefs.hiddenApps().size();
+        if (hiddenCount > 0) {
+            labels.add(getString(R.string.settings_unhide_all, hiddenCount));
+            actions.add(() -> { prefs.setHiddenApps(new ArrayList<>()); renderPreservingScroll(); });
+        }
 
         labels.add(getString(R.string.settings_donate));
         actions.add(() -> openUrl(KOFI_URL, null));
@@ -1240,6 +1435,18 @@ public class HomeActivity extends Activity {
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setCustomTitle(settingsHeader())
                 .setItems(labels.toArray(new String[0]), (d, which) -> actions.get(which).run())
+                .show();
+    }
+
+    /** Explains the experimental home replacement and opens the system screen that turns it on. */
+    private void explainHomeKeeper() {
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.keeper_title)
+                .setMessage(getString(R.string.keeper_body, getPackageName() + "/" + HomeKeeperService.class.getName()))
+                .setPositiveButton(R.string.keeper_open_settings, (d, w) -> {
+                    if (!startSafely(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))) toast(getString(R.string.keeper_no_settings));
+                })
+                .setNegativeButton(R.string.close, null)
                 .show();
     }
 
@@ -1279,6 +1486,7 @@ public class HomeActivity extends Activity {
         words.setHint(R.string.mood_hint);
         words.setText(prefs.heroMood());
         words.setImeOptions(EditorInfo.IME_ACTION_DONE);
+        keyboardOnSelect(words);
         form.addView(words);
 
         AlertDialog dialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
@@ -1298,7 +1506,11 @@ public class HomeActivity extends Activity {
             refreshMood();
             renderPreservingScroll();
         }));
+        // Enter / Done on the keyboard submits, so a remote user never has to reach the button.
+        words.setOnEditorActionListener((v, action, e) -> { dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick(); return true; });
+        if (dialog.getWindow() != null) dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
         dialog.show();
+        words.requestFocus();
     }
 
     /** Advanced: Trakt Client ID + public list URLs. Casual users never need this. */
@@ -1316,12 +1528,14 @@ public class HomeActivity extends Activity {
         clientId.setHint(R.string.trakt_client_hint);
         clientId.setSingleLine(true);
         clientId.setText(prefs.traktClientId());
+        keyboardOnSelect(clientId);
         form.addView(clientId);
         EditText lists = new EditText(this);
         lists.setHint(R.string.trakt_lists_hint);
         lists.setMinLines(3);
         lists.setGravity(Gravity.TOP | Gravity.START);
         lists.setText(prefs.traktLists());
+        keyboardOnSelect(lists);
         form.addView(lists);
 
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
@@ -1374,27 +1588,74 @@ public class HomeActivity extends Activity {
     }
 
     /**
-     * Plex PIN link flow. Shows the code and polls plex.tv until the user
-     * approves it. Polling runs on its own thread and the PIN is persisted, so
-     * linking still completes if the user switches to a browser to enter the
-     * code and Android closes this dialog (or the whole activity) meanwhile.
+     * Plex PIN link flow. Shows a large code with Copy and Open-link buttons and
+     * polls plex.tv until the user approves it. The PIN and its code are
+     * persisted and polled on their own thread, so pressing Back (or leaving the
+     * app to enter the code) doesn't lose the session: reopening Connect Plex
+     * shows the same code until it's approved, cancelled or expires.
      */
     private void linkPlex() {
+        float d = getResources().getDisplayMetrics().density;
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding((int) (24 * d), (int) (8 * d), (int) (24 * d), 0);
+        TextView help = new TextView(this);
+        help.setText(R.string.plex_link_help);
+        help.setTextColor(Ui.TEXT_DIM);
+        help.setTextSize(15);
+        form.addView(help);
+        TextView code = new TextView(this);
+        code.setText(R.string.plex_link_waiting);
+        code.setTextColor(0xFFE5A00D);
+        code.setTextSize(20);
+        code.setTypeface(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD);
+        code.setGravity(Gravity.CENTER);
+        code.setPadding(0, (int) (16 * d), 0, (int) (12 * d));
+        form.addView(code, new LinearLayout.LayoutParams(-1, -2));
+        TextView note = new TextView(this);
+        note.setText(R.string.plex_link_note);
+        note.setTextColor(Ui.MUTED);
+        note.setTextSize(13);
+        form.addView(note);
+
         AlertDialog dialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle(R.string.plex_link_title)
-                .setMessage(R.string.plex_link_waiting)
-                .setPositiveButton(R.string.plex_open_link, null)
-                .setNegativeButton(R.string.cancel, (d, w) -> { prefs.clearPlexPendingPin(); plexLinking = false; })
+                .setView(form)
+                .setPositiveButton(R.string.plex_copy_code, null)
+                .setNeutralButton(R.string.plex_open_link, null)
+                .setNegativeButton(R.string.plex_cancel_link, (dlg, w) -> { prefs.clearPlexPendingPin(); plexLinking = false; })
                 .create();
-        dialog.setOnShowListener(x -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-                .setOnClickListener(v -> openUrl(PlexClient.LINK_URL, null)));
+        dialog.setOnShowListener(x -> {
+            // Custom listeners so Copy and Open don't close the dialog.
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+                String pending = prefs.plexPendingCode();
+                if (pending.isEmpty()) return;
+                android.content.ClipboardManager cb = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                if (cb != null) cb.setPrimaryClip(android.content.ClipData.newPlainText("Plex code", pending));
+                toast(getString(R.string.plex_code_copied, pending));
+            });
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
+                if (!openUrl(PlexClient.LINK_URL, null)) toast(getString(R.string.plex_no_browser));
+            });
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).requestFocus();
+        });
+        dialog.setOnCancelListener(x -> { if (prefs.plexPendingPin() != 0) toast(getString(R.string.plex_still_waiting)); });
+        plexDialog = dialog;
         dialog.show();
 
+        Runnable showCode = () -> { code.setText(prefs.plexPendingCode()); code.setTextSize(44); code.setLetterSpacing(0.3f); };
+        long pending = prefs.plexPendingPin();
+        if (pending != 0 && !prefs.plexPendingCode().isEmpty()) {
+            // A link is already in progress: show the same code instead of starting over.
+            showCode.run();
+            if (!plexLinking) pollPlexPin(pending, dialog);
+            return;
+        }
         new Thread(() -> {
             try {
                 PlexClient.Pin pin = plex.createPin();
-                prefs.setPlexPendingPin(pin.id, System.currentTimeMillis() + 10 * 60_000);
-                main.post(() -> dialog.setMessage(getString(R.string.plex_link_body, pin.code)));
+                prefs.setPlexPendingPin(pin.id, pin.code, System.currentTimeMillis() + 10 * 60_000);
+                main.post(showCode);
                 pollPlexPin(pin.id, dialog);
             } catch (IOException | JSONException e) {
                 final String reason = CatalogRepository.describe(e);
@@ -1424,7 +1685,8 @@ public class HomeActivity extends Activity {
             final PlexClient.Server s = server;
             final String err = error;
             main.post(() -> {
-                if (dialog != null) dialog.dismiss();
+                AlertDialog open = plexDialog; // may be a newer dialog than the one that started polling
+                if (open != null && open.isShowing()) open.dismiss();
                 if (s == null) toast(err != null ? getString(R.string.plex_failed, err) : getString(R.string.plex_no_server));
                 else toast(getString(s.reachable ? R.string.plex_connected : R.string.plex_connected_offline, s.name));
                 refreshPlex();
@@ -1466,8 +1728,14 @@ public class HomeActivity extends Activity {
         openAppOrStore(PlexClient.PACKAGE, "Plex", m.title);
     }
 
+    /** YouTube's TV apps don't take search URLs, so hand them a search intent first. */
     private void openTrailer(MediaItem m) {
-        openUrl("https://www.youtube.com/results?search_query=" + Uri.encode(m.title + " " + m.year + " trailer"), null);
+        String query = m.title + " " + m.year + " trailer";
+        for (String pkg : new String[]{"com.google.android.youtube.tv", "com.amazon.firetv.youtube"}) {
+            if (apps.byPackage(pkg) == null) continue;
+            if (startSafely(new Intent(Intent.ACTION_SEARCH).setPackage(pkg).putExtra(SearchManager.QUERY, query))) return;
+        }
+        if (!openUrl("https://www.youtube.com/results?search_query=" + Uri.encode(query), null)) toast(getString(R.string.no_trailer_app));
     }
 
     private void openAppOrStore(String pkg, String name, String searchHint) {

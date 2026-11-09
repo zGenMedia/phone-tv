@@ -12,7 +12,7 @@ import java.util.Map;
  * Minimal blocking HTTP client. Call from a background thread only.
  *
  * We deliberately avoid OkHttp/Retrofit: the app makes a handful of simple GETs,
- * and keeping zero dependencies keeps the APK tiny (~60 KB) for older phones.
+ * and keeping zero dependencies keeps the APK tiny (around 100 KB) for older devices.
  */
 final class Http {
     static final String USER_AGENT = "PhoneTV/" + BuildConfig.VERSION_NAME + " (Android; +https://zgenmedia.com)";

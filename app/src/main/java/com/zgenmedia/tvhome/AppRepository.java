@@ -34,13 +34,18 @@ final class AppRepository {
     private final List<App> apps = new ArrayList<>();
     private String signature = "";
 
-    AppRepository(Context ctx, Prefs prefs) { this.ctx = ctx; this.prefs = prefs; }
+    private final boolean tvDevice;
+
+    /** @param tvDevice on a TV, an app's TV (leanback) entry is preferred over its phone entry. */
+    AppRepository(Context ctx, Prefs prefs, boolean tvDevice) { this.ctx = ctx; this.prefs = prefs; this.tvDevice = tvDevice; }
 
     /** Re-reads installed apps. @return true if the set changed since the last call. */
     boolean reload() {
         Map<String, App> byPackage = new LinkedHashMap<>();
+        // First entry seen for a package wins: phone entry on phones, TV entry on TVs.
+        if (tvDevice) collect(byPackage, Intent.CATEGORY_LEANBACK_LAUNCHER, true);
         collect(byPackage, Intent.CATEGORY_LAUNCHER, false);
-        collect(byPackage, Intent.CATEGORY_LEANBACK_LAUNCHER, true); // phone entry wins if both exist
+        if (!tvDevice) collect(byPackage, Intent.CATEGORY_LEANBACK_LAUNCHER, true);
         apps.clear();
         apps.addAll(byPackage.values());
         Collections.sort(apps, (a, b) -> a.label.compareToIgnoreCase(b.label));
@@ -63,6 +68,24 @@ final class AppRepository {
     }
 
     List<App> all() { return apps; }
+
+    /** Everything except apps the user chose to hide. */
+    List<App> visible() {
+        List<String> hidden = prefs.hiddenApps();
+        if (hidden.isEmpty()) return apps;
+        List<App> out = new ArrayList<>();
+        for (App a : apps) if (!hidden.contains(a.pkg)) out.add(a);
+        return out;
+    }
+
+    boolean isHidden(String pkg) { return prefs.hiddenApps().contains(pkg); }
+
+    void setHidden(String pkg, boolean hidden) {
+        List<String> list = prefs.hiddenApps();
+        list.remove(pkg);
+        if (hidden) list.add(pkg);
+        prefs.setHiddenApps(list);
+    }
 
     App byPackage(String pkg) {
         for (App a : apps) if (a.pkg.equals(pkg)) return a;

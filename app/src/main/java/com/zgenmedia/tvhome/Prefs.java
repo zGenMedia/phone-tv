@@ -25,14 +25,22 @@ final class Prefs {
             K_PLEX_URI = "plexServerUri", K_PLEX_SERVER_TOKEN = "plexServerToken",
             K_PLEX_SERVER_ID = "plexServerId", K_PLEX_SERVER_NAME = "plexServerName",
             K_PLEX_PIN_ID = "plexPinId", K_PLEX_PIN_EXPIRES = "plexPinExpires",
-            K_TRAKT_CLIENT = "traktClientId", K_TRAKT_LISTS = "traktLists", K_HERO_MOOD = "heroMood";
+            K_TRAKT_CLIENT = "traktClientId", K_TRAKT_LISTS = "traktLists", K_HERO_MOOD = "heroMood",
+            K_HIDDEN = "hiddenApps", K_KEEPER_PAUSE = "keeperPausedUntil";
 
     private final SharedPreferences sp;
 
     Prefs(Context context) { sp = context.getSharedPreferences(FILE, Context.MODE_PRIVATE); }
 
     // --- display ---
-    int sizeIndex() { return Math.max(0, Math.min(SIZE_SCALES.length - 1, sp.getInt(K_SIZE, 1))); }
+    private int defaultSize = 1;
+    /** TVs are read from across the room, so they start one size up unless the user picked a size. */
+    void setDefaultSizeIndex(int i) { defaultSize = i; }
+    int sizeIndex() { return Math.max(0, Math.min(SIZE_SCALES.length - 1, sp.getInt(K_SIZE, defaultSize))); }
+
+    /** Landscape banner: artwork on the left with details on the right (default), or the reverse. */
+    boolean heroDetailsRight() { return sp.getBoolean("heroDetailsRight", true); }
+    void setHeroDetailsRight(boolean v) { sp.edit().putBoolean("heroDetailsRight", v).apply(); }
     void setSizeIndex(int i) { sp.edit().putInt(K_SIZE, i).apply(); }
     float scale() { return SIZE_SCALES[sizeIndex()]; }
 
@@ -55,6 +63,18 @@ final class Prefs {
     }
     void setFavorites(List<String> packages) { sp.edit().putString(K_FAVORITES, TextUtils.join(",", packages)).apply(); }
 
+    // --- hidden apps (kept out of the Apps tab; a de-bloat tool) ---
+    List<String> hiddenApps() {
+        List<String> out = new ArrayList<>();
+        for (String p : sp.getString(K_HIDDEN, "").split(",")) if (!p.isEmpty()) out.add(p);
+        return out;
+    }
+    void setHiddenApps(List<String> packages) { sp.edit().putString(K_HIDDEN, TextUtils.join(",", packages)).apply(); }
+
+    // --- HomeKeeperService: lets the user reach the stock TV launcher for a minute ---
+    long keeperPausedUntil() { return sp.getLong(K_KEEPER_PAUSE, 0); }
+    void pauseKeeper(long untilMs) { sp.edit().putLong(K_KEEPER_PAUSE, untilMs).apply(); }
+
     // --- Plex ---
     /** Stable per-install id; Plex uses it to list this device under "Authorized Devices". */
     String plexClientId() {
@@ -74,8 +94,11 @@ final class Prefs {
     // A PIN the user may still be entering at plex.tv/link. Persisted so linking
     // completes even if Android kills the activity while they're in the browser.
     long plexPendingPin() { return sp.getLong(K_PLEX_PIN_EXPIRES, 0) > System.currentTimeMillis() ? sp.getLong(K_PLEX_PIN_ID, 0) : 0; }
-    void setPlexPendingPin(long id, long expiresAt) { sp.edit().putLong(K_PLEX_PIN_ID, id).putLong(K_PLEX_PIN_EXPIRES, expiresAt).apply(); }
-    void clearPlexPendingPin() { sp.edit().remove(K_PLEX_PIN_ID).remove(K_PLEX_PIN_EXPIRES).apply(); }
+    String plexPendingCode() { return plexPendingPin() != 0 ? sp.getString("plexPinCode", "") : ""; }
+    void setPlexPendingPin(long id, String code, long expiresAt) {
+        sp.edit().putLong(K_PLEX_PIN_ID, id).putString("plexPinCode", code).putLong(K_PLEX_PIN_EXPIRES, expiresAt).apply();
+    }
+    void clearPlexPendingPin() { sp.edit().remove(K_PLEX_PIN_ID).remove("plexPinCode").remove(K_PLEX_PIN_EXPIRES).apply(); }
 
     void savePlex(String accountToken, String uri, String serverToken, String serverId, String serverName) {
         sp.edit().putString(K_PLEX_ACCOUNT, accountToken).putString(K_PLEX_URI, uri)

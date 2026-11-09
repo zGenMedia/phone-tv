@@ -3,6 +3,36 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.9.0 — 2026-11-09
+
+TV release: NVIDIA Shield, Google TV / Android TV and Fire TV.
+
+### Added
+- **Runs on TV boxes.** Leanback launcher entry and banner, no touchscreen
+  required, TV editions of apps preferred on TVs, minimum Android lowered to
+  7.1 (Fire OS 6).
+- **Remote navigation.** White focus ring and gentle zoom on every selectable
+  item; smooth, centred scrolling instead of jumps; focus is restored after
+  the screen refreshes; explicit Up/Down path between the banner and the top
+  menu; first D-pad press always lands somewhere sensible; MENU opens app
+  options or Settings; Back leaves the app when it isn't the Home screen.
+- **On-screen keyboard** opens when a text box is selected with a remote.
+- **Plex linking:** large code, *Copy code*, and Back keeps the same code
+  alive (reopen Connect Plex to see it again).
+- **De-bloat tools:** hide apps from the Apps tab, uninstall from an app's menu.
+- **Replace the TV home screen (experimental, opt-in):** an accessibility
+  service that brings Phone TV forward when the stock launcher appears, with
+  a pause switch and crash back-off.
+- Banner layout setting; TVs default to the Large display size.
+
+### Changed
+- Banner is shorter. In landscape the artwork sits on the left at full 16:9
+  with details on the right; description text is larger.
+
+### Not yet verified
+- Built and lint-clean, but not run on Shield or Fire TV hardware by the
+  maintainers at release time. Reports welcome.
+
 ## 0.8.0 — 2026-11-09
 
 ### Added

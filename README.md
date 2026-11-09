@@ -9,8 +9,8 @@ A free, open-source, TV-style home screen that turns any Android phone — espec
 [**Download the latest APK**](https://github.com/zGenMedia/phone-tv/releases/latest) · [Website](https://zgenmedia.github.io/phone-tv/) · [Support on Ko-fi](https://ko-fi.com/zgenmedia/tiers) · [zGenMedia](https://zgenmedia.com)
 
 ![Build](https://github.com/zGenMedia/phone-tv/actions/workflows/build.yml/badge.svg)
-![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3ddc84)
-![APK size](https://img.shields.io/badge/APK-~70%20KB-informational)
+![Android 7.1+](https://img.shields.io/badge/Android-7.1%2B-3ddc84)
+![APK size](https://img.shields.io/badge/APK-~110%20KB-informational)
 ![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)
 
 </div>
@@ -40,7 +40,7 @@ Plenty of us have a 2–6 year old phone that still has a great screen, Wi-Fi, H
 | **Your lists (optional)** | Power users can add public Trakt lists (e.g. Black cinema, Nollywood, anime) as extra rows with their own Trakt Client ID. Off by default |
 | **Keyboard & remote friendly** | Arrow keys page the hero carousel; D-pad focus everywhere; on-screen arrows for mouse users |
 | **Your choice of player** | Open titles in Stremio, search them in Plex, or watch the trailer |
-| **Made for old hardware** | No dependencies, ~70 KB APK, lazy image loading, downsized disk cache, background-priority threads |
+| **Made for old hardware** | No dependencies, ~110 KB APK, lazy image loading, downsized disk cache, background-priority threads |
 | **Fullscreen** | Hides status and navigation bars; portrait and landscape layouts |
 | **Private** | No accounts, analytics or ads. Network calls: the public catalog, image CDN, and your Plex server if you link it |
 
@@ -66,6 +66,26 @@ adb shell cmd package set-home-activity com.kinglifer.tvlauncher/com.kinglifer.t
 - **Control:** any Bluetooth keyboard, game controller or air-mouse remote. Phone TV supports D-pad focus.
 - **Power:** keep it plugged in; enable your phone's battery-protect / 85 % charge limit if it has one.
 - **Apps:** install TV editions where they exist — Phone TV puts them on the shelf with their TV banners.
+
+## On NVIDIA Shield, Google TV and Fire TV
+
+Tired of ads and sponsored rows on your TV's home screen? Phone TV runs on TV boxes too, with full remote support.
+
+1. **Shield / Google TV:** sideload `PhoneTV.apk` (for example with the *Downloader* app or `adb install`).
+   **Fire TV:** enable *Settings › My Fire TV › Developer options › Install unknown apps* for your downloader app, then open
+   `https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk`.
+2. Open **Phone TV** from your apps row. D-pad moves, OK selects, MENU opens options, Back exits.
+3. Long-press OK (or press MENU) on any app to favorite, hide or uninstall it.
+
+**Making it the home screen.** TV platforms don't offer a "choose Home app" setting. Phone TV includes an optional, experimental
+replacement (Settings › *Replace the TV home screen*) that steps in front of the stock launcher. On Fire TV it has to be switched on over ADB:
+
+```sh
+adb shell settings put secure enabled_accessibility_services com.kinglifer.tvlauncher/com.zgenmedia.tvhome.HomeKeeperService
+adb shell settings put secure accessibility_enabled 1
+```
+
+System updates can block this, and you can turn it off the same way (set the first value to an empty string). Fire OS 6 or newer / Android 7.1 or newer.
 
 ## On a Windows PC (BlueStacks)
 

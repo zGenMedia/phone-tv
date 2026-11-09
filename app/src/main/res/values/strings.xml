@@ -82,7 +82,6 @@
 
     <!-- Plex -->
     <string name="plex_link_title">Link your Plex account</string>
-    <string name="plex_link_body">On any device, go to plex.tv/link and enter:\n\n%1$s\n\nThis screen updates by itself once you\'re linked.</string>
     <string name="plex_link_waiting">Getting a link code…</string>
     <string name="plex_open_link">Open plex.tv/link</string>
     <string name="plex_connected">Plex connected: %1$s</string>
@@ -101,6 +100,35 @@
     <string name="plex_no_server_short">no server yet</string>
     <string name="plex_status_title">Couldn\'t reach your Plex server</string>
     <string name="plex_status_body">Your account is still linked. Details: %1$s</string>
+
+    <string name="plex_link_help">On your phone or computer, go to plex.tv/link and enter this code:</string>
+    <string name="plex_link_note">You can press Back and keep browsing. The same code stays valid for about 10 minutes, and Phone TV links by itself once you enter it.</string>
+    <string name="plex_copy_code">Copy code</string>
+    <string name="plex_cancel_link">Cancel linking</string>
+    <string name="plex_code_copied">Copied %1$s</string>
+    <string name="plex_no_browser">No browser here. Open plex.tv/link on your phone or computer.</string>
+    <string name="plex_still_waiting">Still waiting for your Plex code. Reopen Connect Plex to see it again.</string>
+    <string name="settings_hero_layout">Banner layout (sideways): %1$s</string>
+    <string name="hero_layout_right">Image left, details right</string>
+    <string name="hero_layout_left">Details left, image right</string>
+
+    <!-- TV devices -->
+    <string name="menu_hide">Hide from Apps</string>
+    <string name="menu_unhide">Show in Apps again</string>
+    <string name="menu_uninstall">Uninstall</string>
+    <string name="settings_unhide_all">Hidden apps: %1$d (show all)</string>
+    <string name="settings_keeper_off">Replace the TV home screen (experimental)</string>
+    <string name="settings_keeper_on">TV home replacement: On (how to turn off)</string>
+    <string name="settings_keeper_pause">Open the stock home screen for 1 minute</string>
+    <string name="keeper_paused">Stock home screen available for 1 minute</string>
+    <string name="keeper_title">Replace the TV home screen</string>
+    <string name="keeper_body">Fire TV and Android TV don\'t let you choose a Home app. Phone TV can step in front of the stock home screen whenever it appears.\n\nTurn on \"Phone TV home\" under Accessibility. Phone TV only checks which app is on screen; it never reads what\'s on it.\n\nFire TV hides that menu, so use ADB instead:\nadb shell settings put secure enabled_accessibility_services %1$s\nadb shell settings put secure accessibility_enabled 1\n\nExperimental: system updates can block this. Turn it off the same way.</string>
+    <string name="keeper_open_settings">Open Accessibility</string>
+    <string name="keeper_no_settings">This device has no Accessibility screen. Use the ADB commands shown.</string>
+    <string name="keeper_service_label">Phone TV home</string>
+    <string name="keeper_service_desc">Brings Phone TV forward when the stock TV home screen appears. Only checks which app is in front; never reads screen content.</string>
+    <string name="no_trailer_app">No app found to play trailers</string>
+    <string name="update_allow_tv">Allow installs first: Settings › My Fire TV › Developer options › Install unknown apps › Phone TV</string>
 
     <!-- Updates -->
     <string name="update_ready">Update ready: Phone TV %1$s</string>

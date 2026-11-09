@@ -5,6 +5,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInstaller;
+import android.os.Build;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -92,14 +93,15 @@ final class Updater {
             Intent status = new Intent(activity, HomeActivity.class).setAction(ACTION_INSTALL_STATUS);
             // Must be mutable: the installer fills in the status extras.
             PendingIntent pi = PendingIntent.getActivity(activity, id, status,
-                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
+                    PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0));
             session.commit(pi.getIntentSender());
         }
     }
 
     /** True if Android will let this app install packages (the "unknown apps" toggle). */
     boolean canInstall() {
-        return ctx.getPackageManager().canRequestPackageInstalls();
+        // Before Android 8 this was one global "Unknown sources" switch the installer checks itself.
+        return Build.VERSION.SDK_INT < 26 || ctx.getPackageManager().canRequestPackageInstalls();
     }
 
     private static String sha256(byte[] data) {

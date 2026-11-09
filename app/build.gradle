@@ -14,10 +14,11 @@ android {
         // NOTE: applicationId predates the Phone TV name. Changing it would make
         // Android treat new builds as a different app and break in-place updates.
         applicationId 'com.kinglifer.tvlauncher'
-        minSdk 26
+        // 25 = Android 7.1, which covers Fire OS 6 devices (Fire TV Stick 4K 1st gen, Cube)
+        minSdk 25
         targetSdk 35
-        versionCode 8
-        versionName '0.8.0'
+        versionCode 9
+        versionName '0.9.0'
     }
 
     signingConfigs {
