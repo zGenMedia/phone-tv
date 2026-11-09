@@ -11,7 +11,7 @@ A free, open-source, TV-style home screen that turns any Android phone — espec
 ![Build](https://github.com/zGenMedia/phone-tv/actions/workflows/build.yml/badge.svg)
 ![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3ddc84)
 ![APK size](https://img.shields.io/badge/APK-~70%20KB-informational)
-![License: MIT](https://img.shields.io/badge/license-MIT-blue)
+![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)
 
 </div>
 
@@ -36,6 +36,7 @@ Plenty of us have a 2–6 year old phone that still has a great screen, Wi-Fi, H
 | **Runs Android TV apps** | Detects TV (leanback) editions of apps you've sideloaded and launches them correctly |
 | **TV-style tiles** | Real Android TV banners when an app ships one; otherwise a banner built from the app's adaptive icon — or any image you choose |
 | **Plex** | Link with a 4-character code at plex.tv/link. *Continue watching* with progress bars, *Recently added* |
+| **Tune the hero** | Type 2–3 words like *asian romance*, *latest spanish* or *nigerian comedy* and the banner fills with matching titles. No account, no key |
 | **Your lists (optional)** | Power users can add public Trakt lists (e.g. Black cinema, Nollywood, anime) as extra rows with their own Trakt Client ID. Off by default |
 | **Keyboard & remote friendly** | Arrow keys page the hero carousel; D-pad focus everywhere; on-screen arrows for mouse users |
 | **Your choice of player** | Open titles in Stremio, search them in Plex, or watch the trailer |
@@ -137,6 +138,10 @@ Phone TV is free and always will be. If it gave an old phone a second life, you 
 
 ---
 
-Made by [zGenMedia](https://zgenmedia.com) · MIT License
+## License
+
+Phone TV is licensed under the **GNU GPL v3.0** from version 0.7.0 onward: you can use, study, share and modify it, but anything you distribute that's built on it must stay open source under the same license and keep the copyright notice. Versions up to 0.6.0 were released under MIT.
+
+Made by [zGenMedia](https://zgenmedia.com) · © 2026 zGenMedia
 
 <sub>Phone TV is an independent project and is not affiliated with or endorsed by Google, NVIDIA, Plex or Stremio. Android and Android TV are trademarks of Google LLC. Movie and show metadata and artwork are provided by third-party services and belong to their respective owners.</sub>

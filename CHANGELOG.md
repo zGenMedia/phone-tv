@@ -3,6 +3,28 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.7.0 — 2026-11-09
+
+### Added
+- **Tune the hero.** A *Tune* button on the banner takes two or three words
+  ("asian romance", "latest spanish", "nigerian comedy", "90s action",
+  "black films") and fills the hero with matching titles, with a "More…" row
+  for the rest. Languages, countries, genres, years and "latest" are
+  understood; no account or API key. Backed by Wikidata + Cinemeta, cached
+  for 12 hours, and built behind a `HeroMood.Source` interface so a hosted
+  service can replace it later.
+
+### Changed
+- License is now **GPL-3.0** (0.6.0 and earlier remain MIT).
+- Plex rows and the hero only ever show movies and TV: music, music videos,
+  photos and clips are filtered out.
+
+### Known limits
+- Wikidata tags few recent African-American films, so "black films" leans
+  toward African cinema for now; a hosted TMDB-backed source is planned.
+- Wikidata may throttle during busy periods; the app keeps the normal hero and
+  asks you to try again in a minute.
+
 ## 0.6.0 — 2026-11-09
 
 ### Added

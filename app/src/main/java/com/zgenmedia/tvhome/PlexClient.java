@@ -150,6 +150,11 @@ final class PlexClient {
         if (items == null) return out;
         for (int i = 0; i < items.length(); i++) {
             JSONObject o = items.getJSONObject(i);
+            // Films and TV only: Plex libraries can also hold music, music videos, photos and clips.
+            String kind = o.optString("type");
+            boolean musicVideo = "clip".equals(kind) || "music".equalsIgnoreCase(o.optString("librarySectionTitle"))
+                    || o.optString("subtype").contains("music");
+            if (musicVideo || !("movie".equals(kind) || "episode".equals(kind) || "season".equals(kind) || "show".equals(kind))) continue;
             MediaItem m = new MediaItem(MediaItem.Source.PLEX);
             m.id = o.optString("ratingKey");
             m.type = o.optString("type");

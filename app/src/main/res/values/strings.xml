@@ -102,6 +102,21 @@
     <string name="plex_status_title">Couldn\'t reach your Plex server</string>
     <string name="plex_status_body">Your account is still linked. Details: %1$s</string>
 
+    <!-- Hero mood -->
+    <string name="hero_tune">✎  Tune</string>
+    <string name="mood_loading">✎  Finding…</string>
+    <string name="mood_title">What are you in the mood for?</string>
+    <string name="mood_help">Type 2–3 words and the banner fills with matching titles. Try: asian romance, latest spanish, nigerian comedy, korean horror, french drama, anime, black films, 90s action.</string>
+    <string name="mood_hint">e.g. asian romance</string>
+    <string name="mood_show">Show me</string>
+    <string name="mood_reset">Back to trending</string>
+    <string name="mood_not_understood">Try a language, country or genre, like \"korean romance\"</string>
+    <string name="mood_ignored">Didn\'t use: %1$s</string>
+    <string name="mood_failed">Couldn\'t tune the banner: %1$s</string>
+    <string name="mood_empty">No recent titles found for \"%1$s\". Try fewer or broader words.</string>
+    <string name="mood_busy">the movie database is busy, try again in a minute</string>
+    <string name="row_more_mood">More %1$s</string>
+
     <!-- Trakt (advanced) -->
     <string name="settings_trakt_off">Trakt lists (advanced): Off</string>
     <string name="settings_trakt_on">Trakt lists (advanced): %1$d on</string>

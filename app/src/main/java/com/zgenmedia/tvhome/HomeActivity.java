@@ -100,6 +100,9 @@ public class HomeActivity extends Activity {
     private CatalogRepository catalog;
     private PlexClient plex;
     private TraktClient trakt;
+    private HeroMood heroMood;
+    private List<MediaItem> moodItems = Collections.emptyList();
+    private boolean moodLoading;
 
     private List<MediaItem> plexContinue = Collections.emptyList();
     private List<MediaItem> plexRecent = Collections.emptyList();
@@ -147,6 +150,7 @@ public class HomeActivity extends Activity {
         catalog = new CatalogRepository(this, io);
         plex = new PlexClient(prefs);
         trakt = new TraktClient(this, prefs);
+        heroMood = new HeroMood(this, new HeroMood.WikidataSource());
 
         try { HttpResponseCache.install(new File(getCacheDir(), "http"), 20L * 1024 * 1024); }
         catch (IOException ignored) { /* runs fine uncached */ }
@@ -282,6 +286,38 @@ public class HomeActivity extends Activity {
         });
         refreshPlex();
         refreshTrakt();
+        refreshMood();
+    }
+
+    /** Loads titles for the user's typed hero words. No-op when the hero is on trending. */
+    private void refreshMood() {
+        String words = prefs.heroMood();
+        if (words.isEmpty()) {
+            if (!moodItems.isEmpty()) { moodItems = Collections.emptyList(); heroIndex = 0; renderPreservingScroll(); }
+            return;
+        }
+        moodLoading = true;
+        io.execute(() -> {
+            List<MediaItem> found;
+            String error = null;
+            try { found = heroMood.resolve(words, 16); }
+            catch (Http.StatusException e) {
+                found = Collections.emptyList();
+                // Wikidata throttles busy periods with 429; say so plainly rather than show a status code.
+                error = e.code == 429 ? getString(R.string.mood_busy) : CatalogRepository.describe(e);
+            }
+            catch (IOException | JSONException e) { found = Collections.emptyList(); error = CatalogRepository.describe(e); }
+            final List<MediaItem> f = found;
+            final String err = error;
+            main.post(() -> {
+                moodLoading = false;
+                moodItems = f;
+                heroIndex = 0;
+                if (err != null) toast(getString(R.string.mood_failed, err));
+                else if (f.isEmpty()) toast(getString(R.string.mood_empty, words));
+                renderPreservingScroll();
+            });
+        });
     }
 
     private void refreshPlex() {
@@ -366,7 +402,10 @@ public class HomeActivity extends Activity {
         List<MediaItem> rated = catalog.get(CatalogRepository.TOP_RATED);
 
         heroItems.clear();
-        if (tab == TAB_FOR_YOU) {
+        if (tab == TAB_FOR_YOU && !moodItems.isEmpty()) {
+            // The user asked for something specific ("asian romance"): it owns the hero.
+            heroItems.addAll(moodItems.subList(0, Math.min(8, moodItems.size())));
+        } else if (tab == TAB_FOR_YOU) {
             // Lead with what the user is already watching, then interleave movies and shows.
             for (int i = 0; i < Math.min(2, plexContinue.size()); i++) heroItems.add(plexContinue.get(i));
             for (int i = 0; i < 4; i++) {
@@ -384,6 +423,7 @@ public class HomeActivity extends Activity {
         if (tab == TAB_FOR_YOU) {
             column.addView(rowTitle(getString(R.string.row_your_apps)));
             column.addView(buildFavoritesRow());
+            if (moodItems.size() > 8) posterRow(column, getString(R.string.row_more_mood, prefs.heroMood()), moodItems.subList(8, moodItems.size()));
             if (plex.isLinked()) {
                 backdropRow(column, getString(R.string.row_plex_continue), plexContinue);
                 posterRow(column, getString(R.string.row_plex_recent), plexRecent);
@@ -560,12 +600,19 @@ public class HomeActivity extends Activity {
         LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(-2, -2);
         dlp.leftMargin = ui.dp(8);
         buttons.addView(details, dlp);
+        String mood = prefs.heroMood();
+        TextView tune = ui.pill(moodLoading ? getString(R.string.mood_loading)
+                : mood.isEmpty() ? getString(R.string.hero_tune) : "✎  " + mood, 0x26FFFFFF, Ui.TEXT);
+        tune.setOnClickListener(v -> tuneHero());
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(-2, -2);
+        tlp.leftMargin = ui.dp(8);
+        buttons.addView(tune, tlp);
         info.addView(buttons);
         // Keyboard / D-pad: Left on Watch and Right on Details page the carousel,
         // the same way a TV remote moves past the edge of the hero buttons.
         watch.setOnKeyListener((v, code, e) -> e.getAction() == android.view.KeyEvent.ACTION_DOWN
                 && code == android.view.KeyEvent.KEYCODE_DPAD_LEFT && stepHero(-1));
-        details.setOnKeyListener((v, code, e) -> e.getAction() == android.view.KeyEvent.ACTION_DOWN
+        tune.setOnKeyListener((v, code, e) -> e.getAction() == android.view.KeyEvent.ACTION_DOWN
                 && code == android.view.KeyEvent.KEYCODE_DPAD_RIGHT && stepHero(1));
         if (!heroItems.isEmpty() && !root.isInTouchMode()) watch.post(watch::requestFocus);
 
@@ -1132,6 +1179,44 @@ public class HomeActivity extends Activity {
         version.setTextSize(14);
         h.addView(version);
         return h;
+    }
+
+    /** "Tune the hero": two or three words, e.g. "asian romance" or "latest spanish". */
+    private void tuneHero() {
+        float d = getResources().getDisplayMetrics().density;
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding((int) (24 * d), (int) (4 * d), (int) (24 * d), 0);
+        TextView help = new TextView(this);
+        help.setText(R.string.mood_help);
+        help.setTextColor(Ui.MUTED);
+        help.setTextSize(13);
+        form.addView(help);
+        EditText words = new EditText(this);
+        words.setSingleLine(true);
+        words.setHint(R.string.mood_hint);
+        words.setText(prefs.heroMood());
+        words.setImeOptions(EditorInfo.IME_ACTION_DONE);
+        form.addView(words);
+
+        AlertDialog dialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.mood_title)
+                .setView(form)
+                .setPositiveButton(R.string.mood_show, null)
+                .setNeutralButton(R.string.mood_reset, (dlg, w) -> { prefs.setHeroMood(""); refreshMood(); })
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+        dialog.setOnShowListener(x -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String text = words.getText().toString().trim();
+            HeroMood.Query q = HeroMood.parse(text);
+            if (text.isEmpty() || q.isEmpty()) { words.setError(getString(R.string.mood_not_understood)); return; }
+            prefs.setHeroMood(text);
+            if (!q.unknown.isEmpty()) toast(getString(R.string.mood_ignored, TextUtils.join(", ", q.unknown)));
+            dialog.dismiss();
+            refreshMood();
+            renderPreservingScroll();
+        }));
+        dialog.show();
     }
 
     /** Advanced: Trakt Client ID + public list URLs. Casual users never need this. */

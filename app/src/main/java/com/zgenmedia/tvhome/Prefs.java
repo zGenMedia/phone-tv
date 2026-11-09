@@ -25,7 +25,7 @@ final class Prefs {
             K_PLEX_URI = "plexServerUri", K_PLEX_SERVER_TOKEN = "plexServerToken",
             K_PLEX_SERVER_ID = "plexServerId", K_PLEX_SERVER_NAME = "plexServerName",
             K_PLEX_PIN_ID = "plexPinId", K_PLEX_PIN_EXPIRES = "plexPinExpires",
-            K_TRAKT_CLIENT = "traktClientId", K_TRAKT_LISTS = "traktLists";
+            K_TRAKT_CLIENT = "traktClientId", K_TRAKT_LISTS = "traktLists", K_HERO_MOOD = "heroMood";
 
     private final SharedPreferences sp;
 
@@ -86,6 +86,10 @@ final class Prefs {
         sp.edit().remove(K_PLEX_ACCOUNT).remove(K_PLEX_URI).remove(K_PLEX_SERVER_TOKEN)
                 .remove(K_PLEX_SERVER_ID).remove(K_PLEX_SERVER_NAME).apply();
     }
+    // --- Hero mood: a few typed words, e.g. "asian romance"; empty = trending ---
+    String heroMood() { return sp.getString(K_HERO_MOOD, "").trim(); }
+    void setHeroMood(String words) { sp.edit().putString(K_HERO_MOOD, words.trim()).apply(); }
+
     // --- Trakt (advanced, opt-in) ---
     String traktClientId() { return sp.getString(K_TRAKT_CLIENT, "").trim(); }
     String traktLists() { return sp.getString(K_TRAKT_LISTS, ""); }
