@@ -90,8 +90,8 @@ final class Ui {
     }
 
     /**
-     * Cards and tiles: grow on focus and show a white ring, so someone ten feet
-     * away with a remote can always see where they are. Touch keeps its ripple.
+     * Cards and tiles: a clean white ring on focus, so someone ten feet away with
+     * a remote can always see where they are. Touch keeps its ripple.
      */
     void focusable(View v) {
         v.setFocusable(true);
@@ -102,13 +102,10 @@ final class Ui {
         v.setForeground(fx);
         // ScrollView's built-in reveal jumps instantly; we scroll ourselves (see FocusListener).
         v.setRevealOnFocusHint(false);
-        v.setOnFocusChangeListener((view, has) -> {
-            view.animate().scaleX(has ? 1.06f : 1f).scaleY(has ? 1.06f : 1f).setDuration(120).start();
-            if (has && onFocus != null) onFocus.onFocused(view);
-        });
+        v.setOnFocusChangeListener((view, has) -> { if (has && onFocus != null) onFocus.onFocused(view); });
     }
 
-    /** Ring only (no scaling, no focus listener) for buttons and chips that already have a ripple. */
+    /** Ring only, for buttons and chips that already have their own ripple background. */
     void focusRing(View v, float radiusDp) {
         StateListDrawable fx = new StateListDrawable();
         fx.addState(new int[]{android.R.attr.state_focused}, ring(radiusDp));

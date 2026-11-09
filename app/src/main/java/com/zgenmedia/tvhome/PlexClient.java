@@ -136,6 +136,71 @@ final class PlexClient {
         return metadata("/library/recentlyAdded?X-Plex-Container-Size=30");
     }
 
+    /**
+     * Deep link that makes the Plex app start (or resume) playback. Plex changed
+     * this format in 2025: playback now needs autoPlay=1 in the URI instead of
+     * the old START_PLAYBACK intent extra.
+     */
+    static String playUri(MediaItem m) {
+        return "plex://server://" + m.plexMachineId + "/com.plexapp.plugins.library/library/metadata/" + m.id
+                + "?viewOffset=" + m.viewOffsetMs + "&autoPlay=1";
+    }
+
+    // ----------------------------------------------------- Plex Home profiles
+
+    static final class HomeUser {
+        String id, title;
+        boolean needsPin, admin;
+    }
+
+    /** Profiles in the account's Plex Home. One entry (or none) means there's nothing to switch. */
+    List<HomeUser> homeUsers() throws IOException {
+        List<HomeUser> out = new ArrayList<>();
+        String xml = new String(Http.get("https://plex.tv/api/home/users", xmlHeaders(prefs.plexOwnerToken()), 15_000), StandardCharsets.UTF_8);
+        try {
+            org.xmlpull.v1.XmlPullParser p = android.util.Xml.newPullParser();
+            p.setInput(new java.io.StringReader(xml));
+            for (int e = p.getEventType(); e != org.xmlpull.v1.XmlPullParser.END_DOCUMENT; e = p.next()) {
+                if (e != org.xmlpull.v1.XmlPullParser.START_TAG || !"User".equals(p.getName())) continue;
+                HomeUser u = new HomeUser();
+                u.id = p.getAttributeValue(null, "id");
+                u.title = p.getAttributeValue(null, "title");
+                u.needsPin = "1".equals(p.getAttributeValue(null, "protected"));
+                u.admin = "1".equals(p.getAttributeValue(null, "admin"));
+                if (u.id != null && u.title != null) out.add(u);
+            }
+        } catch (org.xmlpull.v1.XmlPullParserException e) {
+            throw new IOException("unexpected reply from plex.tv", e);
+        }
+        return out;
+    }
+
+    /** @return that profile's token. A wrong or missing PIN comes back as an HTTP 401/403. */
+    String switchUser(HomeUser user, String pin) throws IOException {
+        String url = "https://plex.tv/api/home/users/" + user.id + "/switch" + (pin == null || pin.isEmpty() ? "" : "?pin=" + Uri.encode(pin));
+        String xml = new String(Http.post(url, xmlHeaders(prefs.plexOwnerToken())), StandardCharsets.UTF_8);
+        try {
+            org.xmlpull.v1.XmlPullParser p = android.util.Xml.newPullParser();
+            p.setInput(new java.io.StringReader(xml));
+            for (int e = p.getEventType(); e != org.xmlpull.v1.XmlPullParser.END_DOCUMENT; e = p.next()) {
+                if (e != org.xmlpull.v1.XmlPullParser.START_TAG) continue;
+                String token = p.getAttributeValue(null, "authenticationToken");
+                if (token == null) token = p.getAttributeValue(null, "authToken");
+                if (token != null && !token.isEmpty()) return token;
+                break; // the token lives on the root element
+            }
+        } catch (org.xmlpull.v1.XmlPullParserException e) {
+            throw new IOException("unexpected reply from plex.tv", e);
+        }
+        throw new IOException("plex.tv didn't return a token for " + user.title);
+    }
+
+    private Map<String, String> xmlHeaders(String token) {
+        Map<String, String> h = headers(token);
+        h.put("Accept", "application/xml");
+        return h;
+    }
+
     /** Plex Web link to an item; the Plex app opens these when installed. */
     static String webUrl(MediaItem m) {
         return "https://app.plex.tv/desktop/#!/server/" + m.plexMachineId
@@ -184,6 +249,7 @@ final class PlexClient {
             }
             long duration = o.optLong("duration"), offset = o.optLong("viewOffset");
             if (duration > 0 && offset > 0) m.progressPercent = (int) Math.min(100, offset * 100 / duration);
+            m.viewOffsetMs = offset;
             if (!m.id.isEmpty() && !m.title.isEmpty()) out.add(m);
         }
         return out;

@@ -1,7 +1,7 @@
 {
-  "versionCode": 9,
-  "versionName": "0.9.0",
+  "versionCode": 10,
+  "versionName": "0.9.1",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "e236ea005b151e23624d0bd91eb1f93e32bfd999f1ff831dc32cf67f5bb4a365",
-  "notes": "TV release: Shield and Fire TV support, remote focus ring, smoother navigation, shorter banner, Plex copy code."
+  "sha256": "de09e1b0a7c41bdcad9a2c9ee31c4194f58ea3d33734c331d0349f9b53802ab0",
+  "notes": "Remote navigation fixed, outline-only focus, Plex profiles and resume, settings stay open."
 }

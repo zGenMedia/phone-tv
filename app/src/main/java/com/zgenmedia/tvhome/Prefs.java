@@ -38,8 +38,8 @@ final class Prefs {
     void setDefaultSizeIndex(int i) { defaultSize = i; }
     int sizeIndex() { return Math.max(0, Math.min(SIZE_SCALES.length - 1, sp.getInt(K_SIZE, defaultSize))); }
 
-    /** Landscape banner: artwork on the left with details on the right (default), or the reverse. */
-    boolean heroDetailsRight() { return sp.getBoolean("heroDetailsRight", true); }
+    /** Landscape banner: details on the left with artwork on the right (default), or the reverse. */
+    boolean heroDetailsRight() { return sp.getBoolean("heroDetailsRight", false); }
     void setHeroDetailsRight(boolean v) { sp.edit().putBoolean("heroDetailsRight", v).apply(); }
     void setSizeIndex(int i) { sp.edit().putInt(K_SIZE, i).apply(); }
     float scale() { return SIZE_SCALES[sizeIndex()]; }
@@ -89,7 +89,19 @@ final class Prefs {
     String plexServerName() { return sp.getString(K_PLEX_SERVER_NAME, ""); }
 
     /** Saved as soon as the PIN is approved, so the link survives even if no server answers yet. */
-    void savePlexAccount(String accountToken) { sp.edit().putString(K_PLEX_ACCOUNT, accountToken).apply(); }
+    void savePlexAccount(String accountToken) {
+        sp.edit().putString(K_PLEX_ACCOUNT, accountToken).putString("plexOwnerToken", accountToken).remove("plexProfileName").apply();
+    }
+
+    /** Token of whoever linked the device; used to list and switch Plex Home profiles. */
+    String plexOwnerToken() { return sp.getString("plexOwnerToken", plexAccountToken()); }
+    String plexProfileName() { return sp.getString("plexProfileName", ""); }
+
+    /** Switches the active Plex Home profile. The server is looked up again with the new token. */
+    void setPlexProfile(String profileToken, String name) {
+        sp.edit().putString(K_PLEX_ACCOUNT, profileToken).putString("plexProfileName", name)
+                .remove(K_PLEX_URI).remove(K_PLEX_SERVER_TOKEN).apply();
+    }
 
     // A PIN the user may still be entering at plex.tv/link. Persisted so linking
     // completes even if Android kills the activity while they're in the browser.
@@ -107,7 +119,7 @@ final class Prefs {
     }
     void clearPlex() {
         sp.edit().remove(K_PLEX_ACCOUNT).remove(K_PLEX_URI).remove(K_PLEX_SERVER_TOKEN)
-                .remove(K_PLEX_SERVER_ID).remove(K_PLEX_SERVER_NAME).apply();
+                .remove(K_PLEX_SERVER_ID).remove(K_PLEX_SERVER_NAME).remove("plexOwnerToken").remove("plexProfileName").apply();
     }
     // --- Hero mood: a few typed words, e.g. "asian romance"; empty = trending ---
     String heroMood() { return sp.getString(K_HERO_MOOD, "").trim(); }

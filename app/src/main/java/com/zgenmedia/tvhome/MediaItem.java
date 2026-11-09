@@ -22,6 +22,7 @@ final class MediaItem {
     String rating = "";
     String genres = "";
     int progressPercent;  // Plex resume position, 0 when unwatched
+    long viewOffsetMs;    // same position in milliseconds, passed to Plex when resuming
 
     // Raw artwork references: full URLs for the catalog, server paths for Plex.
     String posterRef, backdropRef, logoRef;

@@ -237,19 +237,70 @@ public class HomeActivity extends Activity {
         return super.onKeyDown(keyCode, event);
     }
 
-    /** If nothing has focus (e.g. after touch use), the first D-pad press lands on the banner. */
+    /**
+     * All D-pad movement on the home screen is decided here, not by ScrollView.
+     *
+     * ScrollView's own arrow handling only looks half a screen ahead: when the next
+     * item is further than that it scrolls, takes focus for itself, and the following
+     * key press restarts from the bottom of the page. On a tall screen that made Up
+     * from the rows bounce back down instead of reaching the banner and the top menu.
+     * We pick the next view ourselves and let {@link #reveal} glide it into place.
+     */
     @Override
     public boolean dispatchKeyEvent(android.view.KeyEvent e) {
-        int c = e.getKeyCode();
-        boolean dpad = c == android.view.KeyEvent.KEYCODE_DPAD_UP || c == android.view.KeyEvent.KEYCODE_DPAD_DOWN
-                || c == android.view.KeyEvent.KEYCODE_DPAD_LEFT || c == android.view.KeyEvent.KEYCODE_DPAD_RIGHT
-                || c == android.view.KeyEvent.KEYCODE_DPAD_CENTER;
-        if (dpad && e.getAction() == android.view.KeyEvent.ACTION_DOWN && getCurrentFocus() == null) {
-            View t = focusTargets.get("hero:watch");
-            if (t == null || t.getVisibility() != View.VISIBLE || !t.isShown()) t = focusTargets.get("tab:" + tab);
-            if (t != null && t.requestFocus()) return true;
+        int direction = focusDirection(e.getKeyCode());
+        boolean select = e.getKeyCode() == android.view.KeyEvent.KEYCODE_DPAD_CENTER;
+        if (e.getAction() == android.view.KeyEvent.ACTION_DOWN && (direction != 0 || select)) {
+            View focused = getCurrentFocus();
+            if (focused == null || focused == scroll) {
+                // Nothing selected yet (e.g. after touch use): land on the banner, or the current tab.
+                View t = focusTargets.get("hero:watch");
+                if (t == null || !t.isShown()) t = focusTargets.get("tab:" + tab);
+                if (t != null && t.requestFocus()) return true;
+            } else if (direction != 0 && moveFocus(focused, direction)) {
+                return true;
+            }
         }
         return super.dispatchKeyEvent(e);
+    }
+
+    private static int focusDirection(int keyCode) {
+        switch (keyCode) {
+            case android.view.KeyEvent.KEYCODE_DPAD_UP: return View.FOCUS_UP;
+            case android.view.KeyEvent.KEYCODE_DPAD_DOWN: return View.FOCUS_DOWN;
+            case android.view.KeyEvent.KEYCODE_DPAD_LEFT: return View.FOCUS_LEFT;
+            case android.view.KeyEvent.KEYCODE_DPAD_RIGHT: return View.FOCUS_RIGHT;
+            default: return 0;
+        }
+    }
+
+    /** @return true if the key was used (even when there was nowhere further to go). */
+    private boolean moveFocus(View focused, int direction) {
+        boolean horizontal = direction == View.FOCUS_LEFT || direction == View.FOCUS_RIGHT;
+        Object key = focused.getTag(R.id.focus_key);
+        // Past the edge of the banner buttons, Left/Right page the carousel like a TV remote.
+        if ("hero:watch".equals(key) && direction == View.FOCUS_LEFT) { stepHero(-1); return true; }
+        if ("hero:tune".equals(key) && direction == View.FOCUS_RIGHT) { stepHero(1); return true; }
+
+        android.view.FocusFinder finder = android.view.FocusFinder.getInstance();
+        View next = null;
+        if (horizontal) {
+            if (focused instanceof EditText) return false; // let the cursor move inside text boxes
+            // Stay inside the current shelf or button group; never jump to another row sideways.
+            ViewGroup group = null;
+            boolean inTopBar = false;
+            for (android.view.ViewParent p = focused.getParent(); p instanceof ViewGroup; p = p.getParent()) {
+                if (group == null && p instanceof HorizontalScrollView) group = (ViewGroup) p;
+                if (p == topBar) inTopBar = true;
+            }
+            if (group == null && focused.getParent() instanceof ViewGroup) group = (ViewGroup) focused.getParent();
+            if (group != null) next = finder.findNextFocus(group, focused, direction);
+            if (next == null && inTopBar) next = finder.findNextFocus((ViewGroup) topBar, focused, direction);
+        } else {
+            next = finder.findNextFocus(root, focused, direction);
+        }
+        if (next != null && next != focused) next.requestFocus();
+        return true;
     }
 
     /** Names a focusable view so {@link #render} can return focus to it after rebuilding. */
@@ -583,6 +634,7 @@ public class HomeActivity extends Activity {
 
         scroll = new ScrollView(this);
         scroll.setVerticalScrollBarEnabled(false);
+        scroll.setFocusable(false); // focus belongs to the items, never the page itself
         scroll.setFillViewport(true);
         LinearLayout column = new LinearLayout(this);
         column.setOrientation(LinearLayout.VERTICAL);
@@ -758,7 +810,6 @@ public class HomeActivity extends Activity {
         // A little over half the screen, so "Your apps" and the first row sit above the fold.
         int height = land ? (int) (dm.heightPixels * 0.58f) : Math.max(ui.dp(330), (int) (dm.widthPixels * 0.82f));
         heroHeightPx = height;
-        // Landscape default: artwork on the left at its natural 16:9, details in a column on the right.
         boolean detailsRight = land && prefs.heroDetailsRight();
         FrameLayout hero = new FrameLayout(this);
         hero.setLayoutParams(new LinearLayout.LayoutParams(-1, height));
@@ -766,13 +817,17 @@ public class HomeActivity extends Activity {
         heroBackdrop = new ImageView(this);
         heroBackdrop.setScaleType(ImageView.ScaleType.CENTER_CROP);
         heroBackdrop.setBackground(Ui.gradient(GradientDrawable.Orientation.TL_BR, 0xFF2F3D56, 0xFF1D2331, 0xFF28223B));
-        if (detailsRight) {
-            int w = Math.min(dm.widthPixels, Math.max(height * 16 / 9, (int) (dm.widthPixels * 0.58f)));
+        if (land) {
+            // Landscape: artwork at its natural 16:9 so nothing is cropped off the top, on the
+            // side opposite the details (details left / image right by default; see Settings).
+            int w = Math.min(dm.widthPixels, height * 16 / 9);
             heroBackdropWidthPx = w;
-            hero.addView(heroBackdrop, new FrameLayout.LayoutParams(w, -1, Gravity.START));
-            View fade = new View(this); // dissolve the artwork's right edge into the page
-            fade.setBackground(Ui.gradient(GradientDrawable.Orientation.LEFT_RIGHT, 0x000E0F13, 0x000E0F13, 0x990E0F13, Ui.BG));
-            hero.addView(fade, new FrameLayout.LayoutParams(w, -1, Gravity.START));
+            int side = detailsRight ? Gravity.START : Gravity.END;
+            hero.addView(heroBackdrop, new FrameLayout.LayoutParams(w, -1, side));
+            View fade = new View(this); // dissolve the artwork's inner edge into the page
+            fade.setBackground(Ui.gradient(detailsRight ? GradientDrawable.Orientation.LEFT_RIGHT : GradientDrawable.Orientation.RIGHT_LEFT,
+                    0x000E0F13, 0x000E0F13, 0x990E0F13, Ui.BG));
+            hero.addView(fade, new FrameLayout.LayoutParams(w, -1, side));
         } else {
             hero.addView(heroBackdrop, new FrameLayout.LayoutParams(-1, -1));
         }
@@ -786,11 +841,6 @@ public class HomeActivity extends Activity {
                 ? Ui.gradient(GradientDrawable.Orientation.TOP_BOTTOM, 0x00000000, 0x000E0F13, 0x990E0F13, Ui.BG)
                 : Ui.gradient(GradientDrawable.Orientation.TOP_BOTTOM, 0x00000000, 0x000E0F13, 0x660E0F13, 0xE60E0F13, Ui.BG));
         hero.addView(bottom, new FrameLayout.LayoutParams(-1, -1));
-        if (land && !detailsRight) {
-            View left = new View(this);
-            left.setBackground(Ui.gradient(GradientDrawable.Orientation.LEFT_RIGHT, 0xF00E0F13, 0x800E0F13, 0x000E0F13));
-            hero.addView(left, new FrameLayout.LayoutParams((int) (dm.widthPixels * 0.65f), -1));
-        }
 
         LinearLayout info = new LinearLayout(this);
         info.setOrientation(LinearLayout.VERTICAL);
@@ -842,12 +892,6 @@ public class HomeActivity extends Activity {
         tlp.leftMargin = ui.dp(8);
         buttons.addView(tune, tlp);
         info.addView(buttons);
-        // Keyboard / D-pad: Left on Watch and Right on Details page the carousel,
-        // the same way a TV remote moves past the edge of the hero buttons.
-        watch.setOnKeyListener((v, code, e) -> e.getAction() == android.view.KeyEvent.ACTION_DOWN
-                && code == android.view.KeyEvent.KEYCODE_DPAD_LEFT && stepHero(-1));
-        tune.setOnKeyListener((v, code, e) -> e.getAction() == android.view.KeyEvent.ACTION_DOWN
-                && code == android.view.KeyEvent.KEYCODE_DPAD_RIGHT && stepHero(1));
         // Focus plumbing: names for focus restore, an explicit Up path to the tabs, and
         // focusing any banner button brings the page (and the top menu) back to the top.
         heroWatchId = View.generateViewId();
@@ -876,6 +920,7 @@ public class HomeActivity extends Activity {
             heroMeta.setText(catalog.isFetching() ? getString(R.string.status_loading_title) : "");
             heroSummary.setText(R.string.hero_placeholder_desc);
             buttons.setVisibility(View.GONE);
+            heroWatchId = 0; // nothing to focus in the banner yet
         }
 
         GestureDetector gestures = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
@@ -974,6 +1019,7 @@ public class HomeActivity extends Activity {
         add.addView(plus, new FrameLayout.LayoutParams(-1, -1));
         ui.focusable(add);
         focusKey(add, "fav:+");
+        if (heroWatchId != 0) add.setNextFocusUpId(heroWatchId);
         add.setOnClickListener(v -> { tab = TAB_APPS; render(); toast(getString(R.string.fav_add_hint)); });
         row.addView(add, new LinearLayout.LayoutParams(empty ? w * 3 / 2 : h, h));
         return scroller;
@@ -989,6 +1035,7 @@ public class HomeActivity extends Activity {
         ui.focusable(tile);
         tile.setTag(app); // read by the remote's MENU key
         focusKey(tile, (onShelf ? "fav:" : "app:") + app.pkg);
+        if (onShelf && heroWatchId != 0) tile.setNextFocusUpId(heroWatchId); // Up from the shelf always reaches the banner
         tile.setOnClickListener(v -> { if (!apps.launch(app)) toast(getString(R.string.open_failed, app.label)); });
         tile.setOnLongClickListener(v -> { showAppMenu(app); return true; });
         return tile;
@@ -1157,8 +1204,10 @@ public class HomeActivity extends Activity {
 
     private void bindItem(View v, MediaItem m) {
         focusKey(v, "row" + rowSeq + ":" + m.id);
-        v.setOnClickListener(x -> showDetails(m));
-        v.setOnLongClickListener(x -> { play(m); return true; });
+        // Your own library plays straight away (Continue watching); catalog titles show details first.
+        boolean own = m.source == MediaItem.Source.PLEX;
+        v.setOnClickListener(x -> { if (own) play(m); else showDetails(m); });
+        v.setOnLongClickListener(x -> { if (own) showDetails(m); else play(m); return true; });
     }
 
     private TextView rowTitle(String s) {
@@ -1367,9 +1416,31 @@ public class HomeActivity extends Activity {
         catch (RuntimeException e) { tileImageTarget = null; toast(getString(R.string.open_failed, "image picker")); }
     }
 
+    /**
+     * Settings stay open while you change things; Done or Back closes them.
+     * Labels are rebuilt after every action, and again whenever a sub-dialog
+     * (size, player, Plex...) closes and this one is back in front.
+     */
     private void showSettings() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert);
         List<String> labels = new ArrayList<>();
         List<Runnable> actions = new ArrayList<>();
+        fillSettings(labels, actions);
+        android.widget.ArrayAdapter<String> adapter =
+                new android.widget.ArrayAdapter<>(builder.getContext(), android.R.layout.simple_list_item_1, labels);
+        android.widget.ListView list = new android.widget.ListView(builder.getContext());
+        list.setAdapter(adapter);
+        list.setDivider(null);
+        Runnable refresh = () -> { labels.clear(); actions.clear(); fillSettings(labels, actions); adapter.notifyDataSetChanged(); };
+        list.setOnItemClickListener((parent, view, position, id) -> {
+            if (position < actions.size()) actions.get(position).run();
+            refresh.run();
+        });
+        builder.setCustomTitle(settingsHeader()).setView(list).setPositiveButton(R.string.done, null).show();
+        list.getViewTreeObserver().addOnWindowFocusChangeListener(hasFocus -> { if (hasFocus) refresh.run(); });
+    }
+
+    private void fillSettings(List<String> labels, List<Runnable> actions) {
 
         labels.add(getString(R.string.settings_size, getString(SIZE_LABELS[prefs.sizeIndex()])));
         actions.add(this::chooseSize);
@@ -1394,6 +1465,9 @@ public class HomeActivity extends Activity {
                 plexContinue = Collections.emptyList(); plexRecent = Collections.emptyList(); plexError = null;
                 renderPreservingScroll();
             });
+            String profile = prefs.plexProfileName().isEmpty() ? getString(R.string.plex_profile_owner) : prefs.plexProfileName();
+            labels.add(getString(R.string.settings_plex_profile, profile));
+            actions.add(this::choosePlexProfile);
         } else {
             labels.add(getString(R.string.settings_plex_connect));
             actions.add(this::linkPlex);
@@ -1431,11 +1505,77 @@ public class HomeActivity extends Activity {
 
         labels.add(getString(R.string.settings_donate));
         actions.add(() -> openUrl(KOFI_URL, null));
+    }
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setCustomTitle(settingsHeader())
-                .setItems(labels.toArray(new String[0]), (d, which) -> actions.get(which).run())
-                .show();
+    // ------------------------------------------------------ Plex Home profiles
+
+    private void choosePlexProfile() {
+        toast(getString(R.string.plex_profile_loading));
+        io.execute(() -> {
+            try {
+                List<PlexClient.HomeUser> users = plex.homeUsers();
+                main.post(() -> {
+                    if (users.size() < 2) { toast(getString(R.string.plex_profile_single)); return; }
+                    String[] names = new String[users.size()];
+                    for (int i = 0; i < names.length; i++) {
+                        PlexClient.HomeUser u = users.get(i);
+                        names[i] = u.title + (u.needsPin ? getString(R.string.plex_profile_pin_suffix) : "");
+                    }
+                    new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                            .setTitle(R.string.plex_profile_title)
+                            .setItems(names, (d, which) -> {
+                                PlexClient.HomeUser u = users.get(which);
+                                if (u.needsPin) askPlexPin(u); else switchPlexProfile(u, null);
+                            }).show();
+                });
+            } catch (IOException e) {
+                final String reason = CatalogRepository.describe(e);
+                main.post(() -> toast(getString(R.string.plex_failed, reason)));
+            }
+        });
+    }
+
+    private void askPlexPin(PlexClient.HomeUser user) {
+        EditText pin = new EditText(this);
+        pin.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        pin.setSingleLine(true);
+        keyboardOnSelect(pin);
+        FrameLayout box = new FrameLayout(this);
+        int pad = (int) (24 * getResources().getDisplayMetrics().density);
+        box.setPadding(pad, 0, pad, 0);
+        box.addView(pin);
+        AlertDialog dialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(getString(R.string.plex_profile_pin_title, user.title))
+                .setView(box)
+                .setPositiveButton(android.R.string.ok, (d, w) -> switchPlexProfile(user, pin.getText().toString()))
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+        if (dialog.getWindow() != null) dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+        dialog.show();
+        pin.requestFocus();
+    }
+
+    private void switchPlexProfile(PlexClient.HomeUser user, String pin) {
+        io.execute(() -> {
+            try {
+                String token = plex.switchUser(user, pin);
+                prefs.setPlexProfile(token, user.title);
+                try { plex.refreshServer(); } catch (IOException | JSONException ignored) { /* refreshPlex retries and reports */ }
+                main.post(() -> {
+                    toast(getString(R.string.plex_profile_switched, user.title));
+                    plexContinue = Collections.emptyList();
+                    plexRecent = Collections.emptyList();
+                    refreshPlex();
+                    renderPreservingScroll();
+                });
+            } catch (Http.StatusException e) {
+                final boolean denied = e.code == 401 || e.code == 403;
+                main.post(() -> toast(denied ? getString(R.string.plex_profile_wrong_pin) : getString(R.string.plex_failed, "HTTP " + e.code)));
+            } catch (IOException e) {
+                final String reason = CatalogRepository.describe(e);
+                main.post(() -> toast(getString(R.string.plex_failed, reason)));
+            }
+        });
     }
 
     /** Explains the experimental home replacement and opens the system screen that turns it on. */
@@ -1724,6 +1864,9 @@ public class HomeActivity extends Activity {
     }
 
     private void openPlexItem(MediaItem m) {
+        Intent resume = new Intent(Intent.ACTION_VIEW, Uri.parse(PlexClient.playUri(m))).setPackage(PlexClient.PACKAGE)
+                .putExtra("android.intent.extra.START_PLAYBACK", true); // still read by older Plex builds
+        if (startSafely(resume)) return;
         if (openUrl(PlexClient.webUrl(m), PlexClient.PACKAGE)) return;
         openAppOrStore(PlexClient.PACKAGE, "Plex", m.title);
     }

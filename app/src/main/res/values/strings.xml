@@ -109,8 +109,19 @@
     <string name="plex_no_browser">No browser here. Open plex.tv/link on your phone or computer.</string>
     <string name="plex_still_waiting">Still waiting for your Plex code. Reopen Connect Plex to see it again.</string>
     <string name="settings_hero_layout">Banner layout (sideways): %1$s</string>
-    <string name="hero_layout_right">Image left, details right</string>
+    <string name="hero_layout_right">Details right, image left</string>
     <string name="hero_layout_left">Details left, image right</string>
+
+    <string name="done">Done</string>
+    <string name="settings_plex_profile">Plex profile: %1$s</string>
+    <string name="plex_profile_owner">account owner</string>
+    <string name="plex_profile_title">Who\'s watching?</string>
+    <string name="plex_profile_loading">Getting your Plex profiles…</string>
+    <string name="plex_profile_single">This Plex account has only one profile</string>
+    <string name="plex_profile_pin_suffix">  (PIN)</string>
+    <string name="plex_profile_pin_title">PIN for %1$s</string>
+    <string name="plex_profile_switched">Plex profile: %1$s</string>
+    <string name="plex_profile_wrong_pin">That PIN wasn\'t accepted</string>
 
     <!-- TV devices -->
     <string name="menu_hide">Hide from Apps</string>

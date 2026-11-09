@@ -3,6 +3,31 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.9.1 — 2026-11-09
+
+### Fixed
+- **Up never reached the top menu on TVs.** ScrollView's built-in arrow
+  handling only looks half a screen ahead; past that it took focus itself and
+  the next press restarted from the bottom of the page. All D-pad movement is
+  now decided by the app (`HomeActivity.moveFocus`), with Left/Right kept
+  inside the current shelf.
+- **Banner artwork was cropped at the top** in the full-width layout. In
+  landscape the artwork now always shows at its natural 16:9.
+- **Plex items didn't start playing.** Uses Plex's current deep-link format
+  (`?viewOffset=…&autoPlay=1`). Tapping a Plex card now plays/resumes directly;
+  long-press shows details.
+
+### Changed
+- Focused items show a clean outline only; the zoom is gone.
+- Banner default is details left, artwork right. *Settings › Banner layout*
+  flips it.
+- Settings stay open while you make changes; **Done** or Back closes them.
+
+### Added
+- **Plex profiles.** *Settings › Plex profile* lists the profiles in your
+  Plex Home and switches between them (with PIN where required), so Continue
+  watching matches who's on the couch.
+
 ## 0.9.0 — 2026-11-09
 
 TV release: NVIDIA Shield, Google TV / Android TV and Fire TV.
