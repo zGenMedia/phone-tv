@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Phone TV — Android TV on Mobile Devices, Finally | Free TV Launcher APK</title>
-<meta name="description" content="Phone TV is a free, open-source Android TV-style launcher that turns an old Android phone into a streaming box. TV home screen, Android TV apps, Plex integration — a 62 KB APK for Android 8.0+.">
-<meta name="keywords" content="android tv launcher for phone, turn old phone into tv box, google tv launcher apk, android tv on phone, leanback launcher phone, plex launcher, diy streaming box, shield alternative, old android phone uses">
+<title>Phone TV — Android TV on Phones &amp; PC (BlueStacks) | Free TV Launcher APK</title>
+<meta name="description" content="Phone TV is a free, open-source Android TV-style launcher. Turn an old Android phone into a streaming box, or get a clean lean-back TV screen on your Windows PC with BlueStacks. TV apps, Plex, 62 KB APK.">
+<meta name="keywords" content="android tv launcher for phone, turn old phone into tv box, google tv launcher apk, android tv on phone, leanback launcher phone, plex launcher, diy streaming box, shield alternative, old android phone uses, android tv on pc, bluestacks tv launcher, lean back pc, htpc launcher windows">
 <meta name="author" content="zGenMedia">
 <meta name="theme-color" content="#0b0c10">
 <link rel="canonical" href="https://zgenmedia.github.io/phone-tv/">
@@ -15,14 +15,14 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Phone TV by zGenMedia">
 <meta property="og:title" content="Phone TV — Android TV on mobile devices, finally">
-<meta property="og:description" content="Turn the old phone in your drawer into a TV box. Free, open-source, 62 KB.">
+<meta property="og:description" content="A lean-back TV home screen for old Android phones and Windows PCs (via BlueStacks). Free, open-source, 62 KB.">
 <meta property="og:url" content="https://zgenmedia.github.io/phone-tv/">
 <meta property="og:image" content="https://zgenmedia.github.io/phone-tv/assets/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Phone TV — Android TV on mobile devices, finally">
-<meta name="twitter:description" content="Turn the old phone in your drawer into a TV box. Free, open-source, 62 KB.">
+<meta name="twitter:description" content="A lean-back TV home screen for old Android phones and Windows PCs (via BlueStacks). Free, open-source, 62 KB.">
 <meta name="twitter:image" content="https://zgenmedia.github.io/phone-tv/assets/og.jpg">
 
 <script type="application/ld+json">
@@ -34,7 +34,8 @@
   "description": "A free, open-source Android TV-style home screen launcher that turns Android phones into streaming boxes.",
   "applicationCategory": "MultimediaApplication",
   "applicationSubCategory": "Launcher",
-  "operatingSystem": "Android 8.0+",
+  "operatingSystem": "Android 8.0+; Windows via BlueStacks",
+  "screenshot": ["https://zgenmedia.github.io/phone-tv/assets/screens/pc-bluestacks-landscape.jpg", "https://zgenmedia.github.io/phone-tv/assets/screens/phone-portrait.jpg"],
   "softwareVersion": "0.5.0",
   "fileSize": "62KB",
   "downloadUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
@@ -58,6 +59,8 @@
      "acceptedAnswer": {"@type": "Answer", "text": "Most Android TV (leanback) editions install on phones. Phone TV detects them, shows their TV banners and launches them correctly. Some expect a remote, so pair a Bluetooth controller or air mouse."}},
     {"@type": "Question", "name": "How do I connect an old phone to my TV?",
      "acceptedAnswer": {"@type": "Answer", "text": "Use a USB-C to HDMI adapter if your phone supports DisplayPort Alt Mode, an MHL adapter on older models, or wireless Cast, Smart View or Miracast."}},
+    {"@type": "Question", "name": "Does Phone TV work on a Windows PC?",
+     "acceptedAnswer": {"@type": "Answer", "text": "Yes. Install the free BlueStacks Android emulator, install PhoneTV.apk into it and open Phone TV. Go fullscreen and your PC gets a clean, lean-back TV interface for your streaming apps."}},
     {"@type": "Question", "name": "Does Phone TV work with Plex?",
      "acceptedAnswer": {"@type": "Answer", "text": "Yes. Link your account with a 4-character code at plex.tv/link to get Continue Watching and Recently Added rows from your own Plex Media Server."}},
     {"@type": "Question", "name": "Is Phone TV free?",
@@ -129,35 +132,18 @@ header{position:sticky;top:0;z-index:20;background:rgba(11,12,16,.78);backdrop-f
 .meta{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:22px;font:13px var(--mono);color:var(--mute)}
 .meta b{color:var(--green);font-weight:600}
 
-/* device mockup (CSS illustration of the UI, not a screenshot) */
-.device{position:relative;aspect-ratio:19.5/9;width:100%;border-radius:34px;padding:10px;background:linear-gradient(145deg,#2a2e3a,#0c0d12);box-shadow:0 40px 90px -30px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.06) inset;transform:perspective(1600px) rotateY(-8deg) rotateX(4deg)}
-@media(max-width:979px){.device{transform:none}}
-.screen{position:relative;height:100%;border-radius:26px;overflow:hidden;background:#0e0f13;font-family:var(--sans)}
-.s-hero{position:absolute;inset:0 0 34% 0;background:
-  linear-gradient(90deg,#0e0f13 8%,rgba(14,15,19,.55) 45%,transparent 75%),
-  linear-gradient(0deg,#0e0f13 2%,transparent 45%),
-  radial-gradient(70% 90% at 78% 40%,#e0743b 0%,#7d2f56 38%,#24264a 70%,#0e0f13 100%)}
-.s-hero::after{content:"";position:absolute;right:12%;top:22%;width:22%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ffd28a,#ff8a4b 60%,transparent 62%);filter:blur(.5px);opacity:.85}
-.s-bar{position:absolute;top:5%;left:4%;right:4%;display:flex;align-items:center;gap:1.4%;font-size:clamp(6px,1.05vw,11px);color:#e3e4e8}
-.s-bar span{padding:.35em .9em;border-radius:99px}
-.s-bar span.on{background:#e8eaed;color:#101114;font-weight:600}
-.s-bar i{margin-left:auto;font-style:normal;font-weight:600}
-.s-title{position:absolute;left:4.5%;top:26%;width:44%}
-.s-title b{display:block;font-size:clamp(13px,2.9vw,30px);letter-spacing:-.02em;line-height:1}
-.s-title small{display:block;margin-top:.6em;font-size:clamp(5px,.9vw,10px);color:#c9ccd4}
-.s-title .s-btn{display:inline-block;margin-top:.9em;padding:.4em 1em;border-radius:99px;background:#f1f3f4;color:#111;font-size:clamp(5px,.9vw,10px);font-weight:600}
-.s-row{position:absolute;left:4.5%;right:0;display:flex;gap:1.4%}
-.s-label{position:absolute;left:4.5%;font-size:clamp(5px,.85vw,9px);color:#fff;font-weight:600}
-.s-apps{bottom:16%;height:17%}
-.s-apps div{flex:0 0 15%;border-radius:8px;display:grid;place-items:center;font-size:clamp(5px,.8vw,9px);font-weight:700;color:#fff;letter-spacing:.02em}
-.s-apps div:nth-child(1){background:linear-gradient(135deg,#8a5cf6,#43288f)}
-.s-apps div:nth-child(2){background:linear-gradient(135deg,#1e88e5,#0b3a74)}
-.s-apps div:nth-child(3){background:linear-gradient(135deg,#f5a524,#9a5b00)}
-.s-apps div:nth-child(4){background:linear-gradient(135deg,#e53935,#7c1212)}
-.s-apps div:nth-child(5){background:linear-gradient(135deg,#26a69a,#0b5049)}
-.s-apps div:nth-child(6){background:rgba(255,255,255,.12)}
-.s-posters{bottom:-6%;height:19%}
-.s-posters div{flex:0 0 7.6%;border-radius:6px;background:linear-gradient(160deg,var(--c1),var(--c2))}
+/* screenshots */
+.shot{position:relative;margin:0;border-radius:18px;overflow:hidden;background:#000;box-shadow:0 40px 90px -30px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.08)}
+.shot img{width:100%;height:auto}
+.shot-tilt{transform:perspective(1600px) rotateY(-7deg) rotateX(3deg)}
+@media(max-width:979px){.shot-tilt{transform:none}}
+.shot-phone{max-width:300px;border-radius:30px;border:8px solid #1d2029}
+.shot-pc{border:10px solid #1d2029;border-bottom-width:22px;border-radius:16px}
+.pc-grid{display:grid;gap:40px;align-items:center;margin-top:44px}
+@media(min-width:900px){.pc-grid{grid-template-columns:1.6fr 1fr}}
+.pc-grid>*{min-width:0}
+.badge-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.badge-row span{font:600 12px var(--mono);padding:7px 12px;border-radius:99px;background:var(--bg2);border:1px solid var(--line);color:var(--dim)}
 .caption{margin-top:14px;text-align:center;font:12px var(--mono);color:var(--mute)}
 
 /* stats */
@@ -256,6 +242,7 @@ footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);fo
     </a>
     <nav aria-label="Primary">
       <a href="#features">Features</a>
+      <a href="#pc">PC &amp; Phone</a>
       <a href="#setup">Setup</a>
       <a href="#plex">Plex</a>
       <a href="#nerds">Under the hood</a>
@@ -274,7 +261,7 @@ footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);fo
         <div>
           <p class="eyebrow">Free · Open source · by zGenMedia</p>
           <h1 style="margin-top:18px">Android TV on mobile devices, <em>finally.</em></h1>
-          <p class="lead">Phone TV turns the old phone in your drawer into a living-room streaming box. A TV-style home screen, your Android TV apps, Plex, and the movies and shows people are watching — in a 62&nbsp;KB APK built to run cool on older hardware.</p>
+          <p class="lead">Phone TV turns the old phone in your drawer into a living-room streaming box, and gives your Windows PC a clean lean-back TV screen through BlueStacks. A TV-style home screen, your Android TV apps, Plex, and the movies and shows people are watching — in a 62&nbsp;KB APK built to run cool on older hardware.</p>
           <div class="actions">
             <a class="btn btn-primary" href="downloads/PhoneTV.apk" download>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 21h16"/></svg>
@@ -285,23 +272,14 @@ footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);fo
               View source
             </a>
           </div>
-          <div class="meta"><span><b>●</b> Android 8.0+</span><span>62 KB</span><span>0 dependencies</span><span>No ads · No tracking</span><span>MIT</span></div>
+          <div class="meta"><span><b>●</b> Android 8.0+</span><span>Windows via BlueStacks</span><span>62 KB</span><span>0 dependencies</span><span>No ads · No tracking</span><span>MIT</span></div>
         </div>
 
         <figure style="margin:0">
-          <div class="device" role="img" aria-label="Illustration of the Phone TV home screen on a phone in landscape">
-            <div class="screen">
-              <div class="s-hero"></div>
-              <div class="s-bar"><span>⌕</span><span class="on">For you</span><span>Movies</span><span>Shows</span><span>Apps</span><i>8:42</i></div>
-              <div class="s-title"><b>Tonight's pick</b><small>Movie · 2026 · Sci-Fi · ★ 8.1</small><span class="s-btn">▶ Watch</span></div>
-              <div class="s-label" style="bottom:35%">Your apps</div>
-              <div class="s-row s-apps"><div>STREAM</div><div>IPTV</div><div>PLEX</div><div>VIDEO</div><div>MUSIC</div><div>+</div></div>
-              <div class="s-row s-posters">
-                <div style="--c1:#3b5bdb;--c2:#15193a"></div><div style="--c1:#e8590c;--c2:#3d1405"></div><div style="--c1:#2f9e44;--c2:#0b2a13"></div><div style="--c1:#ae3ec9;--c2:#2a0d33"></div><div style="--c1:#f08c00;--c2:#3a2200"></div><div style="--c1:#1c7ed6;--c2:#0a2440"></div><div style="--c1:#c2255c;--c2:#33091a"></div><div style="--c1:#5f3dc4;--c2:#1a1040"></div><div style="--c1:#0ca678;--c2:#04291e"></div><div style="--c1:#e03131;--c2:#3a0b0b"></div><div style="--c1:#495057;--c2:#15181b"></div><div style="--c1:#1098ad;--c2:#052a30"></div>
-              </div>
-            </div>
+          <div class="shot shot-tilt">
+            <img src="assets/screens/pc-bluestacks-landscape.jpg" width="1600" height="900" alt="Phone TV home screen in landscape: featured show banner, Your apps shelf and Top picks row" fetchpriority="high">
           </div>
-          <figcaption class="caption">Interface illustration — Phone TV in landscape</figcaption>
+          <figcaption class="caption">Real screenshot · Phone TV v0.5.0 in landscape (PC via BlueStacks)</figcaption>
         </figure>
       </div>
 
@@ -349,6 +327,31 @@ footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);fo
         <article class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg></div><h3>Runs cool on old hardware</h3><p>Lazy-loaded art, images decoded at display size, a downsized disk cache and background-priority threads.</p></article>
         <article class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></div><h3>Private by default</h3><p>No accounts, analytics or ads. Plex tokens stay on the device and are excluded from backups.</p></article>
       </div>
+    </div>
+  </section>
+
+  <!-- PC & Phone -->
+  <section id="pc">
+    <div class="wrap">
+      <p class="eyebrow">PC &amp; Phone</p>
+      <h2 style="margin-top:14px">The PC finally gets a lean-back screen.</h2>
+      <p class="lead" style="margin-top:18px">Phone TV runs in BlueStacks, the free Android emulator for Windows. Hook a PC up to the TV, go fullscreen and you get the same clean couch interface you'd get from a streaming box: big artwork, your apps on one shelf, no desktop clutter. On a phone it adapts to portrait or landscape automatically.</p>
+      <div class="pc-grid">
+        <figure style="margin:0">
+          <div class="shot shot-pc"><img src="assets/screens/pc-bluestacks-landscape.jpg" width="1600" height="900" loading="lazy" alt="Phone TV running fullscreen on a Windows PC in BlueStacks"></div>
+          <figcaption class="caption">Windows PC · BlueStacks · fullscreen</figcaption>
+        </figure>
+        <figure style="margin:0;justify-self:center">
+          <div class="shot shot-phone"><img src="assets/screens/phone-portrait.jpg" width="720" height="1280" loading="lazy" alt="Phone TV home screen in portrait on an Android phone"></div>
+          <figcaption class="caption">Android phone · portrait</figcaption>
+        </figure>
+      </div>
+      <div class="steps" style="margin-top:40px">
+        <div class="step"><h3>Install BlueStacks</h3><p>Download the free BlueStacks player for Windows from its official site and finish the setup.</p></div>
+        <div class="step"><h3>Add Phone TV</h3><p>Drag <span class="mono">PhoneTV.apk</span> onto the BlueStacks window, or use its <em>Install APK</em> button.</p></div>
+        <div class="step"><h3>Go fullscreen</h3><p>Open Phone TV and switch BlueStacks to fullscreen. Mouse and keyboard work out of the box, and BlueStacks supports game controllers too.</p></div>
+      </div>
+      <div class="badge-row"><span>Windows 10 / 11</span><span>BlueStacks</span><span>Landscape layout</span><span>Mouse &amp; keyboard</span></div>
     </div>
   </section>
 
@@ -459,6 +462,7 @@ footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);fo
       <p class="eyebrow">FAQ</p>
       <h2 style="margin-top:14px;margin-bottom:12px">Questions, answered.</h2>
       <details><summary>Is this the real Android TV or Google TV?</summary><p>No. Google's TV software only runs on certified TV hardware. Phone TV is an independent launcher that recreates the TV experience on a phone and runs the Android TV editions of apps you install.</p></details>
+      <details><summary>Does it work on a Windows PC?</summary><p>Yes. Install the free BlueStacks emulator, install PhoneTV.apk into it and open Phone TV. In fullscreen your PC gets a clean, lean-back TV interface for the apps you install in BlueStacks.</p></details>
       <details><summary>Which phones work?</summary><p>Any Android phone or tablet on Android 8.0 (Oreo) or newer. It was built to run cool on older, low-memory hardware.</p></details>
       <details><summary>Will my Android TV apps work?</summary><p>Most TV (leanback) editions install on phones, and Phone TV launches them correctly. Some expect a remote or lock to landscape — a Bluetooth controller or air mouse fixes both.</p></details>
       <details><summary>How do I connect the phone to my TV?</summary><p>A USB-C to HDMI adapter if your phone supports DisplayPort Alt Mode, an MHL adapter on older models, or wireless Cast, Smart View or Miracast.</p></details>

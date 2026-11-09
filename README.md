@@ -4,7 +4,7 @@
 
 **Android TV on mobile devices, finally.**
 
-A free, open-source, TV-style home screen that turns any Android phone — especially the old one in your drawer — into a streaming box.
+A free, open-source, TV-style home screen that turns any Android phone — especially the old one in your drawer — into a streaming box. Runs on Windows PCs too, through BlueStacks, for a clean lean-back screen on the big TV.
 
 [**Download the latest APK**](https://github.com/zGenMedia/phone-tv/releases/latest) · [Website](https://zgenmedia.github.io/phone-tv/) · [Support on Ko-fi](https://ko-fi.com/zgenmedia/tiers) · [zGenMedia](https://zgenmedia.com)
 
@@ -16,6 +16,13 @@ A free, open-source, TV-style home screen that turns any Android phone — espec
 </div>
 
 ---
+
+<p align="center">
+  <img src="docs/assets/screens/pc-bluestacks-landscape.jpg" width="68%" alt="Phone TV in landscape on a Windows PC via BlueStacks">
+  &nbsp;
+  <img src="docs/assets/screens/phone-portrait.jpg" width="22%" alt="Phone TV in portrait on an Android phone">
+</p>
+<p align="center"><sub>Real screenshots, v0.5.0: Windows PC via BlueStacks (left) and an Android phone in portrait (right).</sub></p>
 
 ## Why
 
@@ -57,6 +64,14 @@ adb shell cmd package set-home-activity com.kinglifer.tvlauncher/com.kinglifer.t
 - **Power:** keep it plugged in; enable your phone's battery-protect / 85 % charge limit if it has one.
 - **Apps:** install TV editions where they exist — Phone TV puts them on the shelf with their TV banners.
 
+## On a Windows PC (BlueStacks)
+
+1. Install the free [BlueStacks](https://www.bluestacks.com/) player.
+2. Drag `PhoneTV.apk` onto the BlueStacks window, or use its *Install APK* button.
+3. Open Phone TV and switch BlueStacks to fullscreen. Mouse and keyboard work out of the box; BlueStacks also supports game controllers.
+
+Plug the PC into a TV and you have a lean-back home screen without buying a streaming box.
+
 ## Building from source
 
 Requirements: JDK 17, Gradle 8.14+ and the Android SDK (platform 36).
@@ -97,6 +112,9 @@ Views are built in code (no XML layouts, no androidx) so the whole screen rebuil
 
 **Is this the real Android TV / Google TV?**
 No. Google's TV software only runs on certified TV hardware. Phone TV is an independent launcher that recreates the experience on a phone.
+
+**Does it run on PC?**
+Yes, inside BlueStacks on Windows. See [On a Windows PC](#on-a-windows-pc-bluestacks).
 
 **Will TV-only apps work?**
 Most TV editions install and launch. Some expect a remote (use a Bluetooth controller) or lock to landscape.
