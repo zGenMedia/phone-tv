@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Phone TV</string>
+
+    <!-- Tabs -->
+    <string name="tab_for_you">For you</string>
+    <string name="tab_movies">Movies</string>
+    <string name="tab_shows">Shows</string>
+    <string name="tab_apps">Apps</string>
+
+    <!-- Rows -->
+    <string name="row_your_apps">Your apps</string>
+    <string name="row_top_picks">Top picks for you</string>
+    <string name="row_popular_shows">Popular shows</string>
+    <string name="row_popular_movies">Popular movies</string>
+    <string name="row_top_rated">Top rated movies</string>
+    <string name="row_trending_movies">Trending movies</string>
+    <string name="row_trending_shows">Trending shows</string>
+    <string name="row_plex_continue">Continue watching on Plex</string>
+    <string name="row_plex_recent">Recently added on Plex</string>
+
+    <!-- Hero -->
+    <string name="hero_watch">▶  Watch</string>
+    <string name="hero_details">Details</string>
+    <string name="hero_placeholder_desc">Movies, shows and your apps, front and center.</string>
+    <string name="meta_movie">Movie</string>
+    <string name="meta_show">Show</string>
+    <string name="meta_episode">Episode</string>
+
+    <!-- Status -->
+    <string name="status_loading_title">Loading what\'s on…</string>
+    <string name="status_loading_body">Fetching the latest movies and shows.</string>
+    <string name="status_error_title">Couldn\'t load movies &amp; shows</string>
+    <string name="status_error_body">Check your connection, then tap Retry.\nDetails: %1$s</string>
+    <string name="retry">Retry</string>
+    <string name="offline_cached">Offline — showing saved titles</string>
+    <string name="refreshing">Refreshing…</string>
+
+    <!-- Apps -->
+    <string name="apps_search_hint">Search apps</string>
+    <string name="apps_hint">Long-press an app for options  ·  TV = Android TV edition</string>
+    <string name="apps_empty">No matching apps.</string>
+    <string name="fav_add_tile">+  Add favorites</string>
+    <string name="fav_add_hint">Long-press any app to add it to Favorites</string>
+    <string name="menu_move_left">Move left</string>
+    <string name="menu_move_right">Move right</string>
+    <string name="menu_fav_add">Add to Favorites</string>
+    <string name="menu_fav_remove">Remove from Favorites</string>
+    <string name="menu_tile_image">Choose tile image…</string>
+    <string name="menu_tile_reset">Reset tile image</string>
+    <string name="menu_app_info">App info</string>
+    <string name="toast_fav_added">%1$s added to Favorites</string>
+    <string name="toast_fav_removed">%1$s removed from Favorites</string>
+    <string name="open_failed">Couldn\'t open %1$s</string>
+    <string name="not_installed">%1$s isn\'t installed</string>
+    <string name="opening_search">Opening %1$s — search for \"%2$s\"</string>
+
+    <!-- Details sheet -->
+    <string name="details_stremio">Stremio</string>
+    <string name="details_plex">Plex</string>
+    <string name="details_trailer">Trailer</string>
+    <string name="details_play_plex">▶  Play in Plex</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Phone TV %1$s</string>
+    <string name="settings_size">Display size: %1$s</string>
+    <string name="settings_bars">System bars: %1$s</string>
+    <string name="bars_hidden">Hidden</string>
+    <string name="bars_shown">Shown</string>
+    <string name="settings_tiles">App tiles: %1$s</string>
+    <string name="tiles_tv">Android TV style</string>
+    <string name="tiles_phone">Phone icons</string>
+    <string name="settings_play">Play titles with: %1$s</string>
+    <string name="play_ask">Ask each time</string>
+    <string name="settings_plex_connect">Connect Plex</string>
+    <string name="settings_plex_disconnect">Disconnect Plex (%1$s)</string>
+    <string name="settings_refresh">Refresh movies &amp; shows</string>
+    <string name="settings_home">Make Phone TV my Home screen</string>
+    <string name="settings_donate">Support Phone TV on Ko-fi</string>
+    <string name="size_compact">Compact</string>
+    <string name="size_standard">Standard</string>
+    <string name="size_large">Large</string>
+
+    <!-- Plex -->
+    <string name="plex_link_title">Link your Plex account</string>
+    <string name="plex_link_body">On any device, go to plex.tv/link and enter:\n\n%1$s\n\nThis screen updates by itself once you\'re linked.</string>
+    <string name="plex_link_waiting">Getting a link code…</string>
+    <string name="plex_open_link">Open plex.tv/link</string>
+    <string name="plex_connected">Plex connected: %1$s</string>
+    <string name="plex_no_server">Signed in, but no Plex Media Server was found on this account.</string>
+    <string name="plex_failed">Plex: %1$s</string>
+    <string name="plex_prompt_title">Plex is installed</string>
+    <string name="plex_prompt_body">Link it to see Continue Watching and Recently Added here.</string>
+    <string name="plex_prompt_link">Link Plex</string>
+    <string name="not_now">Not now</string>
+    <string name="cancel">Cancel</string>
+    <string name="close">Close</string>
+
+    <!-- Footer -->
+    <string name="footer">Phone TV %1$s  ·  by zGenMedia</string>
+    <string name="footer_donate">♥  Support on Ko-fi</string>
+</resources>

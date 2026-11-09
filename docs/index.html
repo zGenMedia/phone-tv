@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phone TV — Android TV on Mobile Devices, Finally | Free TV Launcher APK</title>
+<meta name="description" content="Phone TV is a free, open-source Android TV-style launcher that turns an old Android phone into a streaming box. TV home screen, Android TV apps, Plex integration — a 62 KB APK for Android 8.0+.">
+<meta name="keywords" content="android tv launcher for phone, turn old phone into tv box, google tv launcher apk, android tv on phone, leanback launcher phone, plex launcher, diy streaming box, shield alternative, old android phone uses">
+<meta name="author" content="zGenMedia">
+<meta name="theme-color" content="#0b0c10">
+<link rel="canonical" href="https://zgenmedia.github.io/phone-tv/">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Phone TV by zGenMedia">
+<meta property="og:title" content="Phone TV — Android TV on mobile devices, finally">
+<meta property="og:description" content="Turn the old phone in your drawer into a TV box. Free, open-source, 62 KB.">
+<meta property="og:url" content="https://zgenmedia.github.io/phone-tv/">
+<meta property="og:image" content="https://zgenmedia.github.io/phone-tv/assets/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Phone TV — Android TV on mobile devices, finally">
+<meta name="twitter:description" content="Turn the old phone in your drawer into a TV box. Free, open-source, 62 KB.">
+<meta name="twitter:image" content="https://zgenmedia.github.io/phone-tv/assets/og.jpg">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Phone TV",
+  "alternateName": "Phone TV Launcher",
+  "description": "A free, open-source Android TV-style home screen launcher that turns Android phones into streaming boxes.",
+  "applicationCategory": "MultimediaApplication",
+  "applicationSubCategory": "Launcher",
+  "operatingSystem": "Android 8.0+",
+  "softwareVersion": "0.5.0",
+  "fileSize": "62KB",
+  "downloadUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
+  "url": "https://zgenmedia.github.io/phone-tv/",
+  "license": "https://opensource.org/licenses/MIT",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "author": { "@type": "Organization", "name": "zGenMedia", "url": "https://zgenmedia.com" },
+  "publisher": { "@type": "Organization", "name": "zGenMedia", "url": "https://zgenmedia.com" }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type": "Question", "name": "Is Phone TV the real Android TV or Google TV?",
+     "acceptedAnswer": {"@type": "Answer", "text": "No. Google's TV software only runs on certified TV hardware. Phone TV is an independent launcher that recreates the TV experience on a phone and runs the Android TV editions of apps you install."}},
+    {"@type": "Question", "name": "Which phones does Phone TV support?",
+     "acceptedAnswer": {"@type": "Answer", "text": "Any Android phone or tablet running Android 8.0 (Oreo) or newer. It was built to run cool on older, low-memory hardware."}},
+    {"@type": "Question", "name": "Can I run Android TV apps on my phone?",
+     "acceptedAnswer": {"@type": "Answer", "text": "Most Android TV (leanback) editions install on phones. Phone TV detects them, shows their TV banners and launches them correctly. Some expect a remote, so pair a Bluetooth controller or air mouse."}},
+    {"@type": "Question", "name": "How do I connect an old phone to my TV?",
+     "acceptedAnswer": {"@type": "Answer", "text": "Use a USB-C to HDMI adapter if your phone supports DisplayPort Alt Mode, an MHL adapter on older models, or wireless Cast, Smart View or Miracast."}},
+    {"@type": "Question", "name": "Does Phone TV work with Plex?",
+     "acceptedAnswer": {"@type": "Answer", "text": "Yes. Link your account with a 4-character code at plex.tv/link to get Continue Watching and Recently Added rows from your own Plex Media Server."}},
+    {"@type": "Question", "name": "Is Phone TV free?",
+     "acceptedAnswer": {"@type": "Answer", "text": "Yes. It is free and open source under the MIT license, with no ads, accounts or tracking."}}
+  ]
+}
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#0b0c10; --bg2:#111319; --card:#161922; --line:#242836; --text:#eef0f5; --dim:#a3a9b8; --mute:#6f7688;
+  --amber:#ffb547; --blue:#7aa7ff; --green:#5ee6a8; --pink:#ff7a90;
+  --r:16px; --max:1120px;
+  --sans:"Space Grotesk",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit}
+img,svg{display:block;max-width:100%}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 16px}
+@media(min-width:720px){.wrap{padding:0 28px}}
+.mono{font-family:var(--mono)}
+.eyebrow{font:600 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+h1,h2,h3{line-height:1.08;letter-spacing:-.02em;margin:0}
+h2{font-size:clamp(28px,4.4vw,44px);font-weight:700}
+h3{font-size:19px;font-weight:600}
+p{margin:0}
+section{padding:88px 0;border-top:1px solid var(--line)}
+/* grid children default to min-width:auto, which lets <pre> blocks widen the page on phones */
+.split>*,.hero-grid>*,.plex>*{min-width:0}
+.lead{color:var(--dim);font-size:clamp(16px,1.7vw,19px);max-width:62ch}
+
+/* nav */
+header{position:sticky;top:0;z-index:20;background:rgba(11,12,16,.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,.05)}
+.nav{display:flex;align-items:center;gap:20px;height:62px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:700;letter-spacing:-.01em}
+.brand svg{width:28px;height:28px}
+.nav nav{display:none;gap:22px;margin-left:auto;font-size:14px;color:var(--dim)}
+.nav nav a{text-decoration:none}.nav nav a:hover{color:var(--text)}
+@media(min-width:860px){.nav nav{display:flex}}
+.nav .cta{margin-left:auto}
+@media(min-width:860px){.nav .cta{margin-left:0}}
+
+.btn{display:inline-flex;align-items:center;gap:10px;padding:13px 20px;border-radius:999px;font-weight:600;text-decoration:none;font-size:15px;transition:transform .15s,box-shadow .2s,background .2s;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--amber);color:#1a1205;box-shadow:0 8px 30px -8px rgba(255,181,71,.6)}
+.btn-primary:hover{box-shadow:0 10px 40px -6px rgba(255,181,71,.8)}
+.btn-ghost{border:1px solid var(--line);color:var(--text);background:rgba(255,255,255,.02)}
+.btn-ghost:hover{background:rgba(255,255,255,.06)}
+.btn-sm{padding:9px 15px;font-size:14px}
+
+/* hero */
+.hero{position:relative;padding:72px 0 40px;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:-30% -10% auto;height:120%;background:
+  radial-gradient(600px 340px at 18% 30%,rgba(122,167,255,.18),transparent 70%),
+  radial-gradient(520px 320px at 85% 20%,rgba(255,181,71,.14),transparent 70%);pointer-events:none}
+.hero-grid{position:relative;display:grid;gap:48px;align-items:center}
+@media(min-width:980px){.hero-grid{grid-template-columns:1fr 1.08fr}}
+.hero h1{font-size:clamp(40px,6.6vw,74px);font-weight:700}
+.hero h1 em{font-style:normal;background:linear-gradient(90deg,var(--amber),#ffd9a0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .lead{margin:22px 0 30px}
+.actions{display:flex;flex-wrap:wrap;gap:12px}
+.meta{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:22px;font:13px var(--mono);color:var(--mute)}
+.meta b{color:var(--green);font-weight:600}
+
+/* device mockup (CSS illustration of the UI, not a screenshot) */
+.device{position:relative;aspect-ratio:19.5/9;width:100%;border-radius:34px;padding:10px;background:linear-gradient(145deg,#2a2e3a,#0c0d12);box-shadow:0 40px 90px -30px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.06) inset;transform:perspective(1600px) rotateY(-8deg) rotateX(4deg)}
+@media(max-width:979px){.device{transform:none}}
+.screen{position:relative;height:100%;border-radius:26px;overflow:hidden;background:#0e0f13;font-family:var(--sans)}
+.s-hero{position:absolute;inset:0 0 34% 0;background:
+  linear-gradient(90deg,#0e0f13 8%,rgba(14,15,19,.55) 45%,transparent 75%),
+  linear-gradient(0deg,#0e0f13 2%,transparent 45%),
+  radial-gradient(70% 90% at 78% 40%,#e0743b 0%,#7d2f56 38%,#24264a 70%,#0e0f13 100%)}
+.s-hero::after{content:"";position:absolute;right:12%;top:22%;width:22%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ffd28a,#ff8a4b 60%,transparent 62%);filter:blur(.5px);opacity:.85}
+.s-bar{position:absolute;top:5%;left:4%;right:4%;display:flex;align-items:center;gap:1.4%;font-size:clamp(6px,1.05vw,11px);color:#e3e4e8}
+.s-bar span{padding:.35em .9em;border-radius:99px}
+.s-bar span.on{background:#e8eaed;color:#101114;font-weight:600}
+.s-bar i{margin-left:auto;font-style:normal;font-weight:600}
+.s-title{position:absolute;left:4.5%;top:26%;width:44%}
+.s-title b{display:block;font-size:clamp(13px,2.9vw,30px);letter-spacing:-.02em;line-height:1}
+.s-title small{display:block;margin-top:.6em;font-size:clamp(5px,.9vw,10px);color:#c9ccd4}
+.s-title .s-btn{display:inline-block;margin-top:.9em;padding:.4em 1em;border-radius:99px;background:#f1f3f4;color:#111;font-size:clamp(5px,.9vw,10px);font-weight:600}
+.s-row{position:absolute;left:4.5%;right:0;display:flex;gap:1.4%}
+.s-label{position:absolute;left:4.5%;font-size:clamp(5px,.85vw,9px);color:#fff;font-weight:600}
+.s-apps{bottom:16%;height:17%}
+.s-apps div{flex:0 0 15%;border-radius:8px;display:grid;place-items:center;font-size:clamp(5px,.8vw,9px);font-weight:700;color:#fff;letter-spacing:.02em}
+.s-apps div:nth-child(1){background:linear-gradient(135deg,#8a5cf6,#43288f)}
+.s-apps div:nth-child(2){background:linear-gradient(135deg,#1e88e5,#0b3a74)}
+.s-apps div:nth-child(3){background:linear-gradient(135deg,#f5a524,#9a5b00)}
+.s-apps div:nth-child(4){background:linear-gradient(135deg,#e53935,#7c1212)}
+.s-apps div:nth-child(5){background:linear-gradient(135deg,#26a69a,#0b5049)}
+.s-apps div:nth-child(6){background:rgba(255,255,255,.12)}
+.s-posters{bottom:-6%;height:19%}
+.s-posters div{flex:0 0 7.6%;border-radius:6px;background:linear-gradient(160deg,var(--c1),var(--c2))}
+.caption{margin-top:14px;text-align:center;font:12px var(--mono);color:var(--mute)}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-top:56px}
+@media(min-width:760px){.stats{grid-template-columns:repeat(4,1fr)}}
+.stat{background:var(--bg2);padding:22px}
+.stat b{display:block;font:600 clamp(24px,3vw,32px)/1 var(--mono);color:var(--text)}
+.stat span{display:block;margin-top:8px;font-size:13px;color:var(--dim)}
+
+/* why / compare */
+.split{display:grid;gap:40px}
+@media(min-width:900px){.split{grid-template-columns:1fr 1fr;align-items:start}}
+.compare{width:100%;border-collapse:collapse;font-size:14px;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.compare th,.compare td{padding:13px 16px;text-align:left;border-bottom:1px solid var(--line)}
+.compare th{font:600 12px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--mute);background:#0f1117}
+.compare td:first-child{color:var(--dim)}
+.compare tr:last-child td{border-bottom:0}
+.yes{color:var(--green);font-weight:600}
+
+/* features */
+.grid{display:grid;gap:16px;margin-top:44px}
+@media(min-width:640px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1000px){.grid{grid-template-columns:repeat(3,1fr)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:24px;transition:border-color .2s,transform .2s}
+.card:hover{border-color:#3a4052;transform:translateY(-2px)}
+.card .ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;margin-bottom:16px;background:rgba(255,255,255,.05);color:var(--amber)}
+.card .ic svg{width:22px;height:22px}
+.card p{color:var(--dim);font-size:15px;margin-top:8px}
+
+/* setup */
+.steps{counter-reset:s;display:grid;gap:14px;margin-top:28px}
+.step{position:relative;padding:20px 20px 20px 66px;background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
+.step::before{counter-increment:s;content:counter(s,decimal-leading-zero);position:absolute;left:20px;top:19px;font:600 15px var(--mono);color:var(--amber)}
+.step p{color:var(--dim);font-size:15px;margin-top:4px}
+.kit{display:grid;gap:12px}
+.kit li{list-style:none;display:flex;gap:14px;padding:16px 18px;background:var(--bg2);border:1px solid var(--line);border-radius:12px}
+.kit li b{display:block}
+.kit li span{color:var(--dim);font-size:14px}
+.kit ul{padding:0;margin:0;display:grid;gap:12px}
+.term{margin-top:20px;background:#07080b;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.term-head{display:flex;align-items:center;gap:7px;padding:10px 14px;border-bottom:1px solid var(--line);font:12px var(--mono);color:var(--mute)}
+.term-head i{width:10px;height:10px;border-radius:50%;background:#2a2e3a}
+.term-head button{margin-left:auto;background:none;border:1px solid var(--line);color:var(--dim);font:12px var(--mono);padding:4px 10px;border-radius:6px;cursor:pointer}
+.term-head button:hover{color:var(--text)}
+pre{margin:0;padding:16px;overflow-x:auto;font:13px/1.7 var(--mono);color:#cfd5e3}
+pre .c{color:var(--mute)} pre .p{color:var(--green)}
+
+/* plex */
+.plex{display:grid;gap:36px;align-items:center}
+@media(min-width:900px){.plex{grid-template-columns:1.1fr .9fr}}
+.code-box{background:linear-gradient(160deg,#1b1d25,#121319);border:1px solid var(--line);border-radius:22px;padding:34px;text-align:center}
+.code-box small{font:12px var(--mono);color:var(--mute);letter-spacing:.1em;text-transform:uppercase}
+.code-box .code{margin:16px 0;font:700 clamp(44px,8vw,64px)/1 var(--mono);letter-spacing:.24em;color:var(--amber)}
+.code-box p{color:var(--dim);font-size:14px}
+
+/* nerds */
+.tree{font:13px/1.8 var(--mono);color:var(--dim);background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:20px;overflow-x:auto;white-space:pre}
+.tree b{color:var(--blue);font-weight:600}
+.specs{display:grid;gap:10px;margin-top:4px}
+.specs div{display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.specs dt{color:var(--dim)} .specs dd{margin:0;font-family:var(--mono);text-align:right}
+
+/* changelog + faq */
+.log{border-left:2px solid var(--line);padding-left:22px;margin-top:28px}
+.log h3{display:flex;align-items:baseline;gap:12px}
+.log h3 span{font:12px var(--mono);color:var(--mute);font-weight:400}
+.log ul{color:var(--dim);padding-left:18px;margin:12px 0 0}
+.log li{margin:6px 0}
+details{border-bottom:1px solid var(--line);padding:20px 0}
+summary{cursor:pointer;font-weight:600;font-size:17px;list-style:none;display:flex;justify-content:space-between;gap:16px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font:400 22px/1 var(--mono);color:var(--amber);transition:transform .2s}
+details[open] summary::after{transform:rotate(45deg)}
+details p{color:var(--dim);margin-top:12px;max-width:75ch}
+
+/* support */
+.support{text-align:center;background:radial-gradient(600px 260px at 50% 0%,rgba(255,122,144,.14),transparent 70%)}
+.support .lead{margin:16px auto 28px}
+.btn-kofi{background:#ff5e5b;color:#fff;box-shadow:0 8px 30px -8px rgba(255,94,91,.6)}
+
+footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);font-size:13px}
+.foot{display:flex;flex-wrap:wrap;gap:14px 28px;align-items:center}
+.foot a{color:var(--dim);text-decoration:none}.foot a:hover{color:var(--text)}
+.legal{margin-top:20px;max-width:90ch;line-height:1.7}
+:focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:6px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}.device{transform:none}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="#top" aria-label="Phone TV home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="7" width="28" height="18" rx="4" fill="none" stroke="#ffb547" stroke-width="2.4"/><path d="M13 12l7 4-7 4z" fill="#ffb547"/><rect x="11" y="27" width="10" height="2" rx="1" fill="#eef0f5"/></svg>
+      Phone TV
+    </a>
+    <nav aria-label="Primary">
+      <a href="#features">Features</a>
+      <a href="#setup">Setup</a>
+      <a href="#plex">Plex</a>
+      <a href="#nerds">Under the hood</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://github.com/zGenMedia/phone-tv">GitHub</a>
+    </nav>
+    <a class="btn btn-primary btn-sm cta" href="downloads/PhoneTV.apk" download>Download</a>
+  </div>
+</header>
+
+<main id="top">
+  <!-- Hero -->
+  <section class="hero" style="border-top:0">
+    <div class="wrap">
+      <div class="hero-grid">
+        <div>
+          <p class="eyebrow">Free · Open source · by zGenMedia</p>
+          <h1 style="margin-top:18px">Android TV on mobile devices, <em>finally.</em></h1>
+          <p class="lead">Phone TV turns the old phone in your drawer into a living-room streaming box. A TV-style home screen, your Android TV apps, Plex, and the movies and shows people are watching — in a 62&nbsp;KB APK built to run cool on older hardware.</p>
+          <div class="actions">
+            <a class="btn btn-primary" href="downloads/PhoneTV.apk" download>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 21h16"/></svg>
+              Download APK · v0.5.0
+            </a>
+            <a class="btn btn-ghost" href="https://github.com/zGenMedia/phone-tv">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 00-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.68-1.28-1.68-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.25.45-2.28 1.19-3.08-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.17 1.18a11 11 0 015.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.58.23 2.75.11 3.04.74.8 1.19 1.83 1.19 3.08 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0012 .5z"/></svg>
+              View source
+            </a>
+          </div>
+          <div class="meta"><span><b>●</b> Android 8.0+</span><span>62 KB</span><span>0 dependencies</span><span>No ads · No tracking</span><span>MIT</span></div>
+        </div>
+
+        <figure style="margin:0">
+          <div class="device" role="img" aria-label="Illustration of the Phone TV home screen on a phone in landscape">
+            <div class="screen">
+              <div class="s-hero"></div>
+              <div class="s-bar"><span>⌕</span><span class="on">For you</span><span>Movies</span><span>Shows</span><span>Apps</span><i>8:42</i></div>
+              <div class="s-title"><b>Tonight's pick</b><small>Movie · 2026 · Sci-Fi · ★ 8.1</small><span class="s-btn">▶ Watch</span></div>
+              <div class="s-label" style="bottom:35%">Your apps</div>
+              <div class="s-row s-apps"><div>STREAM</div><div>IPTV</div><div>PLEX</div><div>VIDEO</div><div>MUSIC</div><div>+</div></div>
+              <div class="s-row s-posters">
+                <div style="--c1:#3b5bdb;--c2:#15193a"></div><div style="--c1:#e8590c;--c2:#3d1405"></div><div style="--c1:#2f9e44;--c2:#0b2a13"></div><div style="--c1:#ae3ec9;--c2:#2a0d33"></div><div style="--c1:#f08c00;--c2:#3a2200"></div><div style="--c1:#1c7ed6;--c2:#0a2440"></div><div style="--c1:#c2255c;--c2:#33091a"></div><div style="--c1:#5f3dc4;--c2:#1a1040"></div><div style="--c1:#0ca678;--c2:#04291e"></div><div style="--c1:#e03131;--c2:#3a0b0b"></div><div style="--c1:#495057;--c2:#15181b"></div><div style="--c1:#1098ad;--c2:#052a30"></div>
+              </div>
+            </div>
+          </div>
+          <figcaption class="caption">Interface illustration — Phone TV in landscape</figcaption>
+        </figure>
+      </div>
+
+      <div class="stats" aria-label="Key numbers">
+        <div class="stat"><b>62 KB</b><span>APK size. Smaller than one phone photo.</span></div>
+        <div class="stat"><b>0</b><span>Third-party libraries, ads or trackers.</span></div>
+        <div class="stat"><b>8.0+</b><span>Android version. Your 2017 phone qualifies.</span></div>
+        <div class="stat"><b>$0</b><span>Cost, forever. Optional coffee on Ko-fi.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why -->
+  <section id="why">
+    <div class="wrap split">
+      <div>
+        <p class="eyebrow">The idea</p>
+        <h2 style="margin-top:14px">That old phone is a better TV box than you think.</h2>
+        <p class="lead" style="margin-top:18px">A phone from a few years ago has a fast SoC, Wi-Fi 5, Bluetooth, hardware video decoding and, often, video out over USB-C. What it's missing is a lean-back interface you can drive from the couch. Phone TV adds that, so the phone works like a Shield-style streaming box — no new hardware, no e-waste.</p>
+      </div>
+      <table class="compare" aria-label="Phone TV on an old phone compared with a new streaming device">
+        <thead><tr><th></th><th>Old phone + Phone TV</th><th>New streaming stick</th></tr></thead>
+        <tbody>
+          <tr><td>Cost</td><td class="yes">$0</td><td>$30 – $200</td></tr>
+          <tr><td>Screen built in</td><td class="yes">Yes — works as a portable TV</td><td>No</td></tr>
+          <tr><td>Sideload any APK</td><td class="yes">Yes</td><td>Varies by platform</td></tr>
+          <tr><td>Android TV app editions</td><td class="yes">Most install and launch</td><td>Yes</td></tr>
+          <tr><td>Home screen ads</td><td class="yes">None</td><td>Common</td></tr>
+          <tr><td>Remote included</td><td>Use any BT controller</td><td>Yes</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features">
+    <div class="wrap">
+      <p class="eyebrow">Features</p>
+      <h2 style="margin-top:14px">Lean back. Everything's on the shelf.</h2>
+      <div class="grid">
+        <article class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8"/></svg></div><h3>TV home screen</h3><p>Featured carousel, a <em>Your apps</em> shelf, Movies and Shows tabs, and a top bar that slides away as you scroll.</p></article>
+        <article class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h7"/><circle cx="18" cy="16" r="3"/></svg></div><h3>Runs Android TV apps</h3><p>Sideloaded TV (leanback) editions are detected, shown with their real TV banners and launched with the right intent.</p></article>
+        <article class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg></div><h3>TV-style tiles for phone apps</h3><p>No more tiny phone icons. Banners are generated from each app's adaptive icon, or you can pick any image for any tile.</p></article>
+        <article class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 4l8 8-8 8"/></svg></div><h3>Plex built in</h3><p>Link with a 4-character code. Continue watching with progress bars, plus recently added from your own server.</p></article>
+        <article class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg></div><h3>Runs cool on old hardware</h3><p>Lazy-loaded art, images decoded at display size, a downsized disk cache and background-priority threads.</p></article>
+        <article class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></div><h3>Private by default</h3><p>No accounts, analytics or ads. Plex tokens stay on the device and are excluded from backups.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Setup -->
+  <section id="setup">
+    <div class="wrap split">
+      <div>
+        <p class="eyebrow">Setup</p>
+        <h2 style="margin-top:14px">From drawer to living room in five minutes.</h2>
+        <div class="steps">
+          <div class="step"><h3>Install the APK</h3><p>Download <span class="mono">PhoneTV.apk</span> on the phone and allow <em>Install unknown apps</em>. Samsung users: pause Auto Blocker while installing.</p></div>
+          <div class="step"><h3>Make it Home</h3><p>Press Home and pick Phone TV, or use <em>Settings › Make Phone TV my Home screen</em>.</p></div>
+          <div class="step"><h3>Fill the shelf</h3><p>Long-press any app to favorite it, reorder it or give it a custom tile. Install TV editions of your apps where they exist.</p></div>
+          <div class="step"><h3>Go big</h3><p>Plug into the TV and pair a controller. Settings › System bars hides everything but the content.</p></div>
+        </div>
+      </div>
+      <div class="kit">
+        <ul>
+          <li><span class="mono" style="color:var(--amber)">HDMI</span><div><b>USB-C to HDMI adapter</b><span>For phones with DisplayPort Alt Mode. Older phones: MHL, or Cast / Smart View / Miracast.</span></div></li>
+          <li><span class="mono" style="color:var(--blue)">CTRL</span><div><b>Any Bluetooth controller or air mouse</b><span>Phone TV supports D-pad focus, like a real TV launcher.</span></div></li>
+          <li><span class="mono" style="color:var(--green)">PWR</span><div><b>Keep it plugged in</b><span>Turn on your phone's battery-protect / 85% charge limit if it has one.</span></div></li>
+        </ul>
+        <div class="term">
+          <div class="term-head"><i></i><i></i><i></i><span>adb</span><button type="button" data-copy="adb-cmd">Copy</button></div>
+<pre id="adb-cmd"><span class="c"># sideload + set as Home from a computer (optional)</span>
+<span class="p">$</span> adb install -r PhoneTV.apk
+<span class="p">$</span> adb shell cmd package set-home-activity \
+    com.kinglifer.tvlauncher/com.kinglifer.tvlauncher.MainActivity</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Plex -->
+  <section id="plex">
+    <div class="wrap plex">
+      <div>
+        <p class="eyebrow">Plex</p>
+        <h2 style="margin-top:14px">Your server, front and center.</h2>
+        <p class="lead" style="margin-top:18px">Open <em>Settings › Connect Plex</em>, type the code at <span class="mono">plex.tv/link</span> on any device, done. Phone TV finds your server and picks the fastest route: local first, then remote, relay last. No password ever touches the app.</p>
+        <p class="lead" style="margin-top:14px">Not a Plex user? Titles in the catalog rows open in whichever player you choose: Stremio, a Plex search, or the trailer.</p>
+      </div>
+      <div class="code-box" aria-label="Example Plex link code">
+        <small>plex.tv/link</small>
+        <div class="code">BT79</div>
+        <p>Example code. The app shows yours and updates by itself once you're linked.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Nerds -->
+  <section id="nerds">
+    <div class="wrap split">
+      <div>
+        <p class="eyebrow">Under the hood</p>
+        <h2 style="margin-top:14px">Built for old phones, not flagships.</h2>
+        <p class="lead" style="margin-top:18px">Plain Java, framework views, zero dependencies. The whole screen is built in code and rebuilt in one pass on rotation. Art is fetched only when a card scrolls near the viewport, decoded straight to display size and cached on disk as a ~40 KB JPEG.</p>
+        <dl class="specs" style="margin-top:26px">
+          <div><dt>Language</dt><dd>Java 17</dd></div>
+          <div><dt>minSdk / targetSdk</dt><dd>26 / 35</dd></div>
+          <div><dt>Dependencies</dt><dd>none</dd></div>
+          <div><dt>Permissions</dt><dd>INTERNET</dd></div>
+          <div><dt>App discovery</dt><dd>LAUNCHER + LEANBACK_LAUNCHER</dd></div>
+          <div><dt>Catalog</dt><dd>Cinemeta (no key)</dd></div>
+          <div><dt>License</dt><dd>MIT</dd></div>
+        </dl>
+      </div>
+      <div>
+        <div class="tree" aria-label="Source layout"><b>app/src/main/java/com/zgenmedia/tvhome/</b>
+├─ HomeActivity.java      <span style="color:var(--mute)">screen, dialogs, actions</span>
+├─ AppRepository.java     <span style="color:var(--mute)">phone + TV apps, favorites</span>
+├─ TileArt.java           <span style="color:var(--mute)">TV banners, icon banners</span>
+├─ CatalogRepository.java <span style="color:var(--mute)">catalog + offline cache</span>
+├─ PlexClient.java        <span style="color:var(--mute)">PIN link, server, rows</span>
+├─ ImageLoader.java       <span style="color:var(--mute)">downsample + disk cache</span>
+├─ MediaItem.java
+└─ Prefs.java · Ui.java · Http.java</div>
+        <div class="term">
+          <div class="term-head"><i></i><i></i><i></i><span>build</span><button type="button" data-copy="build-cmd">Copy</button></div>
+<pre id="build-cmd"><span class="p">$</span> git clone https://github.com/zGenMedia/phone-tv.git
+<span class="p">$</span> cd phone-tv && gradle assembleRelease</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Changelog -->
+  <section id="changelog">
+    <div class="wrap">
+      <p class="eyebrow">Changelog</p>
+      <h2 style="margin-top:14px">What's new</h2>
+      <div class="log">
+        <h3>v0.5.0 <span>November 2026 · first public release</span></h3>
+        <ul>
+          <li>Plex: link with a code, Continue watching and Recently added rows.</li>
+          <li>Android TV-style tiles for phone apps, plus custom tile images.</li>
+          <li>Choose your player: Stremio, Plex search or trailer.</li>
+          <li>Version number in the app; cleaner, documented codebase.</li>
+        </ul>
+        <p style="margin-top:16px"><a href="https://github.com/zGenMedia/phone-tv/blob/main/CHANGELOG.md" style="color:var(--amber)">Full changelog →</a></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq">
+    <div class="wrap">
+      <p class="eyebrow">FAQ</p>
+      <h2 style="margin-top:14px;margin-bottom:12px">Questions, answered.</h2>
+      <details><summary>Is this the real Android TV or Google TV?</summary><p>No. Google's TV software only runs on certified TV hardware. Phone TV is an independent launcher that recreates the TV experience on a phone and runs the Android TV editions of apps you install.</p></details>
+      <details><summary>Which phones work?</summary><p>Any Android phone or tablet on Android 8.0 (Oreo) or newer. It was built to run cool on older, low-memory hardware.</p></details>
+      <details><summary>Will my Android TV apps work?</summary><p>Most TV (leanback) editions install on phones, and Phone TV launches them correctly. Some expect a remote or lock to landscape — a Bluetooth controller or air mouse fixes both.</p></details>
+      <details><summary>How do I connect the phone to my TV?</summary><p>A USB-C to HDMI adapter if your phone supports DisplayPort Alt Mode, an MHL adapter on older models, or wireless Cast, Smart View or Miracast.</p></details>
+      <details><summary>Where do the movies and shows come from?</summary><p>The open Cinemeta catalog — the same metadata Stremio uses — with no API key or account. Linked Plex servers add your own library. Phone TV doesn't host or stream any content itself.</p></details>
+      <details><summary>Will updates erase my setup?</summary><p>No. Every release is signed with the same key, so new versions install over the old one and keep your favorites and settings.</p></details>
+      <details><summary>Is it really free?</summary><p>Yes — MIT licensed, no ads, no accounts, no tracking. If it saved you buying a streaming box, a coffee on Ko-fi keeps development going.</p></details>
+    </div>
+  </section>
+
+  <!-- Support -->
+  <section class="support" id="support">
+    <div class="wrap">
+      <p class="eyebrow" style="color:var(--pink)">Support</p>
+      <h2 style="margin-top:14px">Gave an old phone a second life?</h2>
+      <p class="lead">Phone TV is free and always will be. Tips go straight into new features and testing on more devices.</p>
+      <div class="actions" style="justify-content:center">
+        <a class="btn btn-kofi" href="https://ko-fi.com/zgenmedia/tiers" rel="noopener">♥ Support on Ko-fi</a>
+        <a class="btn btn-ghost" href="https://github.com/zGenMedia/phone-tv">★ Star on GitHub</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <a class="brand" href="https://zgenmedia.com" style="color:var(--text)">zGenMedia</a>
+      <a href="https://zgenmedia.com">zgenmedia.com</a>
+      <a href="https://github.com/zGenMedia/phone-tv">Source</a>
+      <a href="https://github.com/zGenMedia/phone-tv/releases">Releases</a>
+      <a href="https://github.com/zGenMedia/phone-tv/issues">Report an issue</a>
+      <a href="https://ko-fi.com/zgenmedia/tiers">Ko-fi</a>
+      <span style="margin-left:auto">© 2026 zGenMedia · MIT License</span>
+    </div>
+    <p class="legal">Phone TV is an independent project by zGenMedia and is not affiliated with or endorsed by Google, NVIDIA, Plex or Stremio. Android and Android TV are trademarks of Google LLC; all other trademarks belong to their owners. Phone TV does not host, provide or stream any content; titles open in third-party apps you install.</p>
+  </div>
+</footer>
+
+<script>
+  // Copy buttons for the terminal snippets; strips the prompt and comment lines.
+  document.querySelectorAll('[data-copy]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var text = document.getElementById(btn.dataset.copy).innerText
+        .split('\n').filter(function (l) { return l.trim() && l.trim().charAt(0) !== '#'; })
+        .map(function (l) { return l.replace(/^\$\s?/, ''); }).join('\n');
+      if (!navigator.clipboard) return;
+      navigator.clipboard.writeText(text).then(function () {
+        btn.textContent = 'Copied';
+        setTimeout(function () { btn.textContent = 'Copy'; }, 1500);
+      });
+    });
+  });
+</script>
+</body>
+</html>
