@@ -3,6 +3,20 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.8.0 — 2026-11-09
+
+### Added
+- **Built-in updates.** Phone TV checks `version.json` on launch and every
+  12 hours, downloads a newer build in the background, verifies its SHA-256
+  and shows an *Update ready* card; one tap hands it to Android's installer.
+  Settings › Check for updates does the same on demand. The first time,
+  Android asks to allow Phone TV to install updates.
+
+### Fixed
+- CI build: dropped the Android SDK setup action (broken on current runners;
+  the SDK is preinstalled), moved to checkout/setup-java v5, and added the
+  Gradle wrapper.
+
 ## 0.7.0 — 2026-11-09
 
 ### Added

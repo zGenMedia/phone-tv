@@ -51,7 +51,7 @@ Plenty of us have a 2–6 year old phone that still has a great screen, Wi-Fi, H
    On Samsung, temporarily turn off **Settings › Security and privacy › Auto Blocker** if it blocks the install.
 3. Press **Home** and choose **Phone TV**, or open it and go to **Settings › Make Phone TV my Home screen**.
 
-Updates install over the top — your favorites and settings are kept.
+From v0.8.0 Phone TV updates itself: it checks for new versions, downloads them in the background and installs with one tap (Android asks once for permission). Updates keep your favorites and settings.
 
 Prefer the command line?
 
@@ -77,12 +77,12 @@ Plug the PC into a TV and you have a lean-back home screen without buying a stre
 
 ## Building from source
 
-Requirements: JDK 17, Gradle 8.14+ and the Android SDK (platform 36).
+Requirements: JDK 17 and the Android SDK (platform 36).
 
 ```sh
 git clone https://github.com/zGenMedia/phone-tv.git
 cd phone-tv
-gradle assembleRelease
+./gradlew assembleRelease
 # → app/build/outputs/apk/release/app-release.apk
 ```
 

@@ -101,6 +101,9 @@ public class HomeActivity extends Activity {
     private PlexClient plex;
     private TraktClient trakt;
     private HeroMood heroMood;
+    private Updater updater;
+    private Updater.Release readyUpdate;   // downloaded and verified, waiting for the user's tap
+    private java.io.File readyApk;
     private List<MediaItem> moodItems = Collections.emptyList();
     private boolean moodLoading;
 
@@ -151,6 +154,7 @@ public class HomeActivity extends Activity {
         plex = new PlexClient(prefs);
         trakt = new TraktClient(this, prefs);
         heroMood = new HeroMood(this, new HeroMood.WikidataSource());
+        updater = new Updater(this);
 
         try { HttpResponseCache.install(new File(getCacheDir(), "http"), 20L * 1024 * 1024); }
         catch (IOException ignored) { /* runs fine uncached */ }
@@ -161,6 +165,7 @@ public class HomeActivity extends Activity {
         catalog.loadCached();
         render();
         refreshContent();
+        checkForUpdate(false);
     }
 
     @Override
@@ -170,6 +175,7 @@ public class HomeActivity extends Activity {
         if (!plex.isLinked() && prefs.plexPendingPin() != 0 && !plexLinking) pollPlexPin(prefs.plexPendingPin(), null);
         boolean appsChanged = apps.reload();
         if (catalog.isOlderThan(CONTENT_TTL_MS)) refreshContent();
+        if (updater.due()) checkForUpdate(false);
         if (appsChanged) renderPreservingScroll();
         else restartHeroTimer();
     }
@@ -192,6 +198,7 @@ public class HomeActivity extends Activity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        if (Updater.ACTION_INSTALL_STATUS.equals(intent.getAction())) { onInstallStatus(intent); return; }
         goHome();
     }
 
@@ -287,6 +294,77 @@ public class HomeActivity extends Activity {
         refreshPlex();
         refreshTrakt();
         refreshMood();
+    }
+
+    // ==================================================================== updates
+
+    /**
+     * Checks the published manifest; a newer build is downloaded and verified in
+     * the background so the "Update ready" card installs with a single tap.
+     */
+    private void checkForUpdate(boolean manual) {
+        io.execute(() -> {
+            try {
+                Updater.Release r = updater.check();
+                if (r == null) { if (manual) main.post(() -> toast(getString(R.string.update_current, BuildConfig.VERSION_NAME))); return; }
+                java.io.File apk = updater.download(r);
+                main.post(() -> { readyUpdate = r; readyApk = apk; renderPreservingScroll(); });
+            } catch (IOException | JSONException e) {
+                if (manual) { final String reason = CatalogRepository.describe(e); main.post(() -> toast(getString(R.string.update_failed, reason))); }
+            }
+        });
+    }
+
+    private void installUpdate() {
+        if (readyApk == null) return;
+        if (!updater.canInstall()) {
+            // One-time permission: Android asks the user to allow this app to install updates.
+            toast(getString(R.string.update_allow));
+            startSafely(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName())));
+            return;
+        }
+        java.io.File apk = readyApk;
+        io.execute(() -> {
+            try { updater.install(this, apk); }
+            catch (IOException | RuntimeException e) {
+                final String reason = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                main.post(() -> toast(getString(R.string.update_failed, reason)));
+            }
+        });
+    }
+
+    @SuppressWarnings("deprecation") // getParcelableExtra(String) is the API 26-32 path
+    private void onInstallStatus(Intent intent) {
+        int status = intent.getIntExtra(android.content.pm.PackageInstaller.EXTRA_STATUS, -999);
+        if (status == android.content.pm.PackageInstaller.STATUS_PENDING_USER_ACTION) {
+            Intent confirm = intent.getParcelableExtra(Intent.EXTRA_INTENT);
+            if (confirm != null) startSafely(confirm);
+        } else if (status != android.content.pm.PackageInstaller.STATUS_SUCCESS) {
+            String msg = intent.getStringExtra(android.content.pm.PackageInstaller.EXTRA_STATUS_MESSAGE);
+            toast(getString(R.string.update_failed, msg != null ? msg : "status " + status));
+        }
+    }
+
+    private View updateCard() {
+        LinearLayout c = new LinearLayout(this);
+        c.setOrientation(LinearLayout.VERTICAL);
+        c.setPadding(ui.dp(16), ui.dp(14), ui.dp(16), ui.dp(14));
+        c.setBackground(ui.round(0xFF1F2B3D, 14));
+        c.addView(ui.label(getString(R.string.update_ready, readyUpdate.versionName), 14, Ui.TEXT, Ui.MEDIUM));
+        if (!readyUpdate.notes.isEmpty()) {
+            TextView notes = ui.label(readyUpdate.notes, 12, Ui.TEXT_DIM, null);
+            notes.setPadding(0, ui.dp(4), 0, 0);
+            c.addView(notes);
+        }
+        TextView install = ui.pill(getString(R.string.update_install), 0xFFF1F3F4, Ui.ON_LIGHT);
+        install.setOnClickListener(v -> installUpdate());
+        LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(-2, -2);
+        ilp.topMargin = ui.dp(10);
+        c.addView(install, ilp);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+        lp.setMargins(gutter(), ui.dp(18), insetRight + ui.dp(20), 0);
+        c.setLayoutParams(lp);
+        return c;
     }
 
     /** Loads titles for the user's typed hero words. No-op when the hero is on trending. */
@@ -421,6 +499,7 @@ public class HomeActivity extends Activity {
         column.addView(buildHero());
 
         if (tab == TAB_FOR_YOU) {
+            if (readyUpdate != null) column.addView(updateCard());
             column.addView(rowTitle(getString(R.string.row_your_apps)));
             column.addView(buildFavoritesRow());
             if (moodItems.size() > 8) posterRow(column, getString(R.string.row_more_mood, prefs.heroMood()), moodItems.subList(8, moodItems.size()));
@@ -1145,6 +1224,9 @@ public class HomeActivity extends Activity {
                 ? getString(R.string.settings_trakt_on, trakt.refs().size())
                 : getString(R.string.settings_trakt_off));
         actions.add(this::editTrakt);
+
+        labels.add(readyUpdate != null ? getString(R.string.update_ready, readyUpdate.versionName) : getString(R.string.settings_check_update));
+        actions.add(() -> { if (readyUpdate != null) installUpdate(); else { toast(getString(R.string.update_checking)); checkForUpdate(true); } });
 
         labels.add(getString(R.string.settings_refresh));
         actions.add(() -> { toast(getString(R.string.refreshing)); refreshContent(); });

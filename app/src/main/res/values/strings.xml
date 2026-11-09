@@ -102,6 +102,15 @@
     <string name="plex_status_title">Couldn\'t reach your Plex server</string>
     <string name="plex_status_body">Your account is still linked. Details: %1$s</string>
 
+    <!-- Updates -->
+    <string name="update_ready">Update ready: Phone TV %1$s</string>
+    <string name="update_install">Install update</string>
+    <string name="update_allow">Allow Phone TV to install updates, then tap Install again</string>
+    <string name="update_failed">Update didn\'t install: %1$s</string>
+    <string name="update_current">You\'re up to date (%1$s)</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="settings_check_update">Check for updates</string>
+
     <!-- Hero mood -->
     <string name="hero_tune">✎  Tune</string>
     <string name="mood_loading">✎  Finding…</string>
