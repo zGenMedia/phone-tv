@@ -110,6 +110,12 @@ public class HomeActivity extends Activity {
     private String restoreFocusKey;
     private int rowSeq, heroHeightPx, heroBackdropWidthPx, selectedChipId, heroWatchId;
     private volatile AlertDialog plexDialog;
+
+    // Banner pieces kept so it can tuck itself away while the top menu has focus.
+    private FrameLayout heroFrame;
+    private View heroButtons, heroPager, heroFade;
+    private int heroFullHeightPx;
+    private boolean heroCollapsed, heroSideArt;
     private Updater.Release readyUpdate;   // downloaded and verified, waiting for the user's tap
     private java.io.File readyApk;
     private List<MediaItem> moodItems = Collections.emptyList();
@@ -159,6 +165,7 @@ public class HomeActivity extends Activity {
         tvDevice = isTvDevice();
         if (tvDevice) { prefs.setDefaultSizeIndex(2); ui.setScale(prefs.scale()); }
         ui.onFocus = this::reveal;
+        ui.focusStyle = prefs.focusStyle();
         apps = new AppRepository(this, prefs, tvDevice);
         tileArt = new TileArt(this, ui);
         catalog = new CatalogRepository(this, io);
@@ -282,6 +289,9 @@ public class HomeActivity extends Activity {
         if ("hero:watch".equals(key) && direction == View.FOCUS_LEFT) { stepHero(-1); return true; }
         if ("hero:tune".equals(key) && direction == View.FOCUS_RIGHT) { stepHero(1); return true; }
 
+        // Leaving the top menu downwards: bring the banner's buttons back before looking for them.
+        if (direction == View.FOCUS_DOWN) setHeroCollapsed(false);
+
         android.view.FocusFinder finder = android.view.FocusFinder.getInstance();
         View next = null;
         if (horizontal) {
@@ -316,6 +326,7 @@ public class HomeActivity extends Activity {
      */
     private void reveal(View v) {
         if (scroll == null) return;
+        setHeroCollapsed(false);
         HorizontalScrollView shelf = null;
         boolean inPage = false;
         for (android.view.ViewParent p = v.getParent(); p != null; p = p.getParent()) {
@@ -755,15 +766,22 @@ public class HomeActivity extends Activity {
         for (int i = 0; i < TAB_LABELS.length; i++) {
             final int index = i;
             boolean selected = i == tab;
-            TextView chip = ui.label(getString(TAB_LABELS[i]), 13, selected ? Ui.ON_LIGHT : 0xFFE3E4E8, Ui.MEDIUM);
+            // Google TV style: tabs are plain text (current one brighter); only the tab under
+            // the remote or finger gets a light pill with dark text.
+            TextView chip = ui.label(getString(TAB_LABELS[i]), 13, Ui.TEXT, selected ? Ui.BOLD : Ui.MEDIUM);
+            int[][] states = {{android.R.attr.state_focused}, {android.R.attr.state_pressed}, {}};
+            chip.setTextColor(new ColorStateList(states, new int[]{Ui.ON_LIGHT, Ui.ON_LIGHT, selected ? Ui.TEXT : Ui.MUTED}));
+            android.graphics.drawable.StateListDrawable pill = new android.graphics.drawable.StateListDrawable();
+            pill.addState(states[0], ui.round(0xE6FFFFFF, 16));
+            pill.addState(states[1], ui.round(0xE6FFFFFF, 16));
             chip.setPadding(ui.dp(13), ui.dp(6), ui.dp(13), ui.dp(6));
-            chip.setBackground(ui.ripple(ui.round(selected ? Ui.CHIP_SELECTED : Color.TRANSPARENT, 16)));
+            chip.setBackground(pill);
+            chip.setRevealOnFocusHint(false);
             chip.setFocusable(true);
             focusKey(chip, "tab:" + i);
             if (selected) chip.setId(selectedChipId);
             if (heroWatchId != 0) chip.setNextFocusDownId(heroWatchId);
-            ui.focusRing(chip, 16);
-            chip.setOnFocusChangeListener((v, has) -> { if (has) setTopBarVisible(true); });
+            chip.setOnFocusChangeListener((v, has) -> { if (has) { setTopBarVisible(true); setHeroCollapsed(true); } });
             chip.setOnClickListener(v -> { if (tab != index) { tab = index; heroIndex = 0; render(); } });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
             lp.rightMargin = ui.dp(2);
@@ -795,7 +813,7 @@ public class HomeActivity extends Activity {
         iv.setFocusable(true);
         ui.focusRing(iv, 18);
         if (heroWatchId != 0) iv.setNextFocusDownId(heroWatchId);
-        iv.setOnFocusChangeListener((v, has) -> { if (has) setTopBarVisible(true); });
+        iv.setOnFocusChangeListener((v, has) -> { if (has) { setTopBarVisible(true); setHeroCollapsed(true); } });
         iv.setOnClickListener(onClick);
         return iv;
     }
@@ -808,16 +826,22 @@ public class HomeActivity extends Activity {
         DisplayMetrics dm = metrics();
         boolean land = land();
         // A little over half the screen, so "Your apps" and the first row sit above the fold.
-        int height = land ? (int) (dm.heightPixels * 0.58f) : Math.max(ui.dp(330), (int) (dm.widthPixels * 0.82f));
-        heroHeightPx = height;
-        boolean detailsRight = land && prefs.heroDetailsRight();
+        int layout = prefs.heroLayout();
+        boolean full = land && layout == Prefs.HERO_FULL;
+        boolean detailsRight = land && layout == Prefs.HERO_DETAILS_RIGHT;
+        int height = land ? (int) (dm.heightPixels * (full ? 0.70f : 0.58f)) : Math.max(ui.dp(330), (int) (dm.widthPixels * 0.82f));
+        heroHeightPx = heroFullHeightPx = height;
+        heroCollapsed = false;
+        heroSideArt = land && !full;
+        heroFade = null;
         FrameLayout hero = new FrameLayout(this);
+        heroFrame = hero;
         hero.setLayoutParams(new LinearLayout.LayoutParams(-1, height));
 
         heroBackdrop = new ImageView(this);
         heroBackdrop.setScaleType(ImageView.ScaleType.CENTER_CROP);
         heroBackdrop.setBackground(Ui.gradient(GradientDrawable.Orientation.TL_BR, 0xFF2F3D56, 0xFF1D2331, 0xFF28223B));
-        if (land) {
+        if (heroSideArt) {
             // Landscape: artwork at its natural 16:9 so nothing is cropped off the top, on the
             // side opposite the details (details left / image right by default; see Settings).
             int w = Math.min(dm.widthPixels, height * 16 / 9);
@@ -828,8 +852,15 @@ public class HomeActivity extends Activity {
             fade.setBackground(Ui.gradient(detailsRight ? GradientDrawable.Orientation.LEFT_RIGHT : GradientDrawable.Orientation.RIGHT_LEFT,
                     0x000E0F13, 0x000E0F13, 0x990E0F13, Ui.BG));
             hero.addView(fade, new FrameLayout.LayoutParams(w, -1, side));
+            heroFade = fade;
         } else {
+            // Portrait, or the full-width banner option: artwork fills the banner (cropped to fit).
             hero.addView(heroBackdrop, new FrameLayout.LayoutParams(-1, -1));
+            if (full) {
+                View left = new View(this); // darken the left so the details stay readable
+                left.setBackground(Ui.gradient(GradientDrawable.Orientation.LEFT_RIGHT, 0xF00E0F13, 0x800E0F13, 0x000E0F13));
+                hero.addView(left, new FrameLayout.LayoutParams((int) (dm.widthPixels * 0.65f), -1));
+            }
         }
 
         // Scrims: top for the menu, bottom (and left in landscape) for the text block.
@@ -914,6 +945,8 @@ public class HomeActivity extends Activity {
         pager.addView(focusKey(pagerArrow("›", 1), "hero:next"), new LinearLayout.LayoutParams(ui.dp(28), ui.dp(28)));
         if (heroItems.size() < 2) pager.setVisibility(View.GONE);
         info.addView(pager);
+        heroButtons = buttons;
+        heroPager = pager;
 
         if (heroItems.isEmpty()) {
             heroTitle.setText(R.string.app_name);
@@ -934,6 +967,29 @@ public class HomeActivity extends Activity {
         hero.setOnClickListener(v -> { MediaItem m = currentHero(); if (m != null) showDetails(m); });
         hero.setOnTouchListener((v, e) -> gestures.onTouchEvent(e));
         return hero;
+    }
+
+    /**
+     * While the top menu has focus the banner tucks away its buttons and shrinks a
+     * little, so "Your apps" slides up, as on Google TV. Any focus in the page restores it.
+     */
+    private void setHeroCollapsed(boolean collapsed) {
+        if (heroFrame == null || collapsed == heroCollapsed || tab == TAB_APPS) return;
+        heroCollapsed = collapsed;
+        int vis = collapsed ? View.GONE : View.VISIBLE;
+        if (!heroItems.isEmpty()) {
+            if (heroButtons != null) heroButtons.setVisibility(vis);
+            if (heroPager != null && heroItems.size() > 1) heroPager.setVisibility(vis);
+        }
+        int h = collapsed ? (int) (heroFullHeightPx * 0.80f) : heroFullHeightPx;
+        heroHeightPx = h;
+        heroFrame.getLayoutParams().height = h;
+        if (heroSideArt) {
+            int w = Math.min(metrics().widthPixels, h * 16 / 9);
+            heroBackdrop.getLayoutParams().width = w;
+            if (heroFade != null) heroFade.getLayoutParams().width = w;
+        }
+        heroFrame.requestLayout();
     }
 
     private TextView pagerArrow(String glyph, int step) {
@@ -1451,8 +1507,13 @@ public class HomeActivity extends Activity {
         labels.add(getString(R.string.settings_tiles, getString(prefs.tvStyleTiles() ? R.string.tiles_tv : R.string.tiles_phone)));
         actions.add(() -> { prefs.setTvStyleTiles(!prefs.tvStyleTiles()); renderPreservingScroll(); });
 
-        labels.add(getString(R.string.settings_hero_layout, getString(prefs.heroDetailsRight() ? R.string.hero_layout_right : R.string.hero_layout_left)));
-        actions.add(() -> { prefs.setHeroDetailsRight(!prefs.heroDetailsRight()); render(); });
+        int[] layoutNames = {R.string.hero_layout_left, R.string.hero_layout_right, R.string.hero_layout_full};
+        labels.add(getString(R.string.settings_hero_layout, getString(layoutNames[prefs.heroLayout() % 3])));
+        actions.add(() -> { prefs.setHeroLayout((prefs.heroLayout() + 1) % 3); render(); });
+
+        int[] focusNames = {R.string.focus_outline, R.string.focus_zoom, R.string.focus_both};
+        labels.add(getString(R.string.settings_focus_style, getString(focusNames[prefs.focusStyle() % 3])));
+        actions.add(() -> { prefs.setFocusStyle((prefs.focusStyle() + 1) % 3); ui.focusStyle = prefs.focusStyle(); render(); });
 
         labels.add(getString(R.string.settings_play, playWithLabel(prefs.playWith())));
         actions.add(this::choosePlayer);

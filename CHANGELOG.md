@@ -3,6 +3,19 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.9.2 — 2026-11-10
+
+### Added
+- **Banner layout** now has three choices: details left, details right, or a
+  full-width image.
+- **Selection style** setting: outline, zoom, or both (default).
+- While the top menu has focus, the banner hides its buttons and shrinks
+  slightly so *Your apps* moves up, as on Google TV.
+
+### Changed
+- Top menu tabs are plain text; only the tab under the remote (or finger)
+  gets a light pill with dark text.
+
 ## 0.9.1 — 2026-11-09
 
 ### Fixed

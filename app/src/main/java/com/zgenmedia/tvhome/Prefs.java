@@ -38,9 +38,14 @@ final class Prefs {
     void setDefaultSizeIndex(int i) { defaultSize = i; }
     int sizeIndex() { return Math.max(0, Math.min(SIZE_SCALES.length - 1, sp.getInt(K_SIZE, defaultSize))); }
 
-    /** Landscape banner: details on the left with artwork on the right (default), or the reverse. */
-    boolean heroDetailsRight() { return sp.getBoolean("heroDetailsRight", false); }
-    void setHeroDetailsRight(boolean v) { sp.edit().putBoolean("heroDetailsRight", v).apply(); }
+    /** Landscape banner: details left + artwork right (default), the reverse, or full-width artwork. */
+    static final int HERO_DETAILS_LEFT = 0, HERO_DETAILS_RIGHT = 1, HERO_FULL = 2;
+    int heroLayout() { return sp.getInt("heroLayout", sp.getBoolean("heroDetailsRight", false) ? HERO_DETAILS_RIGHT : HERO_DETAILS_LEFT); }
+    void setHeroLayout(int v) { sp.edit().putInt("heroLayout", v).apply(); }
+
+    /** One of Ui.FOCUS_OUTLINE / FOCUS_ZOOM / FOCUS_BOTH. */
+    int focusStyle() { return sp.getInt("focusStyle", Ui.FOCUS_BOTH); }
+    void setFocusStyle(int v) { sp.edit().putInt("focusStyle", v).apply(); }
     void setSizeIndex(int i) { sp.edit().putInt(K_SIZE, i).apply(); }
     float scale() { return SIZE_SCALES[sizeIndex()]; }
 

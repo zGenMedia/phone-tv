@@ -36,6 +36,10 @@ final class Ui {
 
     FocusListener onFocus;
 
+    static final int FOCUS_OUTLINE = 0, FOCUS_ZOOM = 1, FOCUS_BOTH = 2;
+    /** How a focused card shows itself; the user picks this in Settings. */
+    int focusStyle = FOCUS_BOTH;
+
     private final Context ctx;
     private float scale;
 
@@ -90,19 +94,22 @@ final class Ui {
     }
 
     /**
-     * Cards and tiles: a clean white ring on focus, so someone ten feet away with
-     * a remote can always see where they are. Touch keeps its ripple.
+     * Cards and tiles: an outline, a slight zoom, or both on focus (see focusStyle),
+     * so someone ten feet away with a remote can always see where they are.
      */
     void focusable(View v) {
         v.setFocusable(true);
         v.setClickable(true);
         StateListDrawable fx = new StateListDrawable();
-        fx.addState(new int[]{android.R.attr.state_focused}, ring(12));
+        if (focusStyle != FOCUS_ZOOM) fx.addState(new int[]{android.R.attr.state_focused}, ring(12));
         fx.addState(new int[]{}, ripple(null));
         v.setForeground(fx);
         // ScrollView's built-in reveal jumps instantly; we scroll ourselves (see FocusListener).
         v.setRevealOnFocusHint(false);
-        v.setOnFocusChangeListener((view, has) -> { if (has && onFocus != null) onFocus.onFocused(view); });
+        v.setOnFocusChangeListener((view, has) -> {
+            if (focusStyle != FOCUS_OUTLINE) view.animate().scaleX(has ? 1.07f : 1f).scaleY(has ? 1.07f : 1f).setDuration(120).start();
+            if (has && onFocus != null) onFocus.onFocused(view);
+        });
     }
 
     /** Ring only, for buttons and chips that already have their own ripple background. */

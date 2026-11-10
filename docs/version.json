@@ -1,7 +1,7 @@
 {
-  "versionCode": 10,
-  "versionName": "0.9.1",
+  "versionCode": 11,
+  "versionName": "0.9.2",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "de09e1b0a7c41bdcad9a2c9ee31c4194f58ea3d33734c331d0349f9b53802ab0",
-  "notes": "Remote navigation fixed, outline-only focus, Plex profiles and resume, settings stay open."
+  "sha256": "93526754ccbc5f27c5b338e80e5c3caaabd6e9011ff203c3f80587e304a16aa3",
+  "notes": "Three banner layouts, selection style options, Google TV-style text tabs."
 }

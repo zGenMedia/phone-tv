@@ -111,6 +111,11 @@
     <string name="settings_hero_layout">Banner layout (sideways): %1$s</string>
     <string name="hero_layout_right">Details right, image left</string>
     <string name="hero_layout_left">Details left, image right</string>
+    <string name="hero_layout_full">Full-width image</string>
+    <string name="settings_focus_style">Selection style: %1$s</string>
+    <string name="focus_outline">Outline</string>
+    <string name="focus_zoom">Zoom</string>
+    <string name="focus_both">Outline + zoom</string>
 
     <string name="done">Done</string>
     <string name="settings_plex_profile">Plex profile: %1$s</string>
