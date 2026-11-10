@@ -838,8 +838,9 @@ public class HomeActivity extends Activity {
         heroFrame = hero;
         hero.setLayoutParams(new LinearLayout.LayoutParams(-1, height));
 
-        heroBackdrop = new ImageView(this);
-        heroBackdrop.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        // Side art shows the whole picture; a full-width or portrait banner crops from the bottom, never the top.
+        heroBackdrop = heroSideArt ? new ImageView(this) : new Ui.TopCropImageView(this);
+        if (heroSideArt) heroBackdrop.setScaleType(ImageView.ScaleType.CENTER_CROP);
         heroBackdrop.setBackground(Ui.gradient(GradientDrawable.Orientation.TL_BR, 0xFF2F3D56, 0xFF1D2331, 0xFF28223B));
         if (heroSideArt) {
             // Landscape: artwork at its natural 16:9 so nothing is cropped off the top, on the

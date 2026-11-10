@@ -129,5 +129,31 @@ final class Ui {
         return d;
     }
 
+    /**
+     * Fills its bounds like CENTER_CROP but keeps the top of the picture, so faces and
+     * titles near the top of wide artwork aren't cut off in a short, full-width banner.
+     */
+    static final class TopCropImageView extends android.widget.ImageView {
+        TopCropImageView(Context c) { super(c); setScaleType(ScaleType.MATRIX); }
+
+        @Override protected boolean setFrame(int l, int t, int r, int b) {
+            boolean changed = super.setFrame(l, t, r, b);
+            alignTop();
+            return changed;
+        }
+
+        @Override public void setImageDrawable(Drawable d) { super.setImageDrawable(d); alignTop(); }
+
+        private void alignTop() {
+            Drawable d = getDrawable();
+            if (d == null || getWidth() == 0 || d.getIntrinsicWidth() <= 0 || d.getIntrinsicHeight() <= 0) return;
+            float s = Math.max(getWidth() / (float) d.getIntrinsicWidth(), getHeight() / (float) d.getIntrinsicHeight());
+            android.graphics.Matrix m = new android.graphics.Matrix();
+            m.setScale(s, s);
+            m.postTranslate((getWidth() - d.getIntrinsicWidth() * s) / 2f, 0);
+            setImageMatrix(m);
+        }
+    }
+
     private DisplayMetrics metrics() { return ctx.getResources().getDisplayMetrics(); }
 }

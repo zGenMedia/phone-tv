@@ -3,6 +3,12 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.9.3 — 2026-11-10
+
+### Fixed
+- Full-width (and portrait) banner cut off the top of the artwork. The image
+  is now anchored to the top and cropped from the bottom instead.
+
 ## 0.9.2 — 2026-11-10
 
 ### Added
