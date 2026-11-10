@@ -37,6 +37,7 @@ final class Ui {
     FocusListener onFocus;
 
     static final int FOCUS_OUTLINE = 0, FOCUS_ZOOM = 1, FOCUS_BOTH = 2;
+    private static final float FOCUS_SCALE = 1.12f;
     /** How a focused card shows itself; the user picks this in Settings. */
     int focusStyle = FOCUS_BOTH;
 
@@ -107,7 +108,7 @@ final class Ui {
         // ScrollView's built-in reveal jumps instantly; we scroll ourselves (see FocusListener).
         v.setRevealOnFocusHint(false);
         v.setOnFocusChangeListener((view, has) -> {
-            if (focusStyle != FOCUS_OUTLINE) view.animate().scaleX(has ? 1.07f : 1f).scaleY(has ? 1.07f : 1f).setDuration(120).start();
+            if (focusStyle != FOCUS_OUTLINE) view.animate().scaleX(has ? FOCUS_SCALE : 1f).scaleY(has ? FOCUS_SCALE : 1f).setDuration(120).start();
             if (has && onFocus != null) onFocus.onFocused(view);
         });
     }

@@ -1269,7 +1269,7 @@ public class HomeActivity extends Activity {
 
     private TextView rowTitle(String s) {
         TextView t = ui.label(s, 15, Ui.TEXT, Ui.MEDIUM);
-        t.setPadding(gutter(), ui.dp(20), ui.dp(20), ui.dp(10));
+        t.setPadding(gutter(), ui.dp(16), ui.dp(20), ui.dp(2));
         return t;
     }
 
@@ -1278,10 +1278,13 @@ public class HomeActivity extends Activity {
         HorizontalScrollView hs = new HorizontalScrollView(this);
         hs.setHorizontalScrollBarEnabled(false);
         hs.setClipToPadding(false);
-        hs.setPadding(gutter(), ui.dp(2), insetRight + ui.dp(10), ui.dp(4));
+        // Room above and below (and no clipping) so a zoomed card isn't cut off by its row.
+        hs.setPadding(gutter(), ui.dp(10), insetRight + ui.dp(10), ui.dp(10));
+        hs.setClipChildren(false);
         hs.setOnScrollChangeListener((v, x, y, ox, oy) -> images.flush());
         rowSeq++;
         LinearLayout row = new LinearLayout(this);
+        row.setClipChildren(false);
         hs.addView(row);
         if (parent != null) parent.addView(hs);
         return row;

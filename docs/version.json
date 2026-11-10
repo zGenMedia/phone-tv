@@ -1,7 +1,7 @@
 {
-  "versionCode": 12,
-  "versionName": "0.9.3",
+  "versionCode": 13,
+  "versionName": "0.9.4",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "7c8cf8e0db14742c6612df5084927e82cada8a21d6f401bec8c7d09e6ae3891c",
-  "notes": "Full-width banner no longer cuts off the top of the artwork."
+  "sha256": "a4ef5d8e9828590ee52e03c5a6756d4077b220af338ef741b9b5e553f2a8ed2f",
+  "notes": "Full-width banner keeps the top of the artwork; stronger zoom on the selected card."
 }

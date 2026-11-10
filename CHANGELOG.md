@@ -3,6 +3,12 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.9.4 — 2026-11-10
+
+### Changed
+- Stronger zoom on the selected card (when Selection style includes zoom),
+  with extra room around rows so enlarged cards aren't clipped.
+
 ## 0.9.3 — 2026-11-10
 
 ### Fixed
