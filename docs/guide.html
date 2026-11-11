@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to Turn an Old Phone, PC or TV Stick Into a Clean TV Box | Phone TV Guide</title>
+<meta name="description" content="A plain-English guide to using an old Android phone, tablet, Windows PC or TV stick as a TV: sideloading APKs, connecting to a screen, picking a remote, and the kinds of apps that make it work.">
+<meta name="keywords" content="turn old phone into tv box, how to sideload apk, sideload apps fire tv, sideload android tv, android tv apps on phone, phone as streaming box, usb-c to hdmi phone, diy android tv box, bluestacks tv, old tablet as tv, android tv launcher">
+<meta name="author" content="zGenMedia">
+<meta name="theme-color" content="#0b0c10">
+<link rel="canonical" href="https://zgenmedia.github.io/phone-tv/guide.html">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Phone TV by zGenMedia">
+<meta property="og:title" content="Turn the device you already own into a TV box">
+<meta property="og:description" content="Sideloading, screens, remotes and the kinds of apps you need. A beginner-friendly guide from the makers of Phone TV.">
+<meta property="og:url" content="https://zgenmedia.github.io/phone-tv/guide.html">
+<meta property="og:image" content="https://zgenmedia.github.io/phone-tv/assets/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Turn the device you already own into a TV box">
+<meta name="twitter:description" content="Sideloading, screens, remotes and the kinds of apps you need. A beginner-friendly guide from the makers of Phone TV.">
+<meta name="twitter:image" content="https://zgenmedia.github.io/phone-tv/assets/og.jpg">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "How to turn an old Android phone into a TV box",
+  "description": "Use an old Android phone, tablet, PC or TV stick as a TV with a lean-back home screen, sideloaded apps and a remote.",
+  "image": "https://zgenmedia.github.io/phone-tv/assets/og.jpg",
+  "totalTime": "PT20M",
+  "supply": [
+    {"@type": "HowToSupply", "name": "An Android phone, tablet or TV box running Android 7.1 or newer"},
+    {"@type": "HowToSupply", "name": "A USB-C to HDMI adapter, or a TV that supports wireless casting"},
+    {"@type": "HowToSupply", "name": "A Bluetooth remote, controller or keyboard"}
+  ],
+  "step": [
+    {"@type": "HowToStep", "name": "Install a TV home screen", "text": "Download PhoneTV.apk on the device, allow Install unknown apps for your browser, and open the file.", "url": "https://zgenmedia.github.io/phone-tv/guide.html#sideload"},
+    {"@type": "HowToStep", "name": "Make it the Home app", "text": "Press Home and choose Phone TV, or use Settings, Make Phone TV my Home screen.", "url": "https://zgenmedia.github.io/phone-tv/guide.html#start"},
+    {"@type": "HowToStep", "name": "Connect a screen", "text": "Plug in a USB-C to HDMI adapter if the phone supports video output, or cast the screen wirelessly to the TV.", "url": "https://zgenmedia.github.io/phone-tv/guide.html#screen"},
+    {"@type": "HowToStep", "name": "Pair a remote", "text": "Pair a Bluetooth remote, game controller or keyboard so you can navigate from the couch.", "url": "https://zgenmedia.github.io/phone-tv/guide.html#control"},
+    {"@type": "HowToStep", "name": "Add your apps", "text": "Install the streaming, media player and utility apps you use, preferring Android TV editions, and pin them as favorites.", "url": "https://zgenmedia.github.io/phone-tv/guide.html#apps"}
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type": "Question", "name": "What is sideloading?",
+     "acceptedAnswer": {"@type": "Answer", "text": "Sideloading means installing an Android app from an APK file instead of an app store. Android asks you to allow Install unknown apps for the app that opens the file, such as your browser or file manager."}},
+    {"@type": "Question", "name": "Is sideloading safe?",
+     "acceptedAnswer": {"@type": "Answer", "text": "It is as safe as the source of the file. Download APKs from the developer's own site or source repository, compare the published checksum when one is offered, and avoid repackaged or modded copies."}},
+    {"@type": "Question", "name": "Can any phone output video to a TV over USB-C?",
+     "acceptedAnswer": {"@type": "Answer", "text": "No. The phone needs DisplayPort Alt Mode on its USB-C port, which many budget phones leave out. If yours lacks it, cast the screen wirelessly instead."}},
+    {"@type": "Question", "name": "Can I install Android TV apps on a phone?",
+     "acceptedAnswer": {"@type": "Answer", "text": "Most Android TV editions install on phones from their APK. A TV-style launcher such as Phone TV lists them and opens them correctly. Some expect a remote, so pair a Bluetooth controller."}}
+  ]
+}
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#0b0c10; --bg2:#111319; --card:#161922; --line:#242836; --text:#eef0f5; --dim:#a3a9b8; --mute:#6f7688;
+  --amber:#ffb547; --blue:#7aa7ff; --green:#5ee6a8; --pink:#ff7a90;
+  --r:16px; --max:1120px;
+  --sans:"Space Grotesk",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit}
+img,svg{display:block;max-width:100%}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 16px}
+@media(min-width:720px){.wrap{padding:0 28px}}
+.mono{font-family:var(--mono)}
+.eyebrow{font:600 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+h1,h2,h3{line-height:1.08;letter-spacing:-.02em;margin:0}
+h2{font-size:clamp(28px,4.4vw,44px);font-weight:700}
+h3{font-size:19px;font-weight:600}
+p{margin:0}
+section{padding:88px 0;border-top:1px solid var(--line)}
+/* grid children default to min-width:auto, which lets <pre> blocks widen the page on phones */
+.split>*,.hero-grid>*,.plex>*{min-width:0}
+.lead{color:var(--dim);font-size:clamp(16px,1.7vw,19px);max-width:62ch}
+
+/* nav */
+header{position:sticky;top:0;z-index:20;background:rgba(11,12,16,.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,.05)}
+.nav{display:flex;align-items:center;gap:20px;height:62px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:700;letter-spacing:-.01em}
+.brand svg{width:28px;height:28px}
+.nav nav{display:none;gap:22px;margin-left:auto;font-size:14px;color:var(--dim)}
+.nav nav a{text-decoration:none}.nav nav a:hover{color:var(--text)}
+@media(min-width:860px){.nav nav{display:flex}}
+.nav .cta{margin-left:auto}
+@media(min-width:860px){.nav .cta{margin-left:0}}
+
+.btn{display:inline-flex;align-items:center;gap:10px;padding:13px 20px;border-radius:999px;font-weight:600;text-decoration:none;font-size:15px;transition:transform .15s,box-shadow .2s,background .2s;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--amber);color:#1a1205;box-shadow:0 8px 30px -8px rgba(255,181,71,.6)}
+.btn-primary:hover{box-shadow:0 10px 40px -6px rgba(255,181,71,.8)}
+.btn-ghost{border:1px solid var(--line);color:var(--text);background:rgba(255,255,255,.02)}
+.btn-ghost:hover{background:rgba(255,255,255,.06)}
+.btn-sm{padding:9px 15px;font-size:14px}
+
+/* hero */
+.hero{position:relative;padding:72px 0 40px;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:-30% -10% auto;height:120%;background:
+  radial-gradient(600px 340px at 18% 30%,rgba(122,167,255,.18),transparent 70%),
+  radial-gradient(520px 320px at 85% 20%,rgba(255,181,71,.14),transparent 70%);pointer-events:none}
+.hero-grid{position:relative;display:grid;gap:48px;align-items:center}
+@media(min-width:980px){.hero-grid{grid-template-columns:1fr 1.08fr}}
+.hero h1{font-size:clamp(40px,6.6vw,74px);font-weight:700}
+.hero h1 em{font-style:normal;background:linear-gradient(90deg,var(--amber),#ffd9a0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .lead{margin:22px 0 30px}
+.actions{display:flex;flex-wrap:wrap;gap:12px}
+.meta{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:22px;font:13px var(--mono);color:var(--mute)}
+.meta b{color:var(--green);font-weight:600}
+
+/* screenshots */
+.shot{position:relative;margin:0;border-radius:18px;overflow:hidden;background:#000;box-shadow:0 40px 90px -30px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.08)}
+.shot img{width:100%;height:auto}
+.shot-tilt{transform:perspective(1600px) rotateY(-7deg) rotateX(3deg)}
+@media(max-width:979px){.shot-tilt{transform:none}}
+.shot-phone{max-width:300px;border-radius:30px;border:8px solid #1d2029}
+.shot-pc{border:10px solid #1d2029;border-bottom-width:22px;border-radius:16px}
+.pc-grid{display:grid;gap:40px;align-items:center;margin-top:44px}
+@media(min-width:900px){.pc-grid{grid-template-columns:1.6fr 1fr}}
+.pc-grid>*{min-width:0}
+.badge-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.badge-row span{font:600 12px var(--mono);padding:7px 12px;border-radius:99px;background:var(--bg2);border:1px solid var(--line);color:var(--dim)}
+.caption{margin-top:14px;text-align:center;font:12px var(--mono);color:var(--mute)}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-top:56px}
+@media(min-width:760px){.stats{grid-template-columns:repeat(4,1fr)}}
+.stat{background:var(--bg2);padding:22px}
+.stat b{display:block;font:600 clamp(24px,3vw,32px)/1 var(--mono);color:var(--text)}
+.stat span{display:block;margin-top:8px;font-size:13px;color:var(--dim)}
+
+/* why / compare */
+.split{display:grid;gap:40px}
+@media(min-width:900px){.split{grid-template-columns:1fr 1fr;align-items:start}}
+.compare{width:100%;border-collapse:collapse;font-size:14px;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.compare th,.compare td{padding:13px 16px;text-align:left;border-bottom:1px solid var(--line)}
+.compare th{font:600 12px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--mute);background:#0f1117}
+.compare td:first-child{color:var(--dim)}
+.compare tr:last-child td{border-bottom:0}
+.yes{color:var(--green);font-weight:600}
+
+/* features */
+.grid{display:grid;gap:16px;margin-top:44px}
+@media(min-width:640px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1000px){.grid{grid-template-columns:repeat(3,1fr)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:24px;transition:border-color .2s,transform .2s}
+.card:hover{border-color:#3a4052;transform:translateY(-2px)}
+.card .ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;margin-bottom:16px;background:rgba(255,255,255,.05);color:var(--amber)}
+.card .ic svg{width:22px;height:22px}
+.card p{color:var(--dim);font-size:15px;margin-top:8px}
+
+/* setup */
+.steps{counter-reset:s;display:grid;gap:14px;margin-top:28px}
+.step{position:relative;padding:20px 20px 20px 66px;background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
+.step::before{counter-increment:s;content:counter(s,decimal-leading-zero);position:absolute;left:20px;top:19px;font:600 15px var(--mono);color:var(--amber)}
+.step p{color:var(--dim);font-size:15px;margin-top:4px}
+.kit{display:grid;gap:12px}
+.kit li{list-style:none;display:flex;gap:14px;padding:16px 18px;background:var(--bg2);border:1px solid var(--line);border-radius:12px}
+.kit li b{display:block}
+.kit li span{color:var(--dim);font-size:14px}
+.kit ul{padding:0;margin:0;display:grid;gap:12px}
+.term{margin-top:20px;background:#07080b;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.term-head{display:flex;align-items:center;gap:7px;padding:10px 14px;border-bottom:1px solid var(--line);font:12px var(--mono);color:var(--mute)}
+.term-head i{width:10px;height:10px;border-radius:50%;background:#2a2e3a}
+.term-head button{margin-left:auto;background:none;border:1px solid var(--line);color:var(--dim);font:12px var(--mono);padding:4px 10px;border-radius:6px;cursor:pointer}
+.term-head button:hover{color:var(--text)}
+pre{margin:0;padding:16px;overflow-x:auto;font:13px/1.7 var(--mono);color:#cfd5e3}
+pre .c{color:var(--mute)} pre .p{color:var(--green)}
+
+/* plex */
+.plex{display:grid;gap:36px;align-items:center}
+@media(min-width:900px){.plex{grid-template-columns:1.1fr .9fr}}
+.code-box{background:linear-gradient(160deg,#1b1d25,#121319);border:1px solid var(--line);border-radius:22px;padding:34px;text-align:center}
+.code-box small{font:12px var(--mono);color:var(--mute);letter-spacing:.1em;text-transform:uppercase}
+.code-box .code{margin:16px 0;font:700 clamp(44px,8vw,64px)/1 var(--mono);letter-spacing:.24em;color:var(--amber)}
+.code-box p{color:var(--dim);font-size:14px}
+
+/* nerds */
+.tree{font:13px/1.8 var(--mono);color:var(--dim);background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:20px;overflow-x:auto;white-space:pre}
+.tree b{color:var(--blue);font-weight:600}
+.specs{display:grid;gap:10px;margin-top:4px}
+.specs div{display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.specs dt{color:var(--dim)} .specs dd{margin:0;font-family:var(--mono);text-align:right}
+
+/* changelog + faq */
+.log{border-left:2px solid var(--line);padding-left:22px;margin-top:28px}
+.log h3{display:flex;align-items:baseline;gap:12px}
+.log h3 span{font:12px var(--mono);color:var(--mute);font-weight:400}
+.log ul{color:var(--dim);padding-left:18px;margin:12px 0 0}
+.log li{margin:6px 0}
+details{border-bottom:1px solid var(--line);padding:20px 0}
+summary{cursor:pointer;font-weight:600;font-size:17px;list-style:none;display:flex;justify-content:space-between;gap:16px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font:400 22px/1 var(--mono);color:var(--amber);transition:transform .2s}
+details[open] summary::after{transform:rotate(45deg)}
+details p{color:var(--dim);margin-top:12px;max-width:75ch}
+
+/* support */
+.support{text-align:center;background:radial-gradient(600px 260px at 50% 0%,rgba(255,122,144,.14),transparent 70%)}
+.support .lead{margin:16px auto 28px}
+.btn-kofi{background:#ff5e5b;color:#fff;box-shadow:0 8px 30px -8px rgba(255,94,91,.6)}
+
+footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);font-size:13px}
+.foot{display:flex;flex-wrap:wrap;gap:14px 28px;align-items:center}
+.foot a{color:var(--dim);text-decoration:none}.foot a:hover{color:var(--text)}
+.legal{margin-top:20px;max-width:90ch;line-height:1.7}
+:focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:6px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}.device{transform:none}}
+
+/* guide */
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin-top:28px}
+.toc a{font:600 12px var(--mono);padding:8px 13px;border-radius:99px;background:var(--bg2);border:1px solid var(--line);color:var(--dim);text-decoration:none}
+.toc a:hover{color:var(--text);border-color:#3a4052}
+.prose{max-width:74ch}
+.prose p{color:var(--dim);margin-top:14px}
+.prose a,.card a,.step a,.note a{color:var(--amber)}
+.note{margin-top:22px;padding:16px 18px;border-left:3px solid var(--amber);background:var(--bg2);border-radius:0 12px 12px 0;color:var(--dim);font-size:15px;max-width:74ch}
+.note b{color:var(--text)}
+.tabs3{display:grid;gap:16px;margin-top:32px}
+@media(min-width:900px){.tabs3{grid-template-columns:repeat(2,1fr)}}
+.card h3 small{display:block;margin-bottom:8px;font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--blue)}
+.card ol,.card ul{color:var(--dim);font-size:15px;padding-left:20px;margin:10px 0 0}
+.card li{margin:6px 0}
+section{padding:72px 0}
+@media(min-width:1000px){.grid.four{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="./" aria-label="Phone TV home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="7" width="28" height="18" rx="4" fill="none" stroke="#ffb547" stroke-width="2.4"/><path d="M13 12l7 4-7 4z" fill="#ffb547"/><rect x="11" y="27" width="10" height="2" rx="1" fill="#eef0f5"/></svg>
+      Phone TV
+    </a>
+    <nav aria-label="Primary">
+      <a href="./">Home</a>
+      <a href="#need">What you need</a>
+      <a href="#sideload">Sideloading</a>
+      <a href="#screen">Big screen</a>
+      <a href="#apps">Apps</a>
+      <a href="#fixes">Fixes</a>
+      <a href="https://github.com/zGenMedia/phone-tv">GitHub</a>
+    </nav>
+    <a class="btn btn-primary btn-sm cta" href="downloads/PhoneTV.apk" download>Download</a>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero" style="border-top:0;padding-bottom:56px">
+    <div class="wrap">
+      <p class="eyebrow">The guide</p>
+      <h1 style="margin-top:16px;max-width:17ch">Turn the device you already own into <em>a TV box.</em></h1>
+      <p class="lead" style="margin:22px 0 0">You don't need new hardware. An old phone, a tablet, a Windows PC or the TV stick you already have can be a clean, ad-free TV. This page explains the whole idea in plain English: how to install apps from a file, how to get the picture on a big screen, how to control it from the couch, and what kinds of apps to put on it.</p>
+      <nav class="toc" aria-label="On this page">
+        <a href="#need">What you need</a>
+        <a href="#start">Quick start</a>
+        <a href="#sideload">Sideloading</a>
+        <a href="#screen">Big screen</a>
+        <a href="#control">Remote</a>
+        <a href="#apps">Apps to add</a>
+        <a href="#always-on">Always-on tips</a>
+        <a href="#fixes">Fixes</a>
+      </nav>
+    </div>
+  </section>
+
+  <section id="need">
+    <div class="wrap">
+      <p class="eyebrow">The idea</p>
+      <h2 style="margin-top:14px">A TV box is four things.</h2>
+      <p class="lead" style="margin-top:18px">Every streaming box, however it is sold, is the same four parts. You probably own all of them already.</p>
+      <div class="grid four">
+        <article class="card"><h3><small>01 · Brain</small>A device that runs Android</h3><p>A phone or tablet on Android 7.1 or newer, an Android TV or Google TV box, a Fire TV on Fire OS 6 or newer, or a Windows PC running an Android emulator.</p></article>
+        <article class="card"><h3><small>02 · Screen</small>A way to reach the TV</h3><p>A cable (USB-C to HDMI) or wireless casting. A tablet on a stand works as a bedside or kitchen TV with no TV at all.</p></article>
+        <article class="card"><h3><small>03 · Control</small>Something to hold</h3><p>A Bluetooth remote, game controller or keyboard. Touch still works, but nobody wants to walk to the TV to press pause.</p></article>
+        <article class="card"><h3><small>04 · Home</small>A screen built for the couch</h3><p>This is the part phones are missing, and it is what <a href="./">Phone TV</a> adds: big tiles, your apps in a row, and remote-friendly navigation instead of a grid of tiny icons.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section id="start">
+    <div class="wrap split">
+      <div>
+        <p class="eyebrow">Quick start</p>
+        <h2 style="margin-top:14px">The short version.</h2>
+        <div class="steps">
+          <div class="step"><h3>Install the home screen</h3><p>On the device, download <a href="downloads/PhoneTV.apk" download>PhoneTV.apk</a> and open it. Android will ask you to allow the install. That is sideloading, explained below.</p></div>
+          <div class="step"><h3>Make it Home</h3><p>Press Home and choose Phone TV, or open it and use <em>Settings › Make Phone TV my Home screen</em>.</p></div>
+          <div class="step"><h3>Connect the screen</h3><p>Plug in an HDMI adapter or start casting. Turn the phone sideways.</p></div>
+          <div class="step"><h3>Pair a remote</h3><p>Put the remote in pairing mode and add it under the device's Bluetooth settings.</p></div>
+          <div class="step"><h3>Add your apps</h3><p>Install what you watch with, then long-press a tile to favorite it so it sits on the top shelf.</p></div>
+        </div>
+      </div>
+      <div class="prose">
+        <figure class="shot" style="margin:0"><img src="assets/screens/pc-bluestacks-landscape.jpg" alt="Phone TV home screen with a featured title, a shelf of apps and rows of movies" loading="lazy" width="1600" height="900"></figure>
+        <p class="caption">Phone TV running in landscape.</p>
+        <div class="note"><b>Honest limits.</b> Phone TV is a home screen, not a video service. It does not host or stream anything; it opens the apps you install. Some services limit video quality on phones, uncertified devices or emulators, and that is decided by the service, not the launcher.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="sideload">
+    <div class="wrap">
+      <p class="eyebrow">Sideloading</p>
+      <h2 style="margin-top:14px">Installing an app from a file.</h2>
+      <div class="prose">
+        <p>Android apps are packaged as <span class="mono">.apk</span> files. An app store downloads and installs that file for you. <b style="color:var(--text)">Sideloading</b> just means doing it yourself: get the APK, open it, confirm. It is a normal Android feature, and it is how you install apps a store doesn't carry for your device, including TV editions of apps on a phone.</p>
+        <p>The one thing Android asks is permission. The first time an app (your browser, a file manager) tries to open an APK, Android shows an <em>Install unknown apps</em> switch for that app. Turn it on, go back, and the install continues.</p>
+      </div>
+      <div class="tabs3">
+        <article class="card"><h3><small>Phone or tablet</small>Straight from the browser</h3>
+          <ol><li>Open the download link in the device's browser.</li><li>Tap the finished download, or find it in the Files app under Downloads.</li><li>Allow <em>Install unknown apps</em> when asked, then tap Install.</li></ol>
+          <p>Samsung: if the install is blocked, pause <em>Auto Blocker</em> under Settings › Security and privacy, then turn it back on afterwards.</p></article>
+        <article class="card"><h3><small>Android TV · Google TV · Shield</small>A downloader app, or a USB stick</h3>
+          <ol><li>From the TV's app store, install a downloader-style app: one that takes a web address and fetches the file.</li><li>Under Settings › Apps › Security &amp; restrictions › Unknown sources, allow that app.</li><li>Type the APK address, download, install.</li></ol>
+          <p>No typing: copy the APK to a USB stick, plug it into the box and open it with a file manager app.</p></article>
+        <article class="card"><h3><small>Fire TV</small>Unlock Developer options first</h3>
+          <ol><li>Settings › My Fire TV › About. Highlight the device name and press Select seven times.</li><li>Back out to My Fire TV › Developer options › Install unknown apps and allow your downloader app.</li><li>Type the APK address, download, install.</li></ol>
+          <p>Newer Fire TV models that run Amazon's Vega OS instead of Fire OS cannot install Android apps at all. Check the model before you buy one for this.</p></article>
+        <article class="card"><h3><small>Windows PC</small>An Android emulator</h3>
+          <ol><li>Install an Android emulator such as BlueStacks.</li><li>Drag the APK onto the emulator window, or use its Install APK button.</li><li>Open the app and go fullscreen.</li></ol>
+          <p>Plug the PC into the TV over HDMI and it becomes a lean-back media PC.</p></article>
+      </div>
+      <div class="split" style="margin-top:32px">
+        <div>
+          <h3>From a computer, with ADB</h3>
+          <p style="color:var(--dim);margin-top:8px;font-size:15px">ADB is Google's free command-line tool for talking to Android devices. Turn on Developer options on the device (tap <em>Build number</em> seven times under About), enable USB or network debugging, then:</p>
+          <div class="term">
+            <div class="term-head"><i></i><i></i><i></i><span>adb</span><button type="button" data-copy="adb-guide">Copy</button></div>
+<pre id="adb-guide"><span class="c"># TV boxes: connect over Wi-Fi using the IP shown in network settings</span>
+<span class="p">$</span> adb connect 192.168.1.50:5555
+<span class="c"># phones: just plug in the USB cable instead</span>
+<span class="p">$</span> adb install -r PhoneTV.apk</pre>
+          </div>
+        </div>
+        <div>
+          <h3>Staying safe</h3>
+          <div class="kit" style="margin-top:14px"><ul>
+            <li><span class="mono" style="color:var(--green)">SRC</span><div><b>Get APKs from the maker</b><span>The developer's own site or source repository. Skip "modded" and "unlocked" copies.</span></div></li>
+            <li><span class="mono" style="color:var(--amber)">SHA</span><div><b>Check the checksum when one is published</b><span>Phone TV lists its SHA-256 in <a href="version.json">version.json</a>, and its built-in updater verifies it before installing.</span></div></li>
+            <li><span class="mono" style="color:var(--blue)">OFF</span><div><b>Switch the permission back off</b><span>Once you are done installing, turn <em>Install unknown apps</em> off again for your browser.</span></div></li>
+          </ul></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen">
+    <div class="wrap">
+      <p class="eyebrow">Big screen</p>
+      <h2 style="margin-top:14px">Getting the picture onto the TV.</h2>
+      <div class="grid">
+        <article class="card"><h3><small>Best</small>USB-C to HDMI</h3><p>One cable, no lag. The catch: the phone's USB-C port must support video output (called <em>DisplayPort Alt Mode</em>). Most flagship phones do; many budget phones do not. Search your model plus "DisplayPort Alt Mode" before buying an adapter. Pick an adapter with a charging port so the phone stays powered.</p></article>
+        <article class="card"><h3><small>No cable</small>Wireless casting</h3><p>Mirror the phone's screen to a smart TV or cast receiver from the quick settings panel (named Cast, Smart View or Screen share depending on the brand). Easy, but expect a slight delay and softer video than a cable.</p></article>
+        <article class="card"><h3><small>Older phones</small>MHL adapters</h3><p>Some phones from the micro-USB era support MHL, which carries HDMI over the charging port. It only works on models that list MHL support.</p></article>
+        <article class="card"><h3><small>No TV</small>The device is the screen</h3><p>A tablet on a stand is a complete small TV for a kitchen, desk or bedside. Nothing else to buy.</p></article>
+        <article class="card"><h3><small>Already a TV box</small>Nothing to do</h3><p>Shield, Google TV and Fire TV devices are plugged in already. You are only replacing the home screen.</p></article>
+        <article class="card"><h3><small>Desktop mode</small>A note for Samsung</h3><p>Samsung phones may open DeX when plugged into a display. Switch the phone to screen mirroring in the notification that appears if you want the TV to show the phone's own screen instead.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section id="control">
+    <div class="wrap split">
+      <div>
+        <p class="eyebrow">Control</p>
+        <h2 style="margin-top:14px">Driving it from the couch.</h2>
+        <p class="lead" style="margin-top:18px">A TV home screen is navigated with four arrows and an OK button. Anything that can send those works.</p>
+      </div>
+      <div class="kit"><ul>
+        <li><span class="mono" style="color:var(--amber)">RMT</span><div><b>Bluetooth remote or air mouse</b><span>The closest thing to a real TV remote. Look for one with a D-pad, Back and Home buttons.</span></div></li>
+        <li><span class="mono" style="color:var(--blue)">PAD</span><div><b>Game controller</b><span>The D-pad or stick moves, the main button selects. Most Bluetooth controllers pair without any setup.</span></div></li>
+        <li><span class="mono" style="color:var(--green)">KEY</span><div><b>Keyboard</b><span>Arrow keys move, Enter selects, Esc goes back. A small wireless keyboard also makes searching and signing in far less painful.</span></div></li>
+        <li><span class="mono" style="color:var(--pink)">APP</span><div><b>A second phone</b><span>Remote-control apps can turn the phone in your hand into a remote for the one behind the TV. Useful as a backup.</span></div></li>
+      </ul></div>
+    </div>
+  </section>
+
+  <section id="apps">
+    <div class="wrap">
+      <p class="eyebrow">Apps to add</p>
+      <h2 style="margin-top:14px">What goes on the shelf.</h2>
+      <p class="lead" style="margin-top:18px">We don't recommend specific apps here. Tastes differ and apps come and go. What stays the same is the job each one does, so think in categories and pick the one you like in each.</p>
+      <div class="grid">
+        <article class="card"><h3>Your streaming services</h3><p>The apps for the subscriptions you already pay for. When a service offers an Android TV edition, prefer it: it is built for a remote and a wide screen, and Phone TV shows its TV banner on the shelf.</p></article>
+        <article class="card"><h3>A media-server client</h3><p>If you keep your own movie and music library on a home server, its client app turns that library into your personal streaming service. Phone TV can show <a href="./#plex">Plex</a> rows right on the home screen.</p></article>
+        <article class="card"><h3>A video player</h3><p>For files on a USB stick, SD card or network share. A good player handles many formats, subtitles and audio tracks, and remembers where you stopped.</p></article>
+        <article class="card"><h3>A live TV player</h3><p>Player apps for the channel lineup from a TV provider you subscribe to, or for free, legal over-the-air and ad-supported channels. The player is only a player; the channels come from your provider.</p></article>
+        <article class="card"><h3>A file manager</h3><p>Opens APKs from a USB stick, browses network folders and moves files around. The single most useful utility on a TV device.</p></article>
+        <article class="card"><h3>A downloader</h3><p>Takes a web address and saves the file. This is how most people get an APK onto a TV box that has no real browser.</p></article>
+        <article class="card"><h3>A file-sender</h3><p>Apps that send files from your everyday phone to the TV device over Wi-Fi, so you can download an APK on the phone and push it across.</p></article>
+        <article class="card"><h3>A TV-friendly browser</h3><p>For the occasional website. Choose one made for remotes; ordinary mobile browsers are hard to use without touch.</p></article>
+        <article class="card"><h3>Music and radio</h3><p>A TV on a sound system is also the best speaker in the house. Add your music or internet radio app.</p></article>
+      </div>
+      <div class="note"><b>Where Phone TV fits.</b> It is the front door for all of the above. Long-press a tile to favorite it, move it, hide it or give it a custom image. Use <em>Tune</em> to type what the featured banner should show, in two or three words.</div>
+    </div>
+  </section>
+
+  <section id="always-on">
+    <div class="wrap split">
+      <div>
+        <p class="eyebrow">Always-on tips</p>
+        <h2 style="margin-top:14px">Leaving a phone behind the TV.</h2>
+        <p class="lead" style="margin-top:18px">A phone was designed to live in a pocket, not on a charger for months. A few settings make it a better appliance.</p>
+      </div>
+      <div class="kit"><ul>
+        <li><span class="mono" style="color:var(--green)">BAT</span><div><b>Limit the charge</b><span>If the phone has a battery-protection or 80–85% charge limit, turn it on. A battery held at 100% wears faster. If the back of the phone ever bulges, stop using it.</span></div></li>
+        <li><span class="mono" style="color:var(--amber)">AIR</span><div><b>Let it breathe</b><span>Take the case off and keep it out of direct sun and closed cabinets.</span></div></li>
+        <li><span class="mono" style="color:var(--blue)">NET</span><div><b>Stay close to the router</b><span>Use 5 GHz Wi-Fi where you can. Some USB-C hubs add a wired network port, which helps on phones that support it.</span></div></li>
+        <li><span class="mono" style="color:var(--pink)">DND</span><div><b>Silence the phone part</b><span>Turn on Do Not Disturb, remove the SIM if it is a spare, and sign out of accounts you would not want on a shared screen.</span></div></li>
+        <li><span class="mono" style="color:var(--dim)">CLR</span><div><b>Start clean</b><span>A factory reset before you begin gives an old phone its storage and speed back.</span></div></li>
+      </ul></div>
+    </div>
+  </section>
+
+  <section id="fixes">
+    <div class="wrap" style="max-width:860px">
+      <p class="eyebrow">Fixes</p>
+      <h2 style="margin-top:14px;margin-bottom:20px">When something doesn't work.</h2>
+      <details><summary>The APK won't install</summary><p>Check that <em>Install unknown apps</em> is allowed for the app you opened the file with. On Samsung, pause Auto Blocker. If the message is "App not installed", the download may be incomplete: delete it and download again. An app that says it is not compatible needs a newer Android version than the device has.</p></details>
+      <details><summary>Nothing shows on the TV when I plug in the cable</summary><p>The phone most likely has no video output on its USB-C port. Confirm the model supports DisplayPort Alt Mode. If it does, try another adapter or HDMI cable and make sure the TV is on the right input. Otherwise use wireless casting.</p></details>
+      <details><summary>A streaming app plays in low quality, or won't play</summary><p>Services decide which devices get HD and 4K based on the device's certification, and some refuse emulators entirely. A launcher cannot change that. A certified TV box is the reliable choice for those services; a phone or PC is fine for most others and for your own media.</p></details>
+      <details><summary>A TV app opens sideways or ignores touch</summary><p>TV editions expect a landscape screen and a remote. Rotate the phone and pair a Bluetooth controller or keyboard.</p></details>
+      <details><summary>Pressing Home on my TV box goes back to the stock home screen</summary><p>Android TV, Google TV and Fire TV do not offer a Home app chooser. Phone TV has an experimental setting, <em>Replace the TV home screen</em>, that steps in front of the stock launcher. It is optional and can be paused or turned off at any time. <a href="./#tv">More on TV boxes</a>.</p></details>
+      <details><summary>The phone gets warm or slows down</summary><p>Remove the case, close apps you are not using, and lower the stream quality one step. Casting is harder on a phone than a cable because it encodes video while playing it.</p></details>
+    </div>
+  </section>
+
+  <section class="support">
+    <div class="wrap">
+      <p class="eyebrow">Ready</p>
+      <h2 style="margin-top:14px">Give the old one a second life.</h2>
+      <p class="lead">Phone TV is free and open source, with no ads, accounts or tracking.</p>
+      <div class="actions" style="justify-content:center">
+        <a class="btn btn-primary" href="downloads/PhoneTV.apk" download>Download PhoneTV.apk</a>
+        <a class="btn btn-ghost" href="./">See what it does</a>
+        <a class="btn btn-kofi" href="https://ko-fi.com/zgenmedia/tiers">Support on Ko-fi</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <a class="brand" href="https://zgenmedia.com" style="color:var(--text)">zGenMedia</a>
+      <a href="https://zgenmedia.com">zgenmedia.com</a>
+      <a href="./">Phone TV home</a>
+      <a href="https://github.com/zGenMedia/phone-tv">Source</a>
+      <a href="https://github.com/zGenMedia/phone-tv/releases">Releases</a>
+      <a href="https://github.com/zGenMedia/phone-tv/issues">Report an issue</a>
+      <a href="https://ko-fi.com/zgenmedia/tiers">Ko-fi</a>
+      <span style="margin-left:auto">© 2026 zGenMedia · GPL-3.0</span>
+    </div>
+    <p class="legal">Phone TV is an independent project by zGenMedia and is not affiliated with or endorsed by Google, NVIDIA, Plex or Stremio. Android and Android TV are trademarks of Google LLC; all other trademarks belong to their owners. Phone TV does not host, provide or stream any content; titles open in third-party apps you install.</p>
+  </div>
+</footer>
+
+<script>
+  // Copy buttons for the terminal snippets; strips the prompt and comment lines.
+  document.querySelectorAll('[data-copy]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var text = document.getElementById(btn.dataset.copy).innerText
+        .split('\n').filter(function (l) { return l.trim() && l.trim().charAt(0) !== '#'; })
+        .map(function (l) { return l.replace(/^\$\s?/, ''); }).join('\n');
+      if (!navigator.clipboard) return;
+      navigator.clipboard.writeText(text).then(function () {
+        btn.textContent = 'Copied';
+        setTimeout(function () { btn.textContent = 'Copy'; }, 1500);
+      });
+    });
+  });
+</script>
+</body>
+</html>
