@@ -69,7 +69,7 @@ import java.util.concurrent.Executors;
  * Views are built in code instead of XML so the screen can be rebuilt in one
  * pass when the size setting or orientation changes. Rows are short (at most a
  * few dozen cards) and artwork is lazy-loaded, so we skip RecyclerView and the
- * androidx dependency chain it brings; the APK stays around 100 KB.
+ * androidx dependency chain it brings; the APK stays around 150 KB.
  *
  * Copyright (c) 2026 zGenMedia — https://zgenmedia.com
  */

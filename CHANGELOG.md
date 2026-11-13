@@ -3,7 +3,7 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
-## 0.10.0 — preview, not released yet
+## 0.10.0 — 2026-11-12
 
 ### Added
 - **Title page.** Choosing a movie or show opens a full-screen page with its

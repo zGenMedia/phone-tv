@@ -10,7 +10,7 @@ A free, open-source, TV-style home screen that turns any Android phone — espec
 
 ![Build](https://github.com/zGenMedia/phone-tv/actions/workflows/build.yml/badge.svg)
 ![Android 7.1+](https://img.shields.io/badge/Android-7.1%2B-3ddc84)
-![APK size](https://img.shields.io/badge/APK-~110%20KB-informational)
+![APK size](https://img.shields.io/badge/APK-~150%20KB-informational)
 ![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)
 
 </div>
@@ -39,8 +39,10 @@ Plenty of us have a 2–6 year old phone that still has a great screen, Wi-Fi, H
 | **Tune the hero** | Type 2–3 words like *asian romance*, *latest spanish* or *nigerian comedy* and the banner fills with matching titles. No account, no key |
 | **Your lists (optional)** | Power users can add public Trakt lists (e.g. Black cinema, Nollywood, anime) as extra rows with their own Trakt Client ID. Off by default |
 | **Keyboard & remote friendly** | Arrow keys page the hero carousel; D-pad focus everywhere; on-screen arrows for mouse users |
-| **Your choice of player** | Open titles in Stremio, search them in Plex, or watch the trailer |
-| **Made for old hardware** | No dependencies, ~110 KB APK, lazy image loading, downsized disk cache, background-priority threads |
+| **Title pages** | Every movie and show opens full screen: artwork, cast, seasons and episodes |
+| **Your choice of player** | Open titles in Stremio or Nuvio, search them in Plex, or watch the trailer. A missing app says so instead of doing nothing |
+| **Make it yours** | Accent colors, pure black, card size and corners, banner layout, and a switch for each row |
+| **Made for old hardware** | No dependencies, ~150 KB APK, lazy image loading, downsized disk cache, background-priority threads |
 | **Fullscreen** | Hides status and navigation bars; portrait and landscape layouts |
 | **Private** | No accounts, analytics or ads. Network calls: the public catalog, image CDN, and your Plex server if you link it |
 
@@ -49,7 +51,7 @@ Plenty of us have a 2–6 year old phone that still has a great screen, Wi-Fi, H
 1. Download `PhoneTV.apk` from [Releases](https://github.com/zGenMedia/phone-tv/releases/latest) on the phone.
 2. Open it and allow *Install unknown apps* for your browser or file manager.
    On Samsung, temporarily turn off **Settings › Security and privacy › Auto Blocker** if it blocks the install.
-3. Press **Home** and choose **Phone TV**, or open it and go to **Settings › Make Phone TV my Home screen**.
+3. Press **Home** and choose **Phone TV**, or open it and go to **Settings › System › Make Phone TV my Home screen**.
 
 From v0.8.0 Phone TV updates itself: it checks for new versions, downloads them in the background and installs with one tap (Android asks once for permission). Updates keep your favorites and settings.
 
@@ -78,7 +80,7 @@ Tired of ads and sponsored rows on your TV's home screen? Phone TV runs on TV bo
 3. Long-press OK (or press MENU) on any app to favorite, hide or uninstall it.
 
 **Making it the home screen.** TV platforms don't offer a "choose Home app" setting. Phone TV includes an optional, experimental
-replacement (Settings › *Replace the TV home screen*) that steps in front of the stock launcher. On Fire TV it has to be switched on over ADB:
+replacement (Settings › System › *Replace the TV home screen*) that steps in front of the stock launcher. On Fire TV it has to be switched on over ADB:
 
 ```sh
 adb shell settings put secure enabled_accessibility_services com.kinglifer.tvlauncher/com.zgenmedia.tvhome.HomeKeeperService
@@ -168,4 +170,4 @@ Phone TV is licensed under the **GNU GPL v3.0** from version 0.7.0 onward: you c
 
 Made by [zGenMedia](https://zgenmedia.com) · © 2026 zGenMedia
 
-<sub>Phone TV is an independent project and is not affiliated with or endorsed by Google, NVIDIA, Plex or Stremio. Android and Android TV are trademarks of Google LLC. Movie and show metadata and artwork are provided by third-party services and belong to their respective owners.</sub>
+<sub>Phone TV is an independent project and is not affiliated with or endorsed by Google, NVIDIA, Plex, Stremio or Nuvio. Android and Android TV are trademarks of Google LLC. Movie and show metadata and artwork are provided by third-party services and belong to their respective owners.</sub>

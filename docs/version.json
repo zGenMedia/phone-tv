@@ -1,7 +1,7 @@
 {
-  "versionCode": 13,
-  "versionName": "0.9.4",
+  "versionCode": 15,
+  "versionName": "0.10.0",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "a4ef5d8e9828590ee52e03c5a6756d4077b220af338ef741b9b5e553f2a8ed2f",
-  "notes": "Full-width banner keeps the top of the artwork; stronger zoom on the selected card."
+  "sha256": "ec3cc3511333205bdeca2f51e61c53fb365692960fab4f3a8553b106d6906b0a",
+  "notes": "Title pages with seasons and episodes, Nuvio as a player, a new Settings page with colors and layout options, and smoother movement."
 }
