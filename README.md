@@ -6,7 +6,7 @@
 
 A free, open-source, TV-style home screen that turns any Android phone — especially the old one in your drawer — into a streaming box. Runs on Windows PCs too, through BlueStacks, for a clean lean-back screen on the big TV.
 
-[**Download the latest APK**](https://github.com/zGenMedia/phone-tv/releases/latest) · [Website](https://zgenmedia.github.io/phone-tv/) · [Guide: turn any device into a TV](https://zgenmedia.github.io/phone-tv/guide.html) · [Support on Ko-fi](https://ko-fi.com/zgenmedia/tiers) · [zGenMedia](https://zgenmedia.com)
+[**Download the latest APK**](https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk) · [Website](https://zgenmedia.github.io/phone-tv/) · [Guide: turn any device into a TV](https://zgenmedia.github.io/phone-tv/guide.html) · [Support on Ko-fi](https://ko-fi.com/zgenmedia/tiers) · [zGenMedia](https://zgenmedia.com)
 
 ![Build](https://github.com/zGenMedia/phone-tv/actions/workflows/build.yml/badge.svg)
 ![Android 7.1+](https://img.shields.io/badge/Android-7.1%2B-3ddc84)
@@ -48,7 +48,7 @@ Plenty of us have a 2–6 year old phone that still has a great screen, Wi-Fi, H
 
 ## Install
 
-1. Download `PhoneTV.apk` from [Releases](https://github.com/zGenMedia/phone-tv/releases/latest) on the phone.
+1. Download [`PhoneTV.apk`](https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk) on the phone (the link always serves the newest version).
 2. Open it and allow *Install unknown apps* for your browser or file manager.
    On Samsung, temporarily turn off **Settings › Security and privacy › Auto Blocker** if it blocks the install.
 3. Press **Home** and choose **Phone TV**, or open it and go to **Settings › System › Make Phone TV my Home screen**.
