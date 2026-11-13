@@ -52,27 +52,15 @@
     <string name="toast_fav_added">%1$s added to Favorites</string>
     <string name="toast_fav_removed">%1$s removed from Favorites</string>
     <string name="open_failed">Couldn\'t open %1$s</string>
-    <string name="not_installed">%1$s isn\'t installed</string>
     <string name="opening_search">Opening %1$s — search for \"%2$s\"</string>
 
-    <!-- Details sheet -->
-    <string name="details_stremio">Stremio</string>
-    <string name="details_plex">Plex</string>
+    <!-- Details -->
     <string name="details_trailer">Trailer</string>
     <string name="details_play_plex">▶  Play in Plex</string>
 
     <!-- Settings -->
-    <string name="settings_size">Display size: %1$s</string>
-    <string name="settings_bars">System bars: %1$s</string>
-    <string name="bars_hidden">Hidden</string>
-    <string name="bars_shown">Shown</string>
-    <string name="settings_tiles">App tiles: %1$s</string>
-    <string name="tiles_tv">Android TV style</string>
-    <string name="tiles_phone">Phone icons</string>
-    <string name="settings_play">Play titles with: %1$s</string>
     <string name="play_ask">Ask each time</string>
     <string name="settings_plex_connect">Connect Plex</string>
-    <string name="settings_plex_disconnect">Disconnect Plex (%1$s)</string>
     <string name="settings_refresh">Refresh movies &amp; shows</string>
     <string name="settings_home">Make Phone TV my Home screen</string>
     <string name="settings_donate">Support Phone TV on Ko-fi</string>
@@ -94,7 +82,6 @@
     <string name="cancel">Cancel</string>
     <string name="close">Close</string>
 
-    <string name="settings_version">v%1$s</string>
     <string name="save">Save</string>
     <string name="plex_connected_offline">Plex linked: %1$s (not reachable right now, will retry)</string>
     <string name="plex_no_server_short">no server yet</string>
@@ -108,17 +95,14 @@
     <string name="plex_code_copied">Copied %1$s</string>
     <string name="plex_no_browser">No browser here. Open plex.tv/link on your phone or computer.</string>
     <string name="plex_still_waiting">Still waiting for your Plex code. Reopen Connect Plex to see it again.</string>
-    <string name="settings_hero_layout">Banner layout (sideways): %1$s</string>
     <string name="hero_layout_right">Details right, image left</string>
     <string name="hero_layout_left">Details left, image right</string>
     <string name="hero_layout_full">Full-width image</string>
-    <string name="settings_focus_style">Selection style: %1$s</string>
     <string name="focus_outline">Outline</string>
     <string name="focus_zoom">Zoom</string>
     <string name="focus_both">Outline + zoom</string>
 
     <string name="done">Done</string>
-    <string name="settings_plex_profile">Plex profile: %1$s</string>
     <string name="plex_profile_owner">account owner</string>
     <string name="plex_profile_title">Who\'s watching?</string>
     <string name="plex_profile_loading">Getting your Plex profiles…</string>
@@ -132,7 +116,6 @@
     <string name="menu_hide">Hide from Apps</string>
     <string name="menu_unhide">Show in Apps again</string>
     <string name="menu_uninstall">Uninstall</string>
-    <string name="settings_unhide_all">Hidden apps: %1$d (show all)</string>
     <string name="settings_keeper_off">Replace the TV home screen (experimental)</string>
     <string name="settings_keeper_on">TV home replacement: On (how to turn off)</string>
     <string name="settings_keeper_pause">Open the stock home screen for 1 minute</string>
@@ -171,8 +154,6 @@
     <string name="row_more_mood">More %1$s</string>
 
     <!-- Trakt (advanced) -->
-    <string name="settings_trakt_off">Trakt lists (advanced): Off</string>
-    <string name="settings_trakt_on">Trakt lists (advanced): %1$d on</string>
     <string name="trakt_title">Trakt lists</string>
     <string name="trakt_help">Add rows from any public Trakt list, like a Black cinema or anime list. Needs your own free Client ID from trakt.tv/oauth/applications. Paste up to 5 list links, one per line (…/users/NAME/lists/LIST or …/users/NAME/watchlist).</string>
     <string name="trakt_client_hint">Trakt Client ID</string>
@@ -184,4 +165,133 @@
     <!-- Footer -->
     <string name="footer">Phone TV %1$s  ·  by zGenMedia</string>
     <string name="footer_donate">♥  Support on Ko-fi</string>
+
+    <!-- Title details page -->
+    <string name="details_watch_on">▶  Watch on %1$s</string>
+    <string name="details_resume_plex">▶  Resume in Plex</string>
+    <string name="details_director">Director: %1$s</string>
+    <string name="details_cast">Cast: %1$s</string>
+    <string name="details_loading">Getting cast, runtime and episodes…</string>
+    <string name="details_failed">Couldn\'t load more details: %1$s</string>
+    <string name="details_episodes">Episodes</string>
+    <string name="details_season">Season %1$d</string>
+    <string name="details_specials">Specials</string>
+    <string name="details_episode_n">Episode %1$d</string>
+    <string name="details_episode_heading">S%1$d · E%2$d</string>
+    <string name="details_open_with">Choose the app to open this episode in. Set a favorite under Settings › Playback to skip this step.</string>
+
+    <!-- When an app a button points at isn\'t on the device -->
+    <string name="missing_title">%1$s isn\'t on this device</string>
+    <string name="missing_body">Phone TV couldn\'t find %1$s, so there is nothing to open.\n\nIf it is installed, it may be hidden from other apps (a work profile, Secure Folder or a second user). Otherwise install it, or pick another app for this title.</string>
+    <string name="missing_get">Get %1$s</string>
+    <string name="missing_choose">Choose another app</string>
+    <string name="no_store">No app store or browser here to open that link</string>
+    <string name="no_trailer_title">Can\'t play the trailer</string>
+
+    <!-- Settings page -->
+    <string name="set_title">Settings</string>
+    <string name="set_version">Phone TV %1$s</string>
+    <string name="on">On</string>
+    <string name="off">Off</string>
+    <string name="set_look">Look</string>
+    <string name="set_look_hint">Colors, sizes and how the selected item stands out.</string>
+    <string name="set_home">Home screen</string>
+    <string name="set_home_hint">The banner, the shelves and which rows appear.</string>
+    <string name="set_playback">Playback</string>
+    <string name="set_playback_hint">Which app opens a movie or show.</string>
+    <string name="set_sources">Sources</string>
+    <string name="set_sources_hint">Your Plex library and optional lists.</string>
+    <string name="set_system">System</string>
+    <string name="set_system_hint">Home button, updates and about.</string>
+
+    <string name="set_group_color">Color</string>
+    <string name="set_accent">Accent</string>
+    <string name="set_accent_hint">Used for the main button, switches and the selection outline.</string>
+    <string name="accent_classic">Classic</string>
+    <string name="accent_ember">Ember</string>
+    <string name="accent_crimson">Crimson</string>
+    <string name="accent_ocean">Ocean</string>
+    <string name="accent_violet">Violet</string>
+    <string name="accent_emerald">Emerald</string>
+    <string name="accent_rose">Rose</string>
+    <string name="set_black">Pure black background</string>
+    <string name="set_black_hint">Deeper blacks on OLED screens.</string>
+
+    <string name="set_group_size">Size and selection</string>
+    <string name="set_size">Display size</string>
+    <string name="set_size_hint">Scales everything. Large suits a TV across the room.</string>
+    <string name="set_focus">Selection style</string>
+    <string name="set_focus_hint">How the item under the remote is shown.</string>
+    <string name="set_zoom">Zoom amount</string>
+    <string name="set_zoom_hint">Applies when the selection style includes zoom.</string>
+    <string name="zoom_subtle">Subtle</string>
+    <string name="zoom_medium">Medium</string>
+    <string name="zoom_strong">Strong</string>
+    <string name="set_corners">Card corners</string>
+    <string name="corners_sharp">Sharp</string>
+    <string name="corners_soft">Soft</string>
+    <string name="corners_classic">Classic</string>
+    <string name="corners_round">Round</string>
+
+    <string name="set_group_screen">Screen</string>
+    <string name="set_bars">Hide system bars</string>
+    <string name="set_bars_hint">Full screen, without the status and navigation bars.</string>
+
+    <string name="set_group_banner">Banner</string>
+    <string name="set_hero">Show the banner</string>
+    <string name="set_hero_hint">The featured titles at the top. Off starts with your apps.</string>
+    <string name="set_hero_layout">Banner layout</string>
+    <string name="set_hero_layout_hint">For sideways screens. Upright always uses a full-width picture.</string>
+    <string name="set_tune">Tune the banner</string>
+    <string name="set_tune_hint">Type two or three words, like \"korean romance\".</string>
+    <string name="set_tune_trending">Trending</string>
+
+    <string name="set_group_shelves">Shelves</string>
+    <string name="set_tiles">Android TV style app tiles</string>
+    <string name="set_tiles_hint">Wide banners where an app has one. Off shows phone icons.</string>
+    <string name="set_labels">Titles under posters</string>
+    <string name="set_labels_hint">Adds the name beneath each poster.</string>
+    <string name="set_wide">Wide cards everywhere</string>
+    <string name="set_wide_hint">Shows every row as 16:9 artwork instead of posters.</string>
+    <string name="set_card_size">Card size</string>
+    <string name="set_expand">Grow a poster when you pause on it</string>
+    <string name="set_expand_hint">With a remote or keyboard: the poster widens to show its artwork.</string>
+    <string name="set_seconds">%1$d s</string>
+
+    <string name="set_group_rows">Rows on For you</string>
+    <string name="set_group_apps">Apps</string>
+    <string name="set_hidden_apps">Show hidden apps again</string>
+    <string name="set_hidden_apps_hint">Brings back every app you hid from the Apps tab.</string>
+
+    <string name="set_group_open">Opening titles</string>
+    <string name="set_player">Open movies and shows with</string>
+    <string name="set_player_hint">Used by Watch and by episodes. Ask shows every choice on the title\'s page.</string>
+    <string name="set_players_found">Found on this device: %1$s</string>
+    <string name="set_players_missing">Not found: %1$s</string>
+
+    <string name="set_group_plex">Plex</string>
+    <string name="set_plex_hint">Adds Continue watching and Recently added from your own server.</string>
+    <string name="set_plex_profile">Profile</string>
+    <string name="set_plex_profile_hint">Switch between the people in your Plex Home.</string>
+    <string name="set_plex_disconnect">Disconnect Plex</string>
+
+    <string name="set_group_lists">Lists and catalog</string>
+    <string name="set_trakt">Trakt lists (advanced)</string>
+    <string name="set_trakt_hint">Add rows from public Trakt lists with your own Client ID.</string>
+    <string name="set_trakt_on">%1$d on</string>
+    <string name="set_refresh_hint">Fetch the latest titles now.</string>
+
+    <string name="set_group_home_app">Home button</string>
+    <string name="set_home_app_hint">Opens the system screen where you choose your Home app.</string>
+    <string name="set_keeper_hint">Optional. Steps in front of the stock TV home screen.</string>
+
+    <string name="set_group_updates">Updates</string>
+    <string name="set_update_hint">Installed: %1$s. New versions keep your settings.</string>
+
+    <string name="set_group_about">About</string>
+    <string name="set_about">Phone TV %1$s</string>
+    <string name="set_about_hint">Free and open source, by zGenMedia.</string>
+    <string name="set_donate_hint">Keeps the project going.</string>
+    <string name="set_source">Source code</string>
+    <string name="set_source_hint">Read it, build it, report a problem.</string>
 </resources>

@@ -3,6 +3,36 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.10.0 — preview, not released yet
+
+### Added
+- **Title page.** Choosing a movie or show opens a full-screen page with its
+  artwork, runtime, cast and a button for each app that can play it. Shows
+  list every season and episode. Back returns to the exact tile you left.
+- **Nuvio** joins Stremio and Plex as a place to open titles
+  (Settings › Playback), with a direct link to the movie or show.
+- **"Isn't on this device" notice.** Pressing a button for an app that isn't
+  installed (or that Phone TV can't see) now says so, with a link to get it
+  or pick another app, instead of doing nothing.
+- **New Settings page** in sections (Look, Home screen, Playback, Sources,
+  System): two panes sideways, stacked upright. Options apply at once.
+- **Look:** seven accent colors, pure black background, zoom amount, card
+  corners.
+- **Home screen:** show or hide the banner, titles under posters, wide cards
+  everywhere, card size, and switches for each row on For you.
+- **Grow on pause.** Rest on a poster with the remote and it widens to show
+  the title's artwork (Off, or after 1 to 5 seconds).
+
+### Changed
+- Smoother movement: focus scrolling eases to a fixed resting point just
+  short of the middle of the screen, and can be re-aimed while it moves.
+- Banner artwork sits wider, always keeps its top edge, blends into the page
+  and cross-fades between titles. Title logos line up with the text.
+- Trailers open the exact YouTube video when the catalog knows it.
+- Stremio links are sent to Stremio itself; other apps that register the
+  same link type can no longer swallow them.
+- Up from the page always lands on the current tab in the top menu.
+
 ## 0.9.4 — 2026-11-10
 
 ### Changed

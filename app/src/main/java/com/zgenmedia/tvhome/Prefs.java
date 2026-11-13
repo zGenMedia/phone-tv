@@ -15,7 +15,7 @@ import java.util.UUID;
  * that setting for existing users, so treat them as frozen.
  */
 final class Prefs {
-    static final String PLAY_ASK = "ask", PLAY_STREMIO = "stremio", PLAY_PLEX = "plex";
+    static final String PLAY_ASK = "ask", PLAY_STREMIO = "stremio", PLAY_NUVIO = "nuvio", PLAY_PLEX = "plex";
     static final float[] SIZE_SCALES = {0.70f, 0.80f, 0.94f};
 
     private static final String FILE = "home";
@@ -48,6 +48,47 @@ final class Prefs {
     void setFocusStyle(int v) { sp.edit().putInt("focusStyle", v).apply(); }
     void setSizeIndex(int i) { sp.edit().putInt(K_SIZE, i).apply(); }
     float scale() { return SIZE_SCALES[sizeIndex()]; }
+
+    // --- look ---
+    /** Index into Ui.PALETTES. */
+    int accent() { return sp.getInt("accent", 0); }
+    void setAccent(int v) { sp.edit().putInt("accent", v).apply(); }
+
+    boolean pureBlack() { return sp.getBoolean("pureBlack", false); }
+    void setPureBlack(boolean v) { sp.edit().putBoolean("pureBlack", v).apply(); }
+
+    /** Index into Ui.FOCUS_SCALES; the strongest zoom is the long-standing default. */
+    int focusZoom() { return clamp(sp.getInt("focusZoom", 2), Ui.FOCUS_SCALES.length); }
+    void setFocusZoom(int v) { sp.edit().putInt("focusZoom", v).apply(); }
+
+    /** Index into Ui.CARD_RADII. */
+    int cardCorners() { return clamp(sp.getInt("cardCorners", 2), Ui.CARD_RADII.length); }
+    void setCardCorners(int v) { sp.edit().putInt("cardCorners", v).apply(); }
+
+    // --- home layout ---
+    static final float[] CARD_SCALES = {0.86f, 1f, 1.18f};
+    int cardSize() { return clamp(sp.getInt("cardSize", 1), CARD_SCALES.length); }
+    void setCardSize(int v) { sp.edit().putInt("cardSize", v).apply(); }
+
+    boolean showHero() { return sp.getBoolean("showHero", true); }
+    void setShowHero(boolean v) { sp.edit().putBoolean("showHero", v).apply(); }
+
+    boolean posterLabels() { return sp.getBoolean("posterLabels", false); }
+    void setPosterLabels(boolean v) { sp.edit().putBoolean("posterLabels", v).apply(); }
+
+    boolean wideCards() { return sp.getBoolean("wideCards", false); }
+    void setWideCards(boolean v) { sp.edit().putBoolean("wideCards", v).apply(); }
+
+    /** Seconds a poster stays focused before it widens to show its artwork; 0 turns that off. */
+    static final int[] EXPAND_DELAYS = {0, 1, 2, 3, 5};
+    int expandDelay() { return sp.getInt("expandDelay", 2); }
+    void setExpandDelay(int seconds) { sp.edit().putInt("expandDelay", seconds).apply(); }
+
+    /** Rows the user switched off on the home screen, by row key. */
+    boolean rowShown(String key) { return !sp.getBoolean("rowOff_" + key, false); }
+    void setRowShown(String key, boolean shown) { sp.edit().putBoolean("rowOff_" + key, !shown).apply(); }
+
+    private static int clamp(int v, int length) { return Math.max(0, Math.min(length - 1, v)); }
 
     boolean hideSystemBars() { return sp.getBoolean(K_HIDE_BARS, true); }
     void setHideSystemBars(boolean v) { sp.edit().putBoolean(K_HIDE_BARS, v).apply(); }

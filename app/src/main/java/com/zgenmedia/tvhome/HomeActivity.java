@@ -63,6 +63,9 @@ import java.util.concurrent.Executors;
  *   footer      version · Ko-fi
  * </pre>
  *
+ * Pages that cover the whole screen (a title's details, Settings) are
+ * {@link Overlay}s added above this layout; see {@link #openOverlay}.
+ *
  * Views are built in code instead of XML so the screen can be rebuilt in one
  * pass when the size setting or orientation changes. Rows are short (at most a
  * few dozen cards) and artwork is lazy-loaded, so we skip RecyclerView and the
@@ -74,35 +77,42 @@ public class HomeActivity extends Activity {
 
     static final String KOFI_URL = "https://ko-fi.com/zgenmedia/tiers";
     private static final String STREMIO_PACKAGE = "com.stremio.one";
+    private static final String[] NUVIO_PACKAGES = {"com.nuvio.tv", "com.nuvio.app"};
+    private static final String NUVIO_URL = "https://github.com/NuvioMedia";
+    /** Share of the screen width the banner artwork takes when it sits beside the details. */
+    private static final float HERO_ART_WIDTH = 0.72f;
     private static final String TVMATE_HINT = "tvmate";
 
     private static final int TAB_FOR_YOU = 0, TAB_MOVIES = 1, TAB_SHOWS = 2, TAB_APPS = 3;
     private static final int[] TAB_LABELS = {R.string.tab_for_you, R.string.tab_movies, R.string.tab_shows, R.string.tab_apps};
-    private static final int[] SIZE_LABELS = {R.string.size_compact, R.string.size_standard, R.string.size_large};
 
     private static final long HERO_INTERVAL_MS = 9_000;
     private static final long CONTENT_TTL_MS = 3 * 60 * 60 * 1000L;
     private static final long PLEX_POLL_MS = 2_000;
     private static final int REQUEST_TILE_IMAGE = 41;
 
-    private final Handler main = new Handler(Looper.getMainLooper());
-    private final ExecutorService io = Executors.newSingleThreadExecutor(r -> {
+    // Rows on "For you" that can be switched off in Settings. Keys are stored; don't rename.
+    static final String ROW_PLEX_CONTINUE = "plexContinue", ROW_PLEX_RECENT = "plexRecent",
+            ROW_TOP_PICKS = "topPicks", ROW_SHOWS = "popularShows", ROW_MOVIES = "popularMovies", ROW_TOP_RATED = "topRated";
+
+    final Handler main = new Handler(Looper.getMainLooper());
+    final ExecutorService io = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(() -> { Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND); r.run(); }, "phonetv-io");
         t.setDaemon(true);
         return t;
     });
 
-    private Prefs prefs;
-    private Ui ui;
-    private ImageLoader images;
-    private AppRepository apps;
+    Prefs prefs;
+    Ui ui;
+    ImageLoader images;
+    AppRepository apps;
     private TileArt tileArt;
-    private CatalogRepository catalog;
-    private PlexClient plex;
-    private TraktClient trakt;
+    CatalogRepository catalog;
+    PlexClient plex;
+    TraktClient trakt;
     private HeroMood heroMood;
-    private Updater updater;
-    private boolean tvDevice;          // Shield, Fire TV, Google TV: remote-first, no touch
+    Updater updater;
+    boolean tvDevice;          // Shield, Fire TV, Google TV: remote-first, no touch
     private boolean autoFocusHero = true;
 
     // Remote navigation: named focus targets so focus survives a rebuild of the screen.
@@ -113,10 +123,10 @@ public class HomeActivity extends Activity {
 
     // Banner pieces kept so it can tuck itself away while the top menu has focus.
     private FrameLayout heroFrame;
-    private View heroButtons, heroPager, heroFade;
+    private View heroButtons, heroPager;
     private int heroFullHeightPx;
-    private boolean heroCollapsed, heroSideArt;
-    private Updater.Release readyUpdate;   // downloaded and verified, waiting for the user's tap
+    private boolean heroCollapsed;
+    Updater.Release readyUpdate;   // downloaded and verified, waiting for the user's tap
     private java.io.File readyApk;
     private List<MediaItem> moodItems = Collections.emptyList();
     private boolean moodLoading;
@@ -128,13 +138,15 @@ public class HomeActivity extends Activity {
     private List<String> traktErrors = Collections.emptyList();
     private volatile boolean plexLinking;
 
-    // Screen state
-    private FrameLayout root;
+    // Screen state. "home" holds the launcher; pages (details, settings) are added to root above it.
+    private FrameLayout root, home;
+    private Overlay overlay;
+    private String overlayReturnKey;
     private ScrollView scroll;
     private View topBar;
     private boolean topBarHidden;
     private int tab = TAB_FOR_YOU;
-    private int insetTop, insetBottom, insetLeft, insetRight;
+    int insetTop, insetBottom, insetLeft, insetRight;
     private String appFilter = "";
     private LinearLayout appGrid;
     private String tileImageTarget; // package awaiting a picked image
@@ -143,13 +155,15 @@ public class HomeActivity extends Activity {
     private final List<MediaItem> heroItems = new ArrayList<>();
     private int heroIndex;
     private boolean heroOnScreen = true;
-    private ImageView heroBackdrop, heroLogo;
+    private ImageView[] heroArt;   // two stacked layers, cross-faded
+    private int heroArtFront;
+    private ImageView heroLogo;
     private TextView heroTitle, heroMeta, heroSummary;
     private LinearLayout heroDots;
     private final Runnable heroAdvance = new Runnable() {
         @Override public void run() {
             // Skip the transition when nobody can see it; saves decode work and battery.
-            if (heroItems.size() > 1 && heroOnScreen && hasWindowFocus()) showHero((heroIndex + 1) % heroItems.size());
+            if (heroItems.size() > 1 && heroOnScreen && overlay == null && hasWindowFocus()) showHero((heroIndex + 1) % heroItems.size());
             main.postDelayed(this, HERO_INTERVAL_MS);
         }
     };
@@ -163,9 +177,9 @@ public class HomeActivity extends Activity {
         ui = new Ui(this, prefs.scale());
         images = new ImageLoader(this);
         tvDevice = isTvDevice();
-        if (tvDevice) { prefs.setDefaultSizeIndex(2); ui.setScale(prefs.scale()); }
+        if (tvDevice) prefs.setDefaultSizeIndex(2);
+        applyLook();
         ui.onFocus = this::reveal;
-        ui.focusStyle = prefs.focusStyle();
         apps = new AppRepository(this, prefs, tvDevice);
         tileArt = new TileArt(this, ui);
         catalog = new CatalogRepository(this, io);
@@ -200,6 +214,16 @@ public class HomeActivity extends Activity {
 
     @Override protected void onPause() { super.onPause(); main.removeCallbacks(heroAdvance); }
 
+    /** Pushes the look settings into the theme and the view helpers. Call before rebuilding views. */
+    void applyLook() {
+        Ui.applyTheme(prefs);
+        ui.setScale(prefs.scale());
+        ui.focusStyle = prefs.focusStyle();
+        ui.focusScale = Ui.FOCUS_SCALES[prefs.focusZoom()];
+        ui.cardRadius = Ui.CARD_RADII[prefs.cardCorners()];
+        if (root != null) root.setBackgroundColor(Ui.BG);
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
@@ -210,7 +234,12 @@ public class HomeActivity extends Activity {
 
     @Override public void onWindowFocusChanged(boolean focused) { super.onWindowFocusChanged(focused); if (focused) applySystemBars(); }
 
-    @Override public void onConfigurationChanged(Configuration c) { super.onConfigurationChanged(c); render(); }
+    @Override
+    public void onConfigurationChanged(Configuration c) {
+        super.onConfigurationChanged(c);
+        render();
+        if (overlay != null) overlay.rebuild();
+    }
 
     /** Home pressed while already home: go back to the top of "For you", like a TV. */
     @Override
@@ -227,6 +256,7 @@ public class HomeActivity extends Activity {
      */
     @Override
     public void onBackPressed() {
+        if (overlay != null) { if (!overlay.onBack()) closeOverlay(); return; }
         boolean atTop = tab == TAB_FOR_YOU && (scroll == null || scroll.getScrollY() == 0);
         if (atTop && !isDefaultHome() && !homeKeeperEnabled()) { moveTaskToBack(true); return; }
         goHome();
@@ -236,7 +266,8 @@ public class HomeActivity extends Activity {
     @Override
     public boolean onKeyDown(int keyCode, android.view.KeyEvent event) {
         if (keyCode == android.view.KeyEvent.KEYCODE_MENU) {
-            View focused = getCurrentFocus();
+            if (overlay != null) return true;
+            View focused = focused();
             Object tag = focused == null ? null : focused.getTag();
             if (tag instanceof AppRepository.App) showAppMenu((AppRepository.App) tag); else showSettings();
             return true;
@@ -258,7 +289,17 @@ public class HomeActivity extends Activity {
         int direction = focusDirection(e.getKeyCode());
         boolean select = e.getKeyCode() == android.view.KeyEvent.KEYCODE_DPAD_CENTER;
         if (e.getAction() == android.view.KeyEvent.ACTION_DOWN && (direction != 0 || select)) {
-            View focused = getCurrentFocus();
+            View focused = focused();
+            if (overlay != null) {
+                // A page is open: it owns the remote until it closes.
+                if (focused == null || !isInside(focused, overlay.view())) {
+                    View first = overlay.firstFocus();
+                    if (first != null && first.requestFocus()) return true;
+                } else if (direction != 0 && overlay.move(focused, direction)) {
+                    return true;
+                }
+                return super.dispatchKeyEvent(e);
+            }
             if (focused == null || focused == scroll) {
                 // Nothing selected yet (e.g. after touch use): land on the banner, or the current tab.
                 View t = focusTargets.get("hero:watch");
@@ -279,6 +320,38 @@ public class HomeActivity extends Activity {
             case android.view.KeyEvent.KEYCODE_DPAD_RIGHT: return View.FOCUS_RIGHT;
             default: return 0;
         }
+    }
+
+    /** The view under the remote, on the home screen or on a page above it. */
+    View focused() { return root == null ? null : root.findFocus(); }
+
+    static boolean isInside(View v, View ancestor) {
+        for (android.view.ViewParent p = v.getParent(); p != null; p = p.getParent()) if (p == ancestor) return true;
+        return v == ancestor;
+    }
+
+    /**
+     * The D-pad rule every screen shares: Left and Right stay inside the current shelf
+     * (or button group); Up and Down look across the whole page.
+     */
+    static View nextFocus(ViewGroup page, View focused, int direction) {
+        android.view.FocusFinder finder = android.view.FocusFinder.getInstance();
+        if (direction == View.FOCUS_UP || direction == View.FOCUS_DOWN) {
+            View next = finder.findNextFocus(page, focused, direction);
+            // Arriving at a strip of chips from another row: land on the chosen chip, not the nearest one.
+            if (next != null && next.getParent() instanceof View) {
+                View strip = (View) next.getParent();
+                Object chosen = strip.getTag(R.id.selected_chip);
+                if (chosen instanceof View && focused.getParent() != strip) return (View) chosen;
+            }
+            return next;
+        }
+        ViewGroup group = null;
+        for (android.view.ViewParent p = focused.getParent(); p instanceof ViewGroup && p != page; p = p.getParent()) {
+            if (p instanceof HorizontalScrollView) { group = (ViewGroup) p; break; }
+        }
+        if (group == null && focused.getParent() instanceof ViewGroup) group = (ViewGroup) focused.getParent();
+        return group == null ? null : finder.findNextFocus(group, focused, direction);
     }
 
     /** @return true if the key was used (even when there was nowhere further to go). */
@@ -307,7 +380,12 @@ public class HomeActivity extends Activity {
             if (group != null) next = finder.findNextFocus(group, focused, direction);
             if (next == null && inTopBar) next = finder.findNextFocus((ViewGroup) topBar, focused, direction);
         } else {
-            next = finder.findNextFocus(root, focused, direction);
+            next = finder.findNextFocus(home, focused, direction);
+            // Reaching the top menu from the page always lands on the current tab.
+            if (next != null && isInside(next, topBar) && !isInside(focused, topBar)) {
+                View current = focusTargets.get("tab:" + tab);
+                if (current != null) next = current;
+            }
         }
         if (next != null && next != focused) next.requestFocus();
         return true;
@@ -321,29 +399,36 @@ public class HomeActivity extends Activity {
     }
 
     /**
-     * Glides the focused view into place: centred in its row, and its row about
-     * mid-screen. Anything inside the banner scrolls the page back to the top.
+     * Glides the focused view to its resting place: a little before the middle of its
+     * shelf, and its shelf a little above the middle of the page. Works for the home
+     * screen and for any page above it. Anything in a page's top zone (the banner, a
+     * details header) scrolls that page back to the top instead.
      */
-    private void reveal(View v) {
-        if (scroll == null) return;
-        setHeroCollapsed(false);
+    void reveal(View v) {
+        ScrollView page = null;
         HorizontalScrollView shelf = null;
-        boolean inPage = false;
         for (android.view.ViewParent p = v.getParent(); p != null; p = p.getParent()) {
             if (shelf == null && p instanceof HorizontalScrollView) shelf = (HorizontalScrollView) p;
-            if (p == scroll) { inPage = true; break; }
+            if (p instanceof ScrollView) { page = (ScrollView) p; break; }
         }
-        if (!inPage) return;
-        if (shelf != null && shelf.getChildCount() > 0 && v.getParent() == shelf.getChildAt(0)) {
-            int visible = shelf.getWidth() - shelf.getPaddingLeft() - shelf.getPaddingRight();
-            shelf.smoothScrollTo(Math.max(0, v.getLeft() - (visible - v.getWidth()) / 2), 0);
-        }
+        if (page == null) return;
+        boolean onHome = page == scroll;
+        if (onHome) setHeroCollapsed(false);
+
         android.graphics.Rect r = new android.graphics.Rect();
+        if (shelf != null && shelf.getChildCount() > 0) {
+            v.getDrawingRect(r);
+            shelf.offsetDescendantRectToMyCoords(v, r);
+            int visible = shelf.getWidth() - shelf.getPaddingLeft() - shelf.getPaddingRight();
+            Motion.glideX(shelf, r.centerX() - shelf.getPaddingLeft() - (int) (visible * Motion.PIVOT));
+        }
         v.getDrawingRect(r);
-        scroll.offsetDescendantRectToMyCoords(v, r);
-        int y = r.bottom <= heroHeightPx ? 0 : r.centerY() - scroll.getHeight() / 2;
-        scroll.smoothScrollTo(0, Math.max(0, y));
-        if (y <= 0) setTopBarVisible(true);
+        page.offsetDescendantRectToMyCoords(v, r);
+        Object zone = page.getTag(R.id.top_zone);
+        int topZone = onHome ? heroHeightPx : zone instanceof Integer ? (Integer) zone : 0;
+        int y = r.bottom <= topZone ? 0 : r.centerY() - (int) (page.getHeight() * Motion.PIVOT);
+        Motion.glideY(page, y);
+        if (onHome && y <= 0) setTopBarVisible(true);
     }
 
     /** TV on-screen keyboards only open on request; do it whenever a text box is selected. */
@@ -372,13 +457,13 @@ public class HomeActivity extends Activity {
                 || pm.hasSystemFeature("amazon.hardware.fire_tv");
     }
 
-    private boolean isDefaultHome() {
+    boolean isDefaultHome() {
         android.content.pm.ResolveInfo home = getPackageManager().resolveActivity(
                 new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), android.content.pm.PackageManager.MATCH_DEFAULT_ONLY);
         return home != null && home.activityInfo != null && getPackageName().equals(home.activityInfo.packageName);
     }
 
-    private boolean homeKeeperEnabled() {
+    boolean homeKeeperEnabled() {
         String enabled = Settings.Secure.getString(getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
         return enabled != null && enabled.contains(getPackageName() + "/" + HomeKeeperService.class.getName());
     }
@@ -399,8 +484,9 @@ public class HomeActivity extends Activity {
     }
 
     private void goHome() {
+        closeOverlay();
         if (tab != TAB_FOR_YOU) { tab = TAB_FOR_YOU; render(); }
-        else if (scroll != null) { scroll.smoothScrollTo(0, 0); setTopBarVisible(true); }
+        else if (scroll != null) { Motion.glideY(scroll, 0); setTopBarVisible(true); }
     }
 
     // ====================================================================== window
@@ -417,6 +503,8 @@ public class HomeActivity extends Activity {
 
         root = new FrameLayout(this);
         root.setBackgroundColor(Ui.BG);
+        home = new FrameLayout(this);
+        root.addView(home, new FrameLayout.LayoutParams(-1, -1));
         setContentView(root);
         root.getViewTreeObserver().addOnGlobalLayoutListener(images::flush);
         root.setOnApplyWindowInsetsListener((v, in) -> {
@@ -431,14 +519,14 @@ public class HomeActivity extends Activity {
             if (t != insetTop || b != insetBottom || l != insetLeft || r != insetRight) {
                 insetTop = t; insetBottom = b; insetLeft = l; insetRight = r;
                 // Rebuild after the insets pass finishes rather than mutating the tree mid-dispatch.
-                main.post(this::render);
+                main.post(() -> { render(); if (overlay != null) overlay.rebuild(); });
             }
             return in;
         });
     }
 
     /** Hides status and navigation bars (the side buttons in landscape) when enabled. */
-    private void applySystemBars() {
+    void applySystemBars() {
         boolean hide = prefs.hideSystemBars();
         if (Build.VERSION.SDK_INT >= 30) {
             WindowInsetsController c = getWindow().getInsetsController();
@@ -465,7 +553,7 @@ public class HomeActivity extends Activity {
 
     // ===================================================================== content
 
-    private void refreshContent() {
+    void refreshContent() {
         catalog.refresh((error, usedCacheOnly) -> {
             if (usedCacheOnly) toast(getString(R.string.offline_cached));
             renderPreservingScroll();
@@ -481,7 +569,7 @@ public class HomeActivity extends Activity {
      * Checks the published manifest; a newer build is downloaded and verified in
      * the background so the "Update ready" card installs with a single tap.
      */
-    private void checkForUpdate(boolean manual) {
+    void checkForUpdate(boolean manual) {
         io.execute(() -> {
             try {
                 Updater.Release r = updater.check();
@@ -494,7 +582,7 @@ public class HomeActivity extends Activity {
         });
     }
 
-    private void installUpdate() {
+    void installUpdate() {
         if (readyApk == null) return;
         if (!updater.canInstall()) {
             // One-time permission: Android asks the user to allow this app to install updates.
@@ -537,7 +625,7 @@ public class HomeActivity extends Activity {
             notes.setPadding(0, ui.dp(4), 0, 0);
             c.addView(notes);
         }
-        TextView install = ui.pill(getString(R.string.update_install), 0xFFF1F3F4, Ui.ON_LIGHT);
+        TextView install = ui.primary(getString(R.string.update_install));
         install.setOnClickListener(v -> installUpdate());
         LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(-2, -2);
         ilp.topMargin = ui.dp(10);
@@ -549,7 +637,7 @@ public class HomeActivity extends Activity {
     }
 
     /** Loads titles for the user's typed hero words. No-op when the hero is on trending. */
-    private void refreshMood() {
+    void refreshMood() {
         String words = prefs.heroMood();
         if (words.isEmpty()) {
             if (!moodItems.isEmpty()) { moodItems = Collections.emptyList(); heroIndex = 0; renderPreservingScroll(); }
@@ -579,7 +667,7 @@ public class HomeActivity extends Activity {
         });
     }
 
-    private void refreshPlex() {
+    void refreshPlex() {
         if (!plex.isLinked()) return;
         io.execute(() -> {
             List<MediaItem> cont, recent;
@@ -596,8 +684,17 @@ public class HomeActivity extends Activity {
         });
     }
 
+    void disconnectPlex() {
+        prefs.clearPlex();
+        prefs.clearPlexPendingPin();
+        plexContinue = Collections.emptyList();
+        plexRecent = Collections.emptyList();
+        plexError = null;
+        renderPreservingScroll();
+    }
+
     /** Opt-in rows from public Trakt lists; a no-op unless the user configured them. */
-    private void refreshTrakt() {
+    void refreshTrakt() {
         if (!trakt.isConfigured()) {
             if (!traktRows.isEmpty() || !traktErrors.isEmpty()) {
                 traktRows = Collections.emptyList(); traktErrors = Collections.emptyList(); renderPreservingScroll();
@@ -611,13 +708,13 @@ public class HomeActivity extends Activity {
         });
     }
 
-    private boolean land() { return getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE; }
-    private int gutter() { return insetLeft + ui.dp(land() ? 40 : 20); }
-    private DisplayMetrics metrics() { return getResources().getDisplayMetrics(); }
+    boolean land() { return getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE; }
+    int gutter() { return insetLeft + ui.dp(land() ? 40 : 20); }
+    DisplayMetrics metrics() { return getResources().getDisplayMetrics(); }
 
     // ====================================================================== render
 
-    private void renderPreservingScroll() {
+    void renderPreservingScroll() {
         int y = scroll == null ? 0 : scroll.getScrollY();
         // Don't yank a remote user's focus (and the scroll position) back to the hero mid-browse.
         autoFocusHero = y == 0;
@@ -626,11 +723,11 @@ public class HomeActivity extends Activity {
         if (y > 0) scroll.post(() -> scroll.scrollTo(0, y));
     }
 
-    private void render() {
+    void render() {
         if (root == null) return;
         main.removeCallbacks(heroAdvance);
         images.clearDeferred();
-        View had = getCurrentFocus();
+        View had = focused();
         Object key = had == null ? null : had.getTag(R.id.focus_key);
         restoreFocusKey = key instanceof String ? (String) key : null;
         focusTargets.clear();
@@ -638,8 +735,10 @@ public class HomeActivity extends Activity {
         heroHeightPx = 0;
         heroBackdropWidthPx = 0;
         heroWatchId = 0;
+        heroFrame = null;
+        heroArt = null;
         selectedChipId = View.generateViewId();
-        root.removeAllViews();
+        home.removeAllViews();
         topBarHidden = false;
         heroOnScreen = true;
 
@@ -650,7 +749,7 @@ public class HomeActivity extends Activity {
         LinearLayout column = new LinearLayout(this);
         column.setOrientation(LinearLayout.VERTICAL);
         scroll.addView(column, new ViewGroup.LayoutParams(-1, -2));
-        root.addView(scroll, new FrameLayout.LayoutParams(-1, -1));
+        home.addView(scroll, new FrameLayout.LayoutParams(-1, -1));
         scroll.setOnScrollChangeListener((v, x, y, oldX, oldY) -> {
             if (y > oldY + 6 && y > ui.dp(48)) setTopBarVisible(false);
             else if (y < oldY - 6 || y < ui.dp(16)) setTopBarVisible(true);
@@ -665,7 +764,7 @@ public class HomeActivity extends Activity {
             buildMediaTab(column);
         }
         topBar = buildTopBar();
-        root.addView(topBar, new FrameLayout.LayoutParams(-1, -2, Gravity.TOP));
+        home.addView(topBar, new FrameLayout.LayoutParams(-1, -2, Gravity.TOP));
         View target = restoreFocusKey == null ? null : focusTargets.get(restoreFocusKey);
         if (target != null) target.post(target::requestFocus);
     }
@@ -692,7 +791,8 @@ public class HomeActivity extends Activity {
         }
         if (heroIndex >= heroItems.size()) heroIndex = 0;
 
-        column.addView(buildHero());
+        if (prefs.showHero()) column.addView(buildHero());
+        else column.setPadding(0, insetTop + ui.dp(58), 0, 0); // no banner: start below the top menu
 
         if (tab == TAB_FOR_YOU) {
             if (readyUpdate != null) column.addView(updateCard());
@@ -700,8 +800,8 @@ public class HomeActivity extends Activity {
             column.addView(buildFavoritesRow());
             if (moodItems.size() > 8) posterRow(column, getString(R.string.row_more_mood, prefs.heroMood()), moodItems.subList(8, moodItems.size()));
             if (plex.isLinked()) {
-                backdropRow(column, getString(R.string.row_plex_continue), plexContinue);
-                posterRow(column, getString(R.string.row_plex_recent), plexRecent);
+                if (prefs.rowShown(ROW_PLEX_CONTINUE)) backdropRow(column, getString(R.string.row_plex_continue), plexContinue);
+                if (prefs.rowShown(ROW_PLEX_RECENT)) posterRow(column, getString(R.string.row_plex_recent), plexRecent);
                 if (plexError != null) column.addView(noticeCard(getString(R.string.plex_status_title),
                         getString(R.string.plex_status_body, plexError), this::refreshPlex));
             } else if (apps.byPackage(PlexClient.PACKAGE) != null && !prefs.plexPromptDismissed()) {
@@ -715,10 +815,10 @@ public class HomeActivity extends Activity {
         if (catalog.isEmpty()) {
             column.addView(statusCard());
         } else if (tab == TAB_FOR_YOU) {
-            backdropRow(column, getString(R.string.row_top_picks), slice(movies, 4, 20));
-            posterRow(column, getString(R.string.row_popular_shows), slice(shows, 4, 40));
-            posterRow(column, getString(R.string.row_popular_movies), slice(movies, 20, 48));
-            posterRow(column, getString(R.string.row_top_rated), rated);
+            if (prefs.rowShown(ROW_TOP_PICKS)) backdropRow(column, getString(R.string.row_top_picks), slice(movies, 4, 20));
+            if (prefs.rowShown(ROW_SHOWS)) posterRow(column, getString(R.string.row_popular_shows), slice(shows, 4, 40));
+            if (prefs.rowShown(ROW_MOVIES)) posterRow(column, getString(R.string.row_popular_movies), slice(movies, 20, 48));
+            if (prefs.rowShown(ROW_TOP_RATED)) posterRow(column, getString(R.string.row_top_rated), rated);
         } else if (tab == TAB_MOVIES) {
             backdropRow(column, getString(R.string.row_trending_movies), slice(movies, 7, 20));
             posterRow(column, getString(R.string.row_popular_movies), slice(movies, 20, 48));
@@ -832,46 +932,51 @@ public class HomeActivity extends Activity {
         int height = land ? (int) (dm.heightPixels * (full ? 0.70f : 0.58f)) : Math.max(ui.dp(330), (int) (dm.widthPixels * 0.82f));
         heroHeightPx = heroFullHeightPx = height;
         heroCollapsed = false;
-        heroSideArt = land && !full;
-        heroFade = null;
+        boolean sideArt = land && !full;
         FrameLayout hero = new FrameLayout(this);
         heroFrame = hero;
         hero.setLayoutParams(new LinearLayout.LayoutParams(-1, height));
 
-        // Side art shows the whole picture; a full-width or portrait banner crops from the bottom, never the top.
-        heroBackdrop = heroSideArt ? new ImageView(this) : new Ui.TopCropImageView(this);
-        if (heroSideArt) heroBackdrop.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        heroBackdrop.setBackground(Ui.gradient(GradientDrawable.Orientation.TL_BR, 0xFF2F3D56, 0xFF1D2331, 0xFF28223B));
-        if (heroSideArt) {
-            // Landscape: artwork at its natural 16:9 so nothing is cropped off the top, on the
-            // side opposite the details (details left / image right by default; see Settings).
-            int w = Math.min(dm.widthPixels, height * 16 / 9);
+        // Artwork always keeps its top edge (faces, title treatments) and crops from the bottom.
+        // Two layers, so a new title fades in over the old one instead of blinking.
+        float keep = sideArt ? (detailsRight ? 0f : 1f) : 0.5f;
+        FrameLayout art = new FrameLayout(this);
+        art.setBackground(Ui.gradient(GradientDrawable.Orientation.TL_BR, 0xFF2F3D56, 0xFF1D2331, 0xFF28223B));
+        heroArt = new ImageView[]{new Ui.TopCropImageView(this, keep), new Ui.TopCropImageView(this, keep)};
+        heroArtFront = 0;
+        for (ImageView layer : heroArt) art.addView(layer, new FrameLayout.LayoutParams(-1, -1));
+        if (sideArt) {
+            // Landscape: artwork fills the side opposite the details and its inner edge
+            // dissolves into the page, so the picture has no hard border (see Settings for the side).
+            int w = (int) (dm.widthPixels * HERO_ART_WIDTH);
             heroBackdropWidthPx = w;
-            int side = detailsRight ? Gravity.START : Gravity.END;
-            hero.addView(heroBackdrop, new FrameLayout.LayoutParams(w, -1, side));
-            View fade = new View(this); // dissolve the artwork's inner edge into the page
-            fade.setBackground(Ui.gradient(detailsRight ? GradientDrawable.Orientation.LEFT_RIGHT : GradientDrawable.Orientation.RIGHT_LEFT,
-                    0x000E0F13, 0x000E0F13, 0x990E0F13, Ui.BG));
-            hero.addView(fade, new FrameLayout.LayoutParams(w, -1, side));
-            heroFade = fade;
+            hero.addView(art, new FrameLayout.LayoutParams(w, -1, detailsRight ? Gravity.START : Gravity.END));
+            int fadeW = (int) (w * 0.48f);
+            View fade = new View(this);
+            fade.setBackground(detailsRight
+                    ? Ui.fade(true, Ui.BG, new float[]{0f, 0.24f, 0.54f, 0.78f, 1f}, new float[]{0f, 0.16f, 0.56f, 0.86f, 1f})
+                    : Ui.fade(true, Ui.BG, new float[]{0f, 0.22f, 0.46f, 0.76f, 1f}, new float[]{1f, 0.86f, 0.56f, 0.16f, 0f}));
+            FrameLayout.LayoutParams flp = new FrameLayout.LayoutParams(fadeW, -1, Gravity.START);
+            flp.leftMargin = detailsRight ? w - fadeW : dm.widthPixels - w;
+            hero.addView(fade, flp);
         } else {
-            // Portrait, or the full-width banner option: artwork fills the banner (cropped to fit).
-            hero.addView(heroBackdrop, new FrameLayout.LayoutParams(-1, -1));
+            // Portrait, or the full-width banner option: artwork fills the banner.
+            hero.addView(art, new FrameLayout.LayoutParams(-1, -1));
             if (full) {
                 View left = new View(this); // darken the left so the details stay readable
-                left.setBackground(Ui.gradient(GradientDrawable.Orientation.LEFT_RIGHT, 0xF00E0F13, 0x800E0F13, 0x000E0F13));
+                left.setBackground(Ui.gradient(GradientDrawable.Orientation.LEFT_RIGHT, Ui.bg(0xF0), Ui.bg(0x80), Ui.bg(0)));
                 hero.addView(left, new FrameLayout.LayoutParams((int) (dm.widthPixels * 0.65f), -1));
             }
         }
 
-        // Scrims: top for the menu, bottom (and left in landscape) for the text block.
+        // Scrims: top for the menu, bottom for the text block and the hand-off to the rows.
         View top = new View(this);
-        top.setBackground(Ui.gradient(GradientDrawable.Orientation.TOP_BOTTOM, 0xB30E0F13, 0x400E0F13, 0x000E0F13));
+        top.setBackground(Ui.gradient(GradientDrawable.Orientation.TOP_BOTTOM, Ui.bg(0xB3), Ui.bg(0x40), Ui.bg(0)));
         hero.addView(top, new FrameLayout.LayoutParams(-1, (int) (height * 0.35f)));
         View bottom = new View(this);
         bottom.setBackground(land
-                ? Ui.gradient(GradientDrawable.Orientation.TOP_BOTTOM, 0x00000000, 0x000E0F13, 0x990E0F13, Ui.BG)
-                : Ui.gradient(GradientDrawable.Orientation.TOP_BOTTOM, 0x00000000, 0x000E0F13, 0x660E0F13, 0xE60E0F13, Ui.BG));
+                ? Ui.fade(false, Ui.BG, new float[]{0f, 0.40f, 0.75f, 1f}, new float[]{0f, 0.22f, 0.62f, 1f})
+                : Ui.fade(false, Ui.BG, new float[]{0f, 0.30f, 0.55f, 0.80f, 1f}, new float[]{0f, 0f, 0.40f, 0.90f, 1f}));
         hero.addView(bottom, new FrameLayout.LayoutParams(-1, -1));
 
         LinearLayout info = new LinearLayout(this);
@@ -882,9 +987,7 @@ public class HomeActivity extends Activity {
         hero.addView(info, new FrameLayout.LayoutParams(land ? (int) (dm.widthPixels * 0.44f) : -1, -2,
                 Gravity.BOTTOM | (detailsRight ? Gravity.END : Gravity.START)));
 
-        heroLogo = new ImageView(this);
-        heroLogo.setScaleType(ImageView.ScaleType.FIT_START);
-        heroLogo.setAdjustViewBounds(true);
+        heroLogo = new Ui.LogoView(this);
         LinearLayout.LayoutParams logoLp = new LinearLayout.LayoutParams(
                 (int) (dm.widthPixels * (land ? 0.26f : 0.55f)), ui.dp(land ? 56 : 68));
         logoLp.bottomMargin = ui.dp(8);
@@ -901,14 +1004,15 @@ public class HomeActivity extends Activity {
 
         heroSummary = ui.label("", land ? 15 : 14, Ui.TEXT_DIM, null);
         heroSummary.setLineSpacing(0, 1.15f);
-        heroSummary.setMaxLines(land ? 3 : 2);
+        // A phone on its side is wide but short: one line less keeps the title clear of the top menu.
+        heroSummary.setMaxLines(land && dm.heightPixels >= ui.dp(560) ? 3 : 2);
         heroSummary.setEllipsize(TextUtils.TruncateAt.END);
         info.addView(heroSummary);
 
         LinearLayout buttons = new LinearLayout(this);
         buttons.setGravity(Gravity.CENTER_VERTICAL);
         buttons.setPadding(0, ui.dp(14), 0, 0);
-        TextView watch = ui.pill(getString(R.string.hero_watch), 0xFFF1F3F4, Ui.ON_LIGHT);
+        TextView watch = ui.primary(getString(R.string.hero_watch));
         watch.setOnClickListener(v -> { MediaItem m = currentHero(); if (m != null) play(m); });
         buttons.addView(watch);
         TextView details = ui.pill(getString(R.string.hero_details), 0x40FFFFFF, Ui.TEXT);
@@ -982,14 +1086,8 @@ public class HomeActivity extends Activity {
             if (heroButtons != null) heroButtons.setVisibility(vis);
             if (heroPager != null && heroItems.size() > 1) heroPager.setVisibility(vis);
         }
-        int h = collapsed ? (int) (heroFullHeightPx * 0.80f) : heroFullHeightPx;
-        heroHeightPx = h;
-        heroFrame.getLayoutParams().height = h;
-        if (heroSideArt) {
-            int w = Math.min(metrics().widthPixels, h * 16 / 9);
-            heroBackdrop.getLayoutParams().width = w;
-            if (heroFade != null) heroFade.getLayoutParams().width = w;
-        }
+        heroHeightPx = collapsed ? (int) (heroFullHeightPx * 0.80f) : heroFullHeightPx;
+        heroFrame.getLayoutParams().height = heroHeightPx;
         heroFrame.requestLayout();
     }
 
@@ -1016,7 +1114,7 @@ public class HomeActivity extends Activity {
     private MediaItem currentHero() { return heroItems.isEmpty() ? null : heroItems.get(Math.min(heroIndex, heroItems.size() - 1)); }
 
     private void showHero(int index) {
-        if (heroItems.isEmpty() || heroBackdrop == null) return;
+        if (heroItems.isEmpty() || heroArt == null) return;
         heroIndex = index;
         MediaItem m = heroItems.get(index);
         heroTitle.setText(m.title);
@@ -1027,9 +1125,9 @@ public class HomeActivity extends Activity {
         heroSummary.setText(m.summary);
 
         int screenW = metrics().widthPixels;
-        int backdropW = heroBackdropWidthPx > 0 ? heroBackdropWidthPx : land() ? screenW : screenW * 7 / 4;
         // Portrait crops a 16:9 backdrop into a tall frame, so it needs ~1.75x screen width.
-        images.load(heroBackdrop, m.backdrop(backdropW), backdropW, false, null);
+        int backdropW = heroBackdropWidthPx > 0 ? heroBackdropWidthPx : land() ? screenW : screenW * 7 / 4;
+        showHeroArt(m.backdrop(backdropW), backdropW);
         final ImageView logo = heroLogo;
         final TextView title = heroTitle;
         images.load(heroLogo, m.logo(), screenW / 2, true, () -> { logo.setVisibility(View.VISIBLE); title.setVisibility(View.GONE); });
@@ -1044,7 +1142,23 @@ public class HomeActivity extends Activity {
         }
     }
 
-    private String meta(MediaItem m) {
+    /** Loads the next banner image into the hidden layer and cross-fades to it once it's ready. */
+    private void showHeroArt(String url, int widthPx) {
+        if (url == null) return;
+        final ImageView[] layers = heroArt;
+        final ImageView front = layers[heroArtFront], back = layers[1 - heroArtFront];
+        if (front.getDrawable() == null) { images.load(front, url, widthPx, false, null); return; }
+        images.load(back, url, widthPx, false, () -> {
+            if (layers != heroArt) return; // the banner was rebuilt while this was loading
+            back.animate().cancel();
+            back.setAlpha(0f);
+            back.bringToFront();
+            back.animate().alpha(1f).setDuration(Motion.CROSSFADE).setInterpolator(Motion.STANDARD).start();
+            heroArtFront = back == layers[0] ? 0 : 1;
+        });
+    }
+
+    String meta(MediaItem m) {
         StringBuilder sb = new StringBuilder();
         if (!m.subtitle.isEmpty()) sb.append(m.subtitle);
         else sb.append(getString("episode".equals(m.type) ? R.string.meta_episode : m.isShow() ? R.string.meta_show : R.string.meta_movie));
@@ -1068,7 +1182,7 @@ public class HomeActivity extends Activity {
         }
         boolean empty = apps.favoriteCount() == 0;
         FrameLayout add = new FrameLayout(this);
-        add.setBackground(ui.round(0x26FFFFFF, 12));
+        add.setBackground(ui.round(0x26FFFFFF, ui.cardRadius));
         add.setForeground(ui.ripple(null));
         add.setClipToOutline(true);
         TextView plus = ui.label(empty ? getString(R.string.fav_add_tile) : "+", empty ? 13 : 24, Ui.TEXT, null);
@@ -1084,7 +1198,7 @@ public class HomeActivity extends Activity {
 
     private View appTile(AppRepository.App app, int heightPx, boolean onShelf) {
         FrameLayout tile = new FrameLayout(this);
-        tile.setBackground(ui.round(Ui.SURFACE, 12));
+        tile.setBackground(ui.round(Ui.SURFACE, ui.cardRadius));
         tileArt.bind(tile, app, heightPx, prefs.tvStyleTiles());
         if (!onShelf && apps.isFavorite(app.pkg)) tile.addView(badge("★"), new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END));
         if (!onShelf && app.tvEdition) tile.addView(badge("TV"), new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.START));
@@ -1176,41 +1290,18 @@ public class HomeActivity extends Activity {
 
     // ================================================================ media rows
 
+    /** Media card width: the given dp, scaled by Display size and by the Card size setting. */
+    private int cardWidth(float dp) { return (int) (ui.dp(dp) * Prefs.CARD_SCALES[prefs.cardSize()]); }
+
     private void backdropRow(LinearLayout column, String title, List<MediaItem> items) {
         if (items.isEmpty()) return;
         column.addView(rowTitle(title));
         LinearLayout row = rowContainer(column);
-        int w = ui.dp(land() ? 280 : 236), h = w * 9 / 16;
+        int w = cardWidth(land() ? 280 : 236), h = w * 9 / 16;
         for (MediaItem m : items) {
             FrameLayout card = card();
-            ImageView art = new ImageView(this);
-            art.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            card.addView(art, new FrameLayout.LayoutParams(-1, -1));
-            View scrim = new View(this);
-            scrim.setBackground(Ui.gradient(GradientDrawable.Orientation.TOP_BOTTOM, 0x00000000, 0x00000000, 0xCC000000));
-            card.addView(scrim, new FrameLayout.LayoutParams(-1, -1));
-
-            TextView name = ui.label(m.title, 13, Ui.TEXT, Ui.BOLD);
-            name.setMaxLines(1);
-            name.setEllipsize(TextUtils.TruncateAt.END);
-            name.setPadding(ui.dp(10), 0, ui.dp(10), ui.dp(m.progressPercent > 0 ? 12 : 8));
-            card.addView(name, new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM));
-
-            ImageView logo = new ImageView(this);
-            logo.setScaleType(ImageView.ScaleType.FIT_START);
-            logo.setVisibility(View.GONE);
-            FrameLayout.LayoutParams llp = new FrameLayout.LayoutParams((int) (w * 0.55f), ui.dp(32), Gravity.BOTTOM | Gravity.START);
-            llp.leftMargin = ui.dp(10);
-            llp.bottomMargin = ui.dp(8);
-            card.addView(logo, llp);
-
+            wideArt(card, m, w, true);
             if (m.progressPercent > 0) addProgressBar(card, w, m.progressPercent);
-
-            images.defer(card, () -> {
-                images.load(art, m.backdrop(w), w, false, null);
-                images.load(logo, m.logo(), (int) (w * 0.55f), true,
-                        () -> { logo.setVisibility(View.VISIBLE); name.setVisibility(View.GONE); });
-            });
             bindItem(card, m);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(w, h);
             lp.rightMargin = ui.dp(10);
@@ -1218,11 +1309,49 @@ public class HomeActivity extends Activity {
         }
     }
 
+    /**
+     * Fills a card with 16:9 artwork, a bottom scrim and the title (its logo when one exists).
+     * @param lazy wait until the card is near the screen before downloading anything.
+     */
+    private View wideArt(FrameLayout card, MediaItem m, int w, boolean lazy) {
+        FrameLayout layer = new FrameLayout(this);
+        ImageView art = new ImageView(this);
+        art.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        layer.addView(art, new FrameLayout.LayoutParams(-1, -1));
+        View scrim = new View(this);
+        scrim.setBackground(Ui.gradient(GradientDrawable.Orientation.TOP_BOTTOM, 0x00000000, 0x00000000, 0xCC000000));
+        layer.addView(scrim, new FrameLayout.LayoutParams(-1, -1));
+
+        TextView name = ui.label(m.title, 13, Ui.TEXT, Ui.BOLD);
+        name.setMaxLines(1);
+        name.setEllipsize(TextUtils.TruncateAt.END);
+        name.setPadding(ui.dp(10), 0, ui.dp(10), ui.dp(m.progressPercent > 0 ? 12 : 8));
+        layer.addView(name, new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM));
+
+        ImageView logo = new Ui.LogoView(this);
+        logo.setVisibility(View.GONE);
+        FrameLayout.LayoutParams llp = new FrameLayout.LayoutParams((int) (w * 0.55f), ui.dp(32), Gravity.BOTTOM | Gravity.START);
+        llp.leftMargin = ui.dp(10);
+        llp.bottomMargin = ui.dp(8);
+        layer.addView(logo, llp);
+        card.addView(layer, new FrameLayout.LayoutParams(-1, -1));
+
+        Runnable load = () -> {
+            images.load(art, m.backdrop(w), w, false, null);
+            images.load(logo, m.logo(), (int) (w * 0.55f), true,
+                    () -> { logo.setVisibility(View.VISIBLE); name.setVisibility(View.GONE); });
+        };
+        if (lazy) images.defer(card, load); else load.run();
+        return layer;
+    }
+
     private void posterRow(LinearLayout column, String title, List<MediaItem> items) {
         if (items.isEmpty()) return;
+        if (prefs.wideCards()) { backdropRow(column, title, items); return; }
         column.addView(rowTitle(title));
         LinearLayout row = rowContainer(column);
-        int w = ui.dp(land() ? 116 : 104), h = w * 3 / 2;
+        boolean labels = prefs.posterLabels();
+        int w = cardWidth(land() ? 116 : 104), h = w * 3 / 2;
         for (MediaItem m : items) {
             FrameLayout card = card();
             TextView fallback = ui.label(m.title, 12, Ui.MUTED, null);
@@ -1234,10 +1363,51 @@ public class HomeActivity extends Activity {
             card.addView(art, new FrameLayout.LayoutParams(-1, -1));
             images.defer(card, () -> images.load(art, m.poster(w), w, false, null));
             bindItem(card, m);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(w, h);
+            expandOnPause(card, m, w, h);
+
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(labels ? -2 : w, labels ? -2 : h);
             lp.rightMargin = ui.dp(10);
-            row.addView(card, lp);
+            if (!labels) { row.addView(card, lp); continue; }
+            // Title under the poster: the card stays the focus target, the caption rides along.
+            LinearLayout cell = new LinearLayout(this);
+            cell.setOrientation(LinearLayout.VERTICAL);
+            cell.setClipChildren(false);
+            cell.addView(card, new LinearLayout.LayoutParams(w, h));
+            TextView caption = ui.label(m.title, 11, Ui.TEXT_DIM, null);
+            caption.setMaxLines(1);
+            caption.setEllipsize(TextUtils.TruncateAt.END);
+            caption.setPadding(ui.dp(2), ui.dp(9), ui.dp(2), 0);
+            cell.addView(caption, new LinearLayout.LayoutParams(w, -2));
+            row.addView(cell, lp);
         }
+    }
+
+    /**
+     * Rest on a poster for a moment and it widens to 16:9 to show the title's artwork,
+     * then folds back when focus moves on. Remote and keyboard only; touch never focuses a card.
+     */
+    private void expandOnPause(FrameLayout card, MediaItem m, int w, int h) {
+        int delayMs = prefs.expandDelay() * 1000;
+        if (delayMs <= 0 || m.backdropRef == null || m.backdropRef.isEmpty()) return;
+        final int wide = h * 16 / 9;
+        final View[] layer = new View[1];
+        Runnable expand = () -> {
+            if (!card.isFocused() || !card.isAttachedToWindow()) return;
+            if (layer[0] == null) {
+                layer[0] = wideArt(card, m, wide, false);
+                layer[0].setAlpha(0f);
+            }
+            layer[0].animate().alpha(1f).setDuration(Motion.MEDIUM).setInterpolator(Motion.STANDARD).start();
+            Motion.width(card, wide, () -> reveal(card)); // keep the growing card on its pivot
+        };
+        View.OnFocusChangeListener base = card.getOnFocusChangeListener();
+        card.setOnFocusChangeListener((v, has) -> {
+            if (base != null) base.onFocusChange(v, has);
+            main.removeCallbacks(expand);
+            if (has) { main.postDelayed(expand, delayMs); return; }
+            if (layer[0] != null) layer[0].animate().alpha(0f).setDuration(Motion.FAST).start();
+            Motion.width(card, w, null);
+        });
     }
 
     private void addProgressBar(FrameLayout card, int cardWidth, int percent) {
@@ -1252,7 +1422,7 @@ public class HomeActivity extends Activity {
 
     private FrameLayout card() {
         FrameLayout c = new FrameLayout(this);
-        c.setBackground(ui.round(Ui.SURFACE, 10));
+        c.setBackground(ui.round(Ui.SURFACE, ui.cardRadius));
         c.setClipToOutline(true);
         c.setForeground(ui.ripple(null));
         ui.focusable(c);
@@ -1301,7 +1471,7 @@ public class HomeActivity extends Activity {
             TextView body = ui.label(getString(R.string.status_error_body, error), 12, Ui.MUTED, null);
             body.setPadding(0, ui.dp(6), 0, ui.dp(12));
             c.addView(body);
-            TextView retry = ui.pill(getString(R.string.retry), 0xFFF1F3F4, Ui.ON_LIGHT);
+            TextView retry = ui.primary(getString(R.string.retry));
             retry.setOnClickListener(v -> { refreshContent(); render(); });
             c.addView(retry, new LinearLayout.LayoutParams(-2, -2));
         } else {
@@ -1374,72 +1544,96 @@ public class HomeActivity extends Activity {
         return f;
     }
 
-    // ==================================================================== dialogs
+    // ============================================================ pages above home
 
-    /** Full-width details sheet with one button per app that can play the title. */
-    private void showDetails(MediaItem m) {
+    /** Opens the full-screen details page for a title. Back returns to where the user was. */
+    void showDetails(MediaItem m) { openOverlay(new DetailsScreen(this, m)); }
+
+    void showSettings() { openOverlay(new SettingsScreen(this)); }
+
+    /**
+     * Shows a page above the home screen. Home stays built underneath with its
+     * scroll position, so closing the page lands exactly where the user left off.
+     */
+    private void openOverlay(Overlay page) {
+        if (overlay != null) root.removeView(overlay.view());
+        else {
+            View focused = focused();
+            Object key = focused == null ? null : focused.getTag(R.id.focus_key);
+            overlayReturnKey = key instanceof String ? (String) key : null;
+        }
+        overlay = page;
+        main.removeCallbacks(heroAdvance);
+        // Nothing underneath may take focus or be read out while a page is open.
+        home.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        home.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+        View v = page.view();
+        root.addView(v, new FrameLayout.LayoutParams(-1, -1));
+        v.setAlpha(0f);
+        v.setTranslationY(ui.dp(16));
+        v.animate().alpha(1f).translationY(0).setDuration(Motion.MEDIUM - 90).setInterpolator(Motion.STANDARD).start();
+        if (usingRemote()) { View first = page.firstFocus(); if (first != null) first.requestFocus(); }
+    }
+
+    void closeOverlay() {
+        if (overlay == null) return;
+        final View v = overlay.view();
+        overlay = null;
+        home.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        home.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
+        if (usingRemote()) {
+            // Same tile as before; the home screen may have been rebuilt meanwhile, hence the lookup by name.
+            View back = overlayReturnKey == null ? null : focusTargets.get(overlayReturnKey);
+            if (back == null || !back.isShown()) back = focusTargets.get("hero:watch");
+            if (back == null || !back.isShown()) back = focusTargets.get("tab:" + tab);
+            if (back != null) back.requestFocus();
+        }
+        v.animate().alpha(0f).translationY(ui.dp(16)).setDuration(Motion.FAST).setInterpolator(Motion.STANDARD)
+                .withEndAction(() -> root.removeView(v)).start();
+        restartHeroTimer();
+    }
+
+    /** True when the user is driving with a remote, keyboard or controller rather than touch. */
+    boolean usingRemote() { return tvDevice || !root.isInTouchMode(); }
+
+    /**
+     * A small centred card with a message and a few actions; the first action takes focus.
+     * Used when something can't be done, so a tap is never met with silence.
+     */
+    void showNotice(String title, String body, String[] labels, Runnable[] actions) {
         Dialog d = new Dialog(this, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar);
-        LinearLayout sheet = new LinearLayout(this);
-        sheet.setOrientation(LinearLayout.VERTICAL);
-        sheet.setBackground(ui.round(0xFF16171C, 18));
-        sheet.setClipToOutline(true);
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(ui.round(Ui.PANEL, 18));
+        card.setPadding(ui.dp(22), ui.dp(20), ui.dp(22), ui.dp(18));
+        card.addView(ui.label(title, 18, Ui.TEXT, Ui.BOLD));
+        TextView text = ui.label(body, 13, Ui.TEXT_DIM, null);
+        text.setLineSpacing(0, 1.2f);
+        text.setPadding(0, ui.dp(8), 0, ui.dp(16));
+        card.addView(text);
 
-        int w = Math.min(metrics().widthPixels - ui.dp(32), ui.dp(560));
-        FrameLayout header = new FrameLayout(this);
-        ImageView art = new ImageView(this);
-        art.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        header.addView(art, new FrameLayout.LayoutParams(-1, -1));
-        View scrim = new View(this);
-        scrim.setBackground(Ui.gradient(GradientDrawable.Orientation.TOP_BOTTOM, 0x00000000, 0xFF16171C));
-        header.addView(scrim, new FrameLayout.LayoutParams(-1, -1));
-        sheet.addView(header, new LinearLayout.LayoutParams(-1, w * 9 / 16));
-        images.load(art, m.backdrop(w), w, false, null);
-
-        LinearLayout body = new LinearLayout(this);
-        body.setOrientation(LinearLayout.VERTICAL);
-        body.setPadding(ui.dp(20), 0, ui.dp(20), ui.dp(20));
-        body.addView(ui.label(m.title, 20, Ui.TEXT, Ui.BOLD));
-        TextView metaLine = ui.label(meta(m), 12, 0xFFDADCE0, Ui.MEDIUM);
-        metaLine.setPadding(0, ui.dp(4), 0, ui.dp(8));
-        body.addView(metaLine);
-        if (!m.summary.isEmpty()) {
-            TextView summary = ui.label(m.summary, 13, Ui.TEXT_DIM, null);
-            summary.setLineSpacing(0, 1.15f);
-            summary.setMaxLines(7);
-            summary.setEllipsize(TextUtils.TruncateAt.END);
-            body.addView(summary);
+        boolean stacked = !land();
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(stacked ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
+        for (int i = 0; i < labels.length; i++) {
+            final Runnable action = actions[i];
+            TextView b = i == 0 ? ui.primary(labels[i]) : ui.pill(labels[i], 0x33FFFFFF, Ui.TEXT);
+            b.setGravity(Gravity.CENTER);
+            b.setOnClickListener(v -> { d.dismiss(); if (action != null) action.run(); });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(stacked ? -1 : -2, -2);
+            if (stacked) lp.bottomMargin = ui.dp(8); else lp.rightMargin = ui.dp(8);
+            row.addView(b, lp);
         }
+        card.addView(row);
 
-        LinearLayout actions = new LinearLayout(this);
-        actions.setPadding(0, ui.dp(16), 0, 0);
-        HorizontalScrollView actionScroll = new HorizontalScrollView(this);
-        actionScroll.setHorizontalScrollBarEnabled(false);
-        actionScroll.addView(actions);
-        if (m.source == MediaItem.Source.PLEX) {
-            addAction(actions, d, getString(R.string.details_play_plex), true, () -> openPlexItem(m));
-        } else {
-            boolean first = true;
-            if (apps.byPackage(STREMIO_PACKAGE) != null) { addAction(actions, d, getString(R.string.details_stremio), true, () -> openInStremio(m)); first = false; }
-            if (apps.byPackage(PlexClient.PACKAGE) != null) { addAction(actions, d, getString(R.string.details_plex), first, () -> searchInPlex(m)); first = false; }
-            addAction(actions, d, getString(R.string.details_trailer), first, () -> openTrailer(m));
-        }
-        addAction(actions, d, getString(R.string.close), false, () -> {});
-        body.addView(actionScroll);
-        sheet.addView(body);
-
-        d.setContentView(sheet, new ViewGroup.LayoutParams(w, -2));
+        int w = Math.min(metrics().widthPixels - ui.dp(32), ui.dp(460));
+        d.setContentView(card, new ViewGroup.LayoutParams(w, -2));
         if (d.getWindow() != null) d.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         d.show();
-        if (actions.getChildCount() > 0) actions.getChildAt(0).requestFocus(); // remote lands on the main action
+        if (row.getChildCount() > 0) row.getChildAt(0).requestFocus();
     }
 
-    private void addAction(LinearLayout row, Dialog d, String label, boolean primary, Runnable action) {
-        TextView b = ui.pill(label, primary ? 0xFFF1F3F4 : 0x33FFFFFF, primary ? Ui.ON_LIGHT : Ui.TEXT);
-        b.setOnClickListener(v -> { d.dismiss(); action.run(); });
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
-        lp.rightMargin = ui.dp(8);
-        row.addView(b, lp);
-    }
+    // ==================================================================== dialogs
 
     private void showAppMenu(AppRepository.App app) {
         List<String> labels = new ArrayList<>();
@@ -1476,105 +1670,9 @@ public class HomeActivity extends Activity {
         catch (RuntimeException e) { tileImageTarget = null; toast(getString(R.string.open_failed, "image picker")); }
     }
 
-    /**
-     * Settings stay open while you change things; Done or Back closes them.
-     * Labels are rebuilt after every action, and again whenever a sub-dialog
-     * (size, player, Plex...) closes and this one is back in front.
-     */
-    private void showSettings() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert);
-        List<String> labels = new ArrayList<>();
-        List<Runnable> actions = new ArrayList<>();
-        fillSettings(labels, actions);
-        android.widget.ArrayAdapter<String> adapter =
-                new android.widget.ArrayAdapter<>(builder.getContext(), android.R.layout.simple_list_item_1, labels);
-        android.widget.ListView list = new android.widget.ListView(builder.getContext());
-        list.setAdapter(adapter);
-        list.setDivider(null);
-        Runnable refresh = () -> { labels.clear(); actions.clear(); fillSettings(labels, actions); adapter.notifyDataSetChanged(); };
-        list.setOnItemClickListener((parent, view, position, id) -> {
-            if (position < actions.size()) actions.get(position).run();
-            refresh.run();
-        });
-        builder.setCustomTitle(settingsHeader()).setView(list).setPositiveButton(R.string.done, null).show();
-        list.getViewTreeObserver().addOnWindowFocusChangeListener(hasFocus -> { if (hasFocus) refresh.run(); });
-    }
-
-    private void fillSettings(List<String> labels, List<Runnable> actions) {
-
-        labels.add(getString(R.string.settings_size, getString(SIZE_LABELS[prefs.sizeIndex()])));
-        actions.add(this::chooseSize);
-
-        labels.add(getString(R.string.settings_bars, getString(prefs.hideSystemBars() ? R.string.bars_hidden : R.string.bars_shown)));
-        actions.add(() -> { prefs.setHideSystemBars(!prefs.hideSystemBars()); applySystemBars(); });
-
-        labels.add(getString(R.string.settings_tiles, getString(prefs.tvStyleTiles() ? R.string.tiles_tv : R.string.tiles_phone)));
-        actions.add(() -> { prefs.setTvStyleTiles(!prefs.tvStyleTiles()); renderPreservingScroll(); });
-
-        int[] layoutNames = {R.string.hero_layout_left, R.string.hero_layout_right, R.string.hero_layout_full};
-        labels.add(getString(R.string.settings_hero_layout, getString(layoutNames[prefs.heroLayout() % 3])));
-        actions.add(() -> { prefs.setHeroLayout((prefs.heroLayout() + 1) % 3); render(); });
-
-        int[] focusNames = {R.string.focus_outline, R.string.focus_zoom, R.string.focus_both};
-        labels.add(getString(R.string.settings_focus_style, getString(focusNames[prefs.focusStyle() % 3])));
-        actions.add(() -> { prefs.setFocusStyle((prefs.focusStyle() + 1) % 3); ui.focusStyle = prefs.focusStyle(); render(); });
-
-        labels.add(getString(R.string.settings_play, playWithLabel(prefs.playWith())));
-        actions.add(this::choosePlayer);
-
-        if (plex.isLinked()) {
-            String server = prefs.plexServerName().isEmpty() ? getString(R.string.plex_no_server_short) : prefs.plexServerName();
-            labels.add(getString(R.string.settings_plex_disconnect, server));
-            actions.add(() -> {
-                prefs.clearPlex(); prefs.clearPlexPendingPin();
-                plexContinue = Collections.emptyList(); plexRecent = Collections.emptyList(); plexError = null;
-                renderPreservingScroll();
-            });
-            String profile = prefs.plexProfileName().isEmpty() ? getString(R.string.plex_profile_owner) : prefs.plexProfileName();
-            labels.add(getString(R.string.settings_plex_profile, profile));
-            actions.add(this::choosePlexProfile);
-        } else {
-            labels.add(getString(R.string.settings_plex_connect));
-            actions.add(this::linkPlex);
-        }
-
-        labels.add(trakt.isConfigured()
-                ? getString(R.string.settings_trakt_on, trakt.refs().size())
-                : getString(R.string.settings_trakt_off));
-        actions.add(this::editTrakt);
-
-        labels.add(readyUpdate != null ? getString(R.string.update_ready, readyUpdate.versionName) : getString(R.string.settings_check_update));
-        actions.add(() -> { if (readyUpdate != null) installUpdate(); else { toast(getString(R.string.update_checking)); checkForUpdate(true); } });
-
-        labels.add(getString(R.string.settings_refresh));
-        actions.add(() -> { toast(getString(R.string.refreshing)); refreshContent(); });
-
-        if (tvDevice) {
-            // TVs have no "choose Home app" setting; the opt-in HomeKeeperService stands in for it.
-            if (homeKeeperEnabled()) {
-                labels.add(getString(R.string.settings_keeper_pause));
-                actions.add(() -> { prefs.pauseKeeper(System.currentTimeMillis() + 60_000); toast(getString(R.string.keeper_paused)); moveTaskToBack(true); });
-            }
-            labels.add(getString(homeKeeperEnabled() ? R.string.settings_keeper_on : R.string.settings_keeper_off));
-            actions.add(this::explainHomeKeeper);
-        } else {
-            labels.add(getString(R.string.settings_home));
-            actions.add(() -> { if (!startSafely(new Intent(Settings.ACTION_HOME_SETTINGS))) startSafely(new Intent(Settings.ACTION_SETTINGS)); });
-        }
-
-        int hiddenCount = prefs.hiddenApps().size();
-        if (hiddenCount > 0) {
-            labels.add(getString(R.string.settings_unhide_all, hiddenCount));
-            actions.add(() -> { prefs.setHiddenApps(new ArrayList<>()); renderPreservingScroll(); });
-        }
-
-        labels.add(getString(R.string.settings_donate));
-        actions.add(() -> openUrl(KOFI_URL, null));
-    }
-
     // ------------------------------------------------------ Plex Home profiles
 
-    private void choosePlexProfile() {
+    void choosePlexProfile() {
         toast(getString(R.string.plex_profile_loading));
         io.execute(() -> {
             try {
@@ -1644,7 +1742,7 @@ public class HomeActivity extends Activity {
     }
 
     /** Explains the experimental home replacement and opens the system screen that turns it on. */
-    private void explainHomeKeeper() {
+    void explainHomeKeeper() {
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle(R.string.keeper_title)
                 .setMessage(getString(R.string.keeper_body, getPackageName() + "/" + HomeKeeperService.class.getName()))
@@ -1655,28 +1753,8 @@ public class HomeActivity extends Activity {
                 .show();
     }
 
-    /** "Phone TV" on the left, version on the right, inset from the dialog edge. */
-    private View settingsHeader() {
-        LinearLayout h = new LinearLayout(this);
-        h.setGravity(Gravity.CENTER_VERTICAL);
-        int pad = (int) (24 * getResources().getDisplayMetrics().density);
-        h.setPadding(pad, pad, pad, pad / 2);
-        TextView name = new TextView(this);
-        name.setText(R.string.app_name);
-        name.setTextColor(Ui.TEXT);
-        name.setTextSize(20);
-        name.setTypeface(Ui.MEDIUM);
-        h.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView version = new TextView(this);
-        version.setText(getString(R.string.settings_version, BuildConfig.VERSION_NAME));
-        version.setTextColor(Ui.MUTED);
-        version.setTextSize(14);
-        h.addView(version);
-        return h;
-    }
-
     /** "Tune the hero": two or three words, e.g. "asian romance" or "latest spanish". */
-    private void tuneHero() {
+    void tuneHero() {
         float d = getResources().getDisplayMetrics().density;
         LinearLayout form = new LinearLayout(this);
         form.setOrientation(LinearLayout.VERTICAL);
@@ -1719,7 +1797,7 @@ public class HomeActivity extends Activity {
     }
 
     /** Advanced: Trakt Client ID + public list URLs. Casual users never need this. */
-    private void editTrakt() {
+    void editTrakt() {
         float d = getResources().getDisplayMetrics().density;
         LinearLayout form = new LinearLayout(this);
         form.setOrientation(LinearLayout.VERTICAL);
@@ -1757,41 +1835,6 @@ public class HomeActivity extends Activity {
                 .show();
     }
 
-    private void chooseSize() {
-        String[] names = new String[SIZE_LABELS.length];
-        for (int i = 0; i < names.length; i++) names[i] = getString(SIZE_LABELS[i]);
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(getString(R.string.settings_size, ""))
-                .setSingleChoiceItems(names, prefs.sizeIndex(), (d, which) -> {
-                    prefs.setSizeIndex(which);
-                    ui.setScale(prefs.scale());
-                    d.dismiss();
-                    render();
-                }).show();
-    }
-
-    private void choosePlayer() {
-        String[] values = {Prefs.PLAY_ASK, Prefs.PLAY_STREMIO, Prefs.PLAY_PLEX};
-        String[] names = new String[values.length];
-        int current = 0;
-        for (int i = 0; i < values.length; i++) {
-            names[i] = playWithLabel(values[i]);
-            if (values[i].equals(prefs.playWith())) current = i;
-        }
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(getString(R.string.settings_play, ""))
-                .setSingleChoiceItems(names, current, (d, which) -> { prefs.setPlayWith(values[which]); d.dismiss(); })
-                .show();
-    }
-
-    private String playWithLabel(String value) {
-        switch (value) {
-            case Prefs.PLAY_STREMIO: return getString(R.string.details_stremio);
-            case Prefs.PLAY_PLEX: return getString(R.string.details_plex);
-            default: return getString(R.string.play_ask);
-        }
-    }
-
     /**
      * Plex PIN link flow. Shows a large code with Copy and Open-link buttons and
      * polls plex.tv until the user approves it. The PIN and its code are
@@ -1799,7 +1842,7 @@ public class HomeActivity extends Activity {
      * app to enter the code) doesn't lose the session: reopening Connect Plex
      * shows the same code until it's approved, cancelled or expires.
      */
-    private void linkPlex() {
+    void linkPlex() {
         float d = getResources().getDisplayMetrics().density;
         LinearLayout form = new LinearLayout(this);
         form.setOrientation(LinearLayout.VERTICAL);
@@ -1906,67 +1949,138 @@ public class HomeActivity extends Activity {
 
     // ==================================================================== actions
 
-    /** Plays a title with the user's chosen app, or shows the details sheet to choose. */
-    private void play(MediaItem m) {
+    static final String[] PLAYERS = {Prefs.PLAY_STREMIO, Prefs.PLAY_NUVIO, Prefs.PLAY_PLEX};
+
+    /** Brand name of a player app; these aren't translated. */
+    static String playerName(String player) {
+        switch (player) {
+            case Prefs.PLAY_NUVIO: return "Nuvio";
+            case Prefs.PLAY_PLEX: return "Plex";
+            default: return "Stremio";
+        }
+    }
+
+    /** Package of the installed app behind a player, or null when Phone TV can't find one. */
+    String playerPackage(String player) {
+        switch (player) {
+            case Prefs.PLAY_PLEX: return isInstalled(PlexClient.PACKAGE) ? PlexClient.PACKAGE : null;
+            case Prefs.PLAY_NUVIO: return handlerOf("nuvio://meta", "nuvio", NUVIO_PACKAGES);
+            default: return handlerOf("stremio:///detail", "stremio", STREMIO_PACKAGE);
+        }
+    }
+
+    private boolean isInstalled(String pkg) {
+        if (apps.byPackage(pkg) != null) return true;
+        try { getPackageManager().getPackageInfo(pkg, 0); return true; }
+        catch (android.content.pm.PackageManager.NameNotFoundException e) { return false; }
+    }
+
+    /**
+     * Finds an app by its known package names, then by asking who answers its link
+     * scheme. The second step covers renamed builds (beta, TV, store flavors).
+     */
+    private String handlerOf(String link, String nameHint, String... knownPackages) {
+        for (String pkg : knownPackages) if (isInstalled(pkg)) return pkg;
+        Intent probe = new Intent(Intent.ACTION_VIEW, Uri.parse(link));
+        for (android.content.pm.ResolveInfo r : getPackageManager().queryIntentActivities(probe, 0)) {
+            String pkg = r.activityInfo == null ? null : r.activityInfo.packageName;
+            if (pkg != null && pkg.contains(nameHint)) return pkg;
+        }
+        return null;
+    }
+
+    /** "Watch": Plex items play; otherwise the user's chosen app, or the details page to choose. */
+    void play(MediaItem m) {
         if (m.source == MediaItem.Source.PLEX) { openPlexItem(m); return; }
         String with = prefs.playWith();
-        if (Prefs.PLAY_STREMIO.equals(with) && apps.byPackage(STREMIO_PACKAGE) != null) openInStremio(m);
-        else if (Prefs.PLAY_PLEX.equals(with) && apps.byPackage(PlexClient.PACKAGE) != null) searchInPlex(m);
-        else showDetails(m);
+        if (Prefs.PLAY_ASK.equals(with)) showDetails(m); else openWith(with, m, null);
     }
 
-    private void openInStremio(MediaItem m) {
-        Intent deep = new Intent(Intent.ACTION_VIEW, Uri.parse("stremio:///detail/" + m.type + "/" + m.id));
-        if (startSafely(deep)) return;
-        openAppOrStore(STREMIO_PACKAGE, "Stremio", m.title);
+    /**
+     * Hands a title (or one episode of a show) to an app. If the app isn't on the
+     * device this says so instead of doing nothing.
+     */
+    void openWith(String player, MediaItem m, String episodeId) {
+        String pkg = playerPackage(player);
+        if (pkg == null) { showMissingApp(player, m); return; }
+        String type = m.isShow() ? "series" : "movie";
+        boolean opened;
+        switch (player) {
+            case Prefs.PLAY_PLEX:
+                // Plex has no public "open by IMDb id" link, so hand the title to its search.
+                opened = startSafely(new Intent(Intent.ACTION_SEARCH).setPackage(pkg).putExtra(SearchManager.QUERY, m.title));
+                break;
+            case Prefs.PLAY_NUVIO:
+                opened = openUrl("nuvio://meta?type=" + type + "&id=" + Uri.encode(m.id), pkg);
+                break;
+            default:
+                // Pinned to Stremio's own package: other apps also register the stremio:// scheme.
+                opened = openUrl("stremio:///detail/" + type + "/" + m.id + (episodeId == null ? "" : "/" + Uri.encode(episodeId)), pkg);
+        }
+        if (opened) return;
+        // The link wasn't accepted (very old or unusual build): open the app and tell the user what to look for.
+        AppRepository.App app = apps.byPackage(pkg);
+        if (app != null && apps.launch(app)) toast(getString(R.string.opening_search, playerName(player), m.title));
+        else showMissingApp(player, m);
     }
 
-    /** Hands the title to Plex's search. Falls back to just opening Plex. */
-    private void searchInPlex(MediaItem m) {
-        Intent search = new Intent(Intent.ACTION_SEARCH).setPackage(PlexClient.PACKAGE).putExtra(SearchManager.QUERY, m.title);
-        if (startSafely(search)) return;
-        openAppOrStore(PlexClient.PACKAGE, "Plex", m.title);
-    }
-
-    private void openPlexItem(MediaItem m) {
+    void openPlexItem(MediaItem m) {
+        if (!isInstalled(PlexClient.PACKAGE)) { showMissingApp(Prefs.PLAY_PLEX, null); return; }
         Intent resume = new Intent(Intent.ACTION_VIEW, Uri.parse(PlexClient.playUri(m))).setPackage(PlexClient.PACKAGE)
                 .putExtra("android.intent.extra.START_PLAYBACK", true); // still read by older Plex builds
         if (startSafely(resume)) return;
         if (openUrl(PlexClient.webUrl(m), PlexClient.PACKAGE)) return;
-        openAppOrStore(PlexClient.PACKAGE, "Plex", m.title);
+        AppRepository.App app = apps.byPackage(PlexClient.PACKAGE);
+        if (app != null && apps.launch(app)) toast(getString(R.string.opening_search, "Plex", m.title));
+        else showMissingApp(Prefs.PLAY_PLEX, null);
     }
 
-    /** YouTube's TV apps don't take search URLs, so hand them a search intent first. */
-    private void openTrailer(MediaItem m) {
+    /** Explains that an app isn't on the device, with a way to get it or pick another. */
+    void showMissingApp(String player, MediaItem m) {
+        String name = playerName(player);
+        boolean canChoose = m != null && m.source != MediaItem.Source.PLEX && !(overlay instanceof DetailsScreen);
+        List<String> labels = new ArrayList<>();
+        List<Runnable> actions = new ArrayList<>();
+        labels.add(getString(R.string.missing_get, name));
+        actions.add(() -> openStore(player));
+        if (canChoose) { labels.add(getString(R.string.missing_choose)); actions.add(() -> showDetails(m)); }
+        labels.add(getString(R.string.close));
+        actions.add(null);
+        showNotice(getString(R.string.missing_title, name), getString(R.string.missing_body, name),
+                labels.toArray(new String[0]), actions.toArray(new Runnable[0]));
+    }
+
+    private void openStore(String player) {
+        if (Prefs.PLAY_NUVIO.equals(player)) { if (!openUrl(NUVIO_URL, null)) toast(getString(R.string.no_store)); return; }
+        String pkg = Prefs.PLAY_PLEX.equals(player) ? PlexClient.PACKAGE : STREMIO_PACKAGE;
+        if (startSafely(new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + pkg)))) return;
+        if (!openUrl("https://play.google.com/store/apps/details?id=" + pkg, null)) toast(getString(R.string.no_store));
+    }
+
+    /**
+     * Plays a trailer. With a known YouTube id the video opens directly; otherwise
+     * we search. YouTube's TV apps don't take search URLs, so they get a search intent.
+     */
+    void openTrailer(MediaItem m, String youtubeId) {
+        if (youtubeId != null && !youtubeId.isEmpty() && openUrl("https://www.youtube.com/watch?v=" + youtubeId, null)) return;
         String query = m.title + " " + m.year + " trailer";
         for (String pkg : new String[]{"com.google.android.youtube.tv", "com.amazon.firetv.youtube"}) {
             if (apps.byPackage(pkg) == null) continue;
             if (startSafely(new Intent(Intent.ACTION_SEARCH).setPackage(pkg).putExtra(SearchManager.QUERY, query))) return;
         }
-        if (!openUrl("https://www.youtube.com/results?search_query=" + Uri.encode(query), null)) toast(getString(R.string.no_trailer_app));
-    }
-
-    private void openAppOrStore(String pkg, String name, String searchHint) {
-        AppRepository.App a = apps.byPackage(pkg);
-        if (a != null) {
-            toast(getString(R.string.opening_search, name, searchHint));
-            apps.launch(a);
-        } else {
-            toast(getString(R.string.not_installed, name));
-            if (!startSafely(new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + pkg)))) {
-                openUrl("https://play.google.com/store/apps/details?id=" + pkg, null);
-            }
-        }
+        if (openUrl("https://www.youtube.com/results?search_query=" + Uri.encode(query), null)) return;
+        showNotice(getString(R.string.no_trailer_title), getString(R.string.no_trailer_app),
+                new String[]{getString(R.string.close)}, new Runnable[]{null});
     }
 
     /** Opens a URL, optionally pinned to one app. @return false if nothing could handle it. */
-    private boolean openUrl(String url, String pkg) {
+    boolean openUrl(String url, String pkg) {
         Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
         if (pkg != null) i.setPackage(pkg);
         return startSafely(i);
     }
 
-    private boolean startSafely(Intent i) {
+    boolean startSafely(Intent i) {
         try {
             startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             return true;
@@ -1975,5 +2089,5 @@ public class HomeActivity extends Activity {
         }
     }
 
-    private void toast(String s) { Toast.makeText(this, s, Toast.LENGTH_SHORT).show(); }
+    void toast(String s) { Toast.makeText(this, s, Toast.LENGTH_SHORT).show(); }
 }

@@ -30,6 +30,7 @@ final class CatalogRepository {
     static final String MOVIES = "movie/top", SHOWS = "series/top", TOP_RATED = "movie/imdbRating";
     private static final String[] KEYS = {MOVIES, SHOWS, TOP_RATED};
     private static final String BASE = "https://v3-cinemeta.strem.io/catalog/";
+    private static final String META = "https://v3-cinemeta.strem.io/meta/";
 
     interface Listener {
         /** @param error null on success, otherwise a short human-readable reason. */
@@ -100,6 +101,94 @@ final class CatalogRepository {
                 listener.onCatalogsUpdated(err, fresh.isEmpty() && !lists.isEmpty());
             });
         });
+    }
+
+    // ------------------------------------------------------------ title details
+
+    /** One episode of a show, as listed on the details page. */
+    static final class Episode {
+        String id, title, overview, thumbnail, released;
+        int season, number;
+    }
+
+    /** What the details page shows beyond what a row card already carries. */
+    static final class Details {
+        String summary = "", runtime = "", rating = "", country = "", trailerId = "";
+        String backdropRef = "", logoRef = "";
+        final List<String> genres = new ArrayList<>(), cast = new ArrayList<>(), directors = new ArrayList<>();
+        final List<Episode> episodes = new ArrayList<>();
+
+        /** Season numbers in viewing order; specials (season 0) go last. */
+        List<Integer> seasons() {
+            List<Integer> out = new ArrayList<>();
+            for (Episode e : episodes) if (!out.contains(e.season)) out.add(e.season);
+            Collections.sort(out, (x, y) -> Integer.compare(x == 0 ? Integer.MAX_VALUE : x, y == 0 ? Integer.MAX_VALUE : y));
+            return out;
+        }
+
+        List<Episode> season(int number) {
+            List<Episode> out = new ArrayList<>();
+            for (Episode e : episodes) if (e.season == number) out.add(e);
+            return out;
+        }
+    }
+
+    private static final int DETAILS_KEPT = 12;
+    private final Map<String, Details> detailsCache = new java.util.LinkedHashMap<String, Details>(16, 0.75f, true) {
+        @Override protected boolean removeEldestEntry(Map.Entry<String, Details> eldest) { return size() > DETAILS_KEPT; }
+    };
+
+    /** Details already fetched this session, or null. Safe on the main thread. */
+    Details cachedDetails(MediaItem m) {
+        synchronized (detailsCache) { return detailsCache.get(m.id); }
+    }
+
+    /** Fetches cast, runtime, trailer and (for shows) the episode list. Blocking. */
+    Details details(MediaItem m) throws IOException, JSONException {
+        Details cached = cachedDetails(m);
+        if (cached != null) return cached;
+        String type = m.isShow() ? "series" : "movie";
+        String json = new String(Http.get(META + type + "/" + m.id + ".json"), StandardCharsets.UTF_8);
+        JSONObject o = new JSONObject(json).optJSONObject("meta");
+        if (o == null) throw new IOException("no details for this title");
+
+        Details d = new Details();
+        d.summary = o.optString("description", "");
+        d.runtime = o.optString("runtime", "");
+        d.rating = o.optString("imdbRating", "");
+        d.country = o.optString("country", "");
+        d.backdropRef = o.optString("background", "");
+        d.logoRef = o.optString("logo", "");
+        JSONArray g = o.optJSONArray("genres");
+        addAll(d.genres, g != null ? g : o.optJSONArray("genre"));
+        addAll(d.cast, o.optJSONArray("cast"));
+        addAll(d.directors, o.optJSONArray("director"));
+        JSONArray trailers = o.optJSONArray("trailers");
+        if (trailers != null && trailers.length() > 0) d.trailerId = trailers.getJSONObject(0).optString("source", "");
+
+        JSONArray videos = o.optJSONArray("videos");
+        for (int i = 0; videos != null && i < videos.length(); i++) {
+            JSONObject v = videos.getJSONObject(i);
+            Episode e = new Episode();
+            e.id = v.optString("id");
+            e.season = v.optInt("season", 1);
+            e.number = v.optInt("episode", v.optInt("number", i + 1));
+            e.title = v.optString("name", v.optString("title", ""));
+            e.overview = v.optString("overview", v.optString("description", ""));
+            e.thumbnail = v.optString("thumbnail", "");
+            e.released = v.optString("released", v.optString("firstAired", ""));
+            if (!e.id.isEmpty()) d.episodes.add(e);
+        }
+        Collections.sort(d.episodes, (x, y) -> x.season != y.season ? Integer.compare(x.season, y.season) : Integer.compare(x.number, y.number));
+        synchronized (detailsCache) { detailsCache.put(m.id, d); }
+        return d;
+    }
+
+    private static void addAll(List<String> into, JSONArray from) {
+        for (int i = 0; from != null && i < from.length(); i++) {
+            String s = from.optString(i, "");
+            if (!s.isEmpty()) into.add(s);
+        }
     }
 
     private static List<MediaItem> parse(String json) throws JSONException {

@@ -2,4 +2,11 @@
 <resources>
     <!-- Stable name for a focusable view, used to put focus back after the screen is rebuilt. -->
     <item name="focus_key" type="id" />
+    <!-- Running scroll / resize animations, kept on the view so a newer one can replace them. -->
+    <item name="scroll_anim" type="id" />
+    <item name="size_anim" type="id" />
+    <!-- On a page's ScrollView: bottom edge (px) of the header area that pins the page to the top. -->
+    <item name="top_zone" type="id" />
+    <!-- On a strip of chips: the chip that is currently chosen, so the remote lands on it. -->
+    <item name="selected_chip" type="id" />
 </resources>

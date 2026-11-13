@@ -119,7 +119,11 @@ keyPassword=…
 
 ```
 app/src/main/java/com/zgenmedia/tvhome/
-  HomeActivity.java       screen composition, dialogs, actions
+  HomeActivity.java       home screen, remote navigation, dialogs, actions
+  DetailsScreen.java      full-screen page for one movie or show
+  SettingsScreen.java     settings page (two panes sideways, stacked upright)
+  Overlay.java            contract for pages shown above the home screen
+  Motion.java             shared timing, easing and focus scrolling
   AppRepository.java      phone + Android TV app discovery, launching, favorites
   TileArt.java            TV banners, adaptive-icon banners, custom tile images
   CatalogRepository.java  public movie/show catalog with offline cache
