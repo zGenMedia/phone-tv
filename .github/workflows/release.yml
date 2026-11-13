@@ -1,0 +1,61 @@
+# Publishes a GitHub Release when a version tag (v1.2.3) is pushed, or when
+# run by hand from the Actions tab.
+#
+# The APK attached is the one already committed under docs/downloads. It is
+# built and signed locally with the release key, which CI never sees; this job
+# only checks that the file matches the published version and checksum.
+name: Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Version tag to publish, e.g. v0.10.0'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check the APK against version.json
+        run: |
+          version="${TAG#v}"
+          manifest_version=$(jq -r .versionName docs/version.json)
+          manifest_sha=$(jq -r .sha256 docs/version.json)
+          file_sha=$(sha256sum docs/downloads/PhoneTV.apk | cut -d' ' -f1)
+          if [ "$version" != "$manifest_version" ]; then
+            echo "::error::Tag $TAG does not match version.json ($manifest_version)"; exit 1
+          fi
+          if [ "$file_sha" != "$manifest_sha" ]; then
+            echo "::error::PhoneTV.apk does not match the checksum in version.json"; exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "APK_SHA=$file_sha" >> "$GITHUB_ENV"
+
+      - name: Release notes from the changelog
+        run: |
+          # Everything under this version's heading, up to the next "## " heading.
+          awk -v v="$VERSION" '/^## / { on = ($2 == v); next } on { print }' CHANGELOG.md > notes.md
+          {
+            echo
+            echo '---'
+            echo "SHA-256 of \`PhoneTV.apk\`: \`$APK_SHA\`"
+            echo
+            echo 'New here? Read the [install guide](https://zgenmedia.github.io/phone-tv/guide.html).'
+          } >> notes.md
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" docs/downloads/PhoneTV.apk \
+            --title "Phone TV $VERSION" --notes-file notes.md --target "$GITHUB_SHA"
