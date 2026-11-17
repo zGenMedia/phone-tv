@@ -36,7 +36,7 @@ import java.util.regex.Pattern;
 final class TraktClient {
     static final int MAX_LISTS = 5;
     /** Phone TV's own Trakt app (zGenMedia). Public by design; see the class note. */
-    static final String APP_ID = "G7xysTRh7KAVT_abEoSzR7lmIBCASYmdQcHtwS8qJ-I";
+    static final String APP_ID = "xMP2zUN8jBPGYd-GAjuUrfycdFD6W34bFEYW_3HpDUk";
     static final String ACTIVATE_URL = "https://trakt.tv/activate";
     private static final String API = "https://api.trakt.tv";
 
