@@ -3,7 +3,7 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
-## 0.12.0 — preview, not released yet
+## 0.12.0 — 2026-11-17
 
 ### Added
 - **Library tab.** Save any movie or show with **+ Library** on its page and
@@ -40,6 +40,9 @@ version is shown in the app's footer and at the top of Settings.
   anywhere). *Restore setup from a file* on the other device brings it all
   across. Sign-ins and the Plex link aren't in the file.
 - **Shows tab** now has three rows like Movies (adds *Top rated shows*).
+- **Voice search.** A mic button beside the Apps search box opens the
+  device's speech screen and fills in what you said. A remote's search key
+  does the same when the system hands it to Phone TV.
 - **Pages stack.** A title opens an actor, an actor opens a title, and Back
   walks through them one at a time to the tile you started on.
 - **Case screen.** With a TV attached, the phone's own screen can show an
@@ -54,9 +57,6 @@ version is shown in the app's footer and at the top of Settings.
 ### Fixed
 - In portrait, the Apps search keyboard closed as soon as it opened. The
   screen no longer rebuilds itself while you're typing.
-- Voice search: a mic button beside the Apps search box opens the device's
-  speech screen and fills in what you said. A remote's search key does the
-  same when the system hands it to Phone TV.
 
 ### Changed
 - The library, actor pages and history take their cue from
