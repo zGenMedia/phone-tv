@@ -40,6 +40,9 @@
 
     <!-- Apps -->
     <string name="apps_search_hint">Search apps</string>
+    <string name="voice_search">Search by voice</string>
+    <string name="voice_prompt">Say an app\'s name</string>
+    <string name="voice_missing">Voice search isn\'t set up on this device. Install or turn on the Google app, or use the keyboard.</string>
     <string name="apps_hint">Long-press an app for options  ·  TV = Android TV edition</string>
     <string name="apps_empty">No matching apps.</string>
     <string name="fav_add_tile">+  Add favorites</string>

@@ -94,7 +94,7 @@ public class HomeActivity extends Activity {
     private static final long HERO_INTERVAL_MS = 9_000;
     private static final long CONTENT_TTL_MS = 3 * 60 * 60 * 1000L;
     private static final long PLEX_POLL_MS = 2_000;
-    private static final int REQUEST_TILE_IMAGE = 41, REQUEST_BACKUP_SAVE = 42, REQUEST_BACKUP_OPEN = 43;
+    private static final int REQUEST_TILE_IMAGE = 41, REQUEST_BACKUP_SAVE = 42, REQUEST_BACKUP_OPEN = 43, REQUEST_VOICE = 44;
 
     // Rows on "For you" that can be switched off in Settings. Keys are stored; don't rename.
     static final String ROW_PLEX_CONTINUE = "plexContinue", ROW_PLEX_RECENT = "plexRecent",
@@ -345,6 +345,11 @@ public class HomeActivity extends Activity {
             return true;
         }
         restartScreenSaver();
+        // A remote's search or mic key, when the system passes it to the home screen.
+        if (e.getKeyCode() == android.view.KeyEvent.KEYCODE_SEARCH && overlay == null) {
+            if (e.getAction() == android.view.KeyEvent.ACTION_UP) startVoiceSearch();
+            return true;
+        }
         int direction = focusDirection(e.getKeyCode());
         boolean select = e.getKeyCode() == android.view.KeyEvent.KEYCODE_DPAD_CENTER;
         if (e.getAction() == android.view.KeyEvent.ACTION_DOWN && (direction != 0 || select)) {
@@ -575,6 +580,12 @@ public class HomeActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_VOICE) {
+            java.util.ArrayList<String> heard = resultCode == RESULT_OK && data != null
+                    ? data.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS) : null;
+            if (heard != null && !heard.isEmpty()) { appFilter = heard.get(0); tab = TAB_APPS; render(); }
+            return;
+        }
         if (requestCode == REQUEST_BACKUP_SAVE || requestCode == REQUEST_BACKUP_OPEN) {
             if (resultCode == RESULT_OK && data != null && data.getData() != null) {
                 if (requestCode == REQUEST_BACKUP_SAVE) writeSetup(data.getData()); else readSetup(data.getData());
@@ -667,6 +678,19 @@ public class HomeActivity extends Activity {
         render();
         for (Overlay page : pages) page.rebuild();
         toast(getString(R.string.setup_restored, added));
+    }
+
+    @Override
+    public boolean onSearchRequested() { startVoiceSearch(); return true; }
+
+    /** Voice search, also reached with a remote's search or mic key. */
+    void startVoiceSearch() {
+        Intent speak = new Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                .putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_WEB_SEARCH)
+                .putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, getString(R.string.voice_prompt))
+                .putExtra(android.speech.RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+        try { startActivityForResult(speak, REQUEST_VOICE); }
+        catch (android.content.ActivityNotFoundException | SecurityException e) { toast(getString(R.string.voice_missing)); }
     }
 
     private void goHome() {
@@ -1441,9 +1465,20 @@ public class HomeActivity extends Activity {
         search.setBackground(ui.round(Ui.SURFACE, 22));
         search.setText(appFilter);
         keyboardOnSelect(search);
-        LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(-1, ui.dp(44));
+        // The box and a mic beside it. The mic opens the system's own speech screen, so it
+        // works the same on phones and TV boxes, and needs no microphone permission here.
+        LinearLayout searchRow = new LinearLayout(this);
+        searchRow.setGravity(Gravity.CENTER_VERTICAL);
+        searchRow.addView(search, new LinearLayout.LayoutParams(0, ui.dp(44), 1));
+        ImageView mic = roundIcon(android.R.drawable.ic_btn_speak_now, v -> startVoiceSearch());
+        mic.setContentDescription(getString(R.string.voice_search));
+        mic.setOnFocusChangeListener(null);
+        LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(ui.dp(44), ui.dp(44));
+        mlp.leftMargin = ui.dp(10);
+        searchRow.addView(mic, mlp);
+        LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(-1, -2);
         slp.setMargins(g, ui.dp(6), insetRight + ui.dp(20), ui.dp(6));
-        column.addView(search, slp);
+        column.addView(searchRow, slp);
 
         TextView hint = ui.label(getString(R.string.apps_hint), 11, Ui.MUTED, null);
         hint.setPadding(g, ui.dp(2), ui.dp(20), ui.dp(14));

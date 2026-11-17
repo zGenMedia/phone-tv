@@ -14,6 +14,10 @@
     <!-- Package visibility (Android 11+): we need to see both phone launchers
          and Android TV (leanback) launchers to build the app list. -->
     <queries>
+        <!-- Voice search: the system speech screen (Google, or the device maker's). -->
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />

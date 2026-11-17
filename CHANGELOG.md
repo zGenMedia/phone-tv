@@ -54,6 +54,9 @@ version is shown in the app's footer and at the top of Settings.
 ### Fixed
 - In portrait, the Apps search keyboard closed as soon as it opened. The
   screen no longer rebuilds itself while you're typing.
+- Voice search: a mic button beside the Apps search box opens the device's
+  speech screen and fills in what you said. A remote's search key does the
+  same when the system hands it to Phone TV.
 
 ### Changed
 - The library, actor pages and history take their cue from
