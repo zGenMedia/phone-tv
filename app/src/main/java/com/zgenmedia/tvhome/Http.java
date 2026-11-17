@@ -38,8 +38,18 @@ final class Http {
         return request("POST", url, headers, 15_000, 0);
     }
 
+    /** POST with a JSON body. */
+    static byte[] post(String url, Map<String, String> headers, String json) throws IOException {
+        return request("POST", url, headers, 15_000, 0, json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
     private static byte[] request(String method, String url, Map<String, String> headers,
                                   int timeoutMs, int redirects) throws IOException {
+        return request(method, url, headers, timeoutMs, redirects, null);
+    }
+
+    private static byte[] request(String method, String url, Map<String, String> headers,
+                                  int timeoutMs, int redirects, byte[] body) throws IOException {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
         try {
             c.setRequestMethod(method);
@@ -49,14 +59,22 @@ final class Http {
             c.setUseCaches(true);
             c.setRequestProperty("User-Agent", USER_AGENT);
             for (Map.Entry<String, String> h : headers.entrySet()) c.setRequestProperty(h.getKey(), h.getValue());
-            if ("POST".equals(method)) { c.setDoOutput(true); c.setFixedLengthStreamingMode(0); }
+            if ("POST".equals(method)) {
+                c.setDoOutput(true);
+                if (body == null) c.setFixedLengthStreamingMode(0);
+                else {
+                    c.setRequestProperty("Content-Type", "application/json");
+                    c.setFixedLengthStreamingMode(body.length);
+                    try (java.io.OutputStream out = c.getOutputStream()) { out.write(body); }
+                }
+            }
 
             int code = c.getResponseCode();
             // HttpURLConnection won't follow redirects that switch protocol; handle those here.
             if (code >= 300 && code < 400 && redirects < MAX_REDIRECTS) {
                 String location = c.getHeaderField("Location");
                 if (location != null) {
-                    return request(method, new URL(new URL(url), location).toString(), headers, timeoutMs, redirects + 1);
+                    return request(method, new URL(new URL(url), location).toString(), headers, timeoutMs, redirects + 1, body);
                 }
             }
             if (code < 200 || code >= 300) throw new StatusException(code, url);

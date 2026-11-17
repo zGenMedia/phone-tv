@@ -1,7 +1,7 @@
 {
-  "versionCode": 15,
-  "versionName": "0.10.0",
+  "versionCode": 20,
+  "versionName": "0.12.0",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "ec3cc3511333205bdeca2f51e61c53fb365692960fab4f3a8553b106d6906b0a",
-  "notes": "Title pages with seasons and episodes, Nuvio as a player, a new Settings page with colors and layout options, and smoother movement."
+  "sha256": "d114c8d5893e7a8e4a86effc7d1f8ebbd14849f702a41714288d17c799015325",
+  "notes": "Library tab with saved titles, saved actors and watch history; actor pages; Trakt sign-in with a code; setup backup to move devices; case screen for phones on a TV; voice search."
 }

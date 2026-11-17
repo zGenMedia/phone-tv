@@ -103,11 +103,11 @@ final class AppRepository {
     }
 
     /**
-     * Launches through the package's own launch intent. Since Android 14, explicit
+     * The intent that opens an app: the package's own launch intent. Since Android 14, explicit
      * intents must match the target's intent filter, so a TV-only app has to be
      * started with its LEANBACK intent rather than a generic LAUNCHER one.
      */
-    boolean launch(App a) {
+    Intent launchIntent(App a) {
         PackageManager pm = ctx.getPackageManager();
         Intent i = a.tvEdition ? pm.getLeanbackLaunchIntentForPackage(a.pkg) : pm.getLaunchIntentForPackage(a.pkg);
         if (i == null) i = a.tvEdition ? pm.getLaunchIntentForPackage(a.pkg) : pm.getLeanbackLaunchIntentForPackage(a.pkg);
@@ -116,9 +116,7 @@ final class AppRepository {
                     .addCategory(a.tvEdition ? Intent.CATEGORY_LEANBACK_LAUNCHER : Intent.CATEGORY_LAUNCHER)
                     .setClassName(a.pkg, a.info.activityInfo.name);
         }
-        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
-        try { ctx.startActivity(i); return true; }
-        catch (RuntimeException e) { return false; }
+        return i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
     }
 
     // ------------------------------------------------------------- favorites

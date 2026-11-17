@@ -40,11 +40,12 @@ Plenty of us have a 2–6 year old phone that still has a great screen, Wi-Fi, H
 | **Your lists (optional)** | Power users can add public Trakt lists (e.g. Black cinema, Nollywood, anime) as extra rows with their own Trakt Client ID. Off by default |
 | **Keyboard & remote friendly** | Arrow keys page the hero carousel; D-pad focus everywhere; on-screen arrows for mouse users |
 | **Title pages** | Every movie and show opens full screen: artwork, cast, seasons and episodes |
+| **Library** | Save movies and shows, save actors with everything they've been in, and keep a watch history that folds in Plex and Trakt. All of it sortable |
 | **Your choice of player** | Open titles in Stremio or Nuvio, search them in Plex, or watch the trailer. A missing app says so instead of doing nothing |
 | **Make it yours** | Accent colors, pure black, card size and corners, banner layout, and a switch for each row |
 | **Made for old hardware** | No dependencies, ~150 KB APK, lazy image loading, downsized disk cache, background-priority threads |
 | **Fullscreen** | Hides status and navigation bars; portrait and landscape layouts |
-| **Private** | No accounts, analytics or ads. Network calls: the public catalog, image CDN, and your Plex server if you link it |
+| **Private** | No accounts, analytics or ads. Network calls: the public catalog and image CDN, Wikidata, Wikimedia Commons and Wikipedia (banner tuning, actors), and your Plex server or Trakt if you set them up |
 
 ## Install
 
@@ -124,7 +125,13 @@ app/src/main/java/com/zgenmedia/tvhome/
   HomeActivity.java       home screen, remote navigation, dialogs, actions
   DetailsScreen.java      full-screen page for one movie or show
   SettingsScreen.java     settings page (two panes sideways, stacked upright)
+  PersonScreen.java       full-screen page for one actor and their work
   Overlay.java            contract for pages shown above the home screen
+  Library.java            saved titles, saved actors and watch history, kept on the device
+  People.java             a title's cast, actor profiles and filmographies from Wikidata
+  CaseScreen.java         what the phone shows while a TV is attached; screen saver
+  CoolingLoopView.java    the animated cooling loop
+  TvHomeActivity.java     the home screen as it runs on an attached TV
   Motion.java             shared timing, easing and focus scrolling
   AppRepository.java      phone + Android TV app discovery, launching, favorites
   TileArt.java            TV banners, adaptive-icon banners, custom tile images

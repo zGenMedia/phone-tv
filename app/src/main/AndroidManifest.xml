@@ -14,6 +14,10 @@
     <!-- Package visibility (Android 11+): we need to see both phone launchers
          and Android TV (leanback) launchers to build the app list. -->
     <queries>
+        <!-- Voice search: the system speech screen (Google, or the device maker's). -->
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
@@ -53,6 +57,25 @@
             android:exported="false"
             android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize|stateHidden" />
+
+        <!-- The same home screen, started on a TV plugged into the phone so the phone's
+             own screen can show something else. See TvHomeActivity. -->
+        <activity
+            android:name=".TvHomeActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.zgenmedia.tvhome.tv"
+            android:windowSoftInputMode="adjustResize|stateHidden" />
+
+        <!-- No window; hands the remote back to the TV. See TvFocusActivity. -->
+        <activity
+            android:name=".TvFocusActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:taskAffinity="com.zgenmedia.tvhome.tvfocus"
+            android:theme="@android:style/Theme.NoDisplay" />
 
         <!-- Kept for upgrade continuity: versions up to 0.4 shipped this component
              name, and the phone's "default Home app" setting points at it. -->

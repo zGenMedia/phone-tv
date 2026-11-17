@@ -3,9 +3,12 @@ package com.zgenmedia.tvhome;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.text.TextUtils;
+import org.json.JSONException;
+import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -87,6 +90,17 @@ final class Prefs {
     /** Rows the user switched off on the home screen, by row key. */
     boolean rowShown(String key) { return !sp.getBoolean("rowOff_" + key, false); }
     void setRowShown(String key, boolean shown) { sp.edit().putBoolean("rowOff_" + key, !shown).apply(); }
+
+    // --- the phone's own screen ---
+    /** What the phone shows while a TV is attached: the same picture, a cooling loop, or nothing. */
+    static final int CASE_MIRROR = 0, CASE_LOOP = 1, CASE_OFF = 2;
+    int caseMode() { return clamp(sp.getInt("caseMode", CASE_MIRROR), 3); }
+    void setCaseMode(int v) { sp.edit().putInt("caseMode", v).apply(); }
+
+    /** Minutes the home screen may sit idle before the screen saver; 0 turns it off. */
+    static final int[] SAVER_MINUTES = {0, 2, 5, 10};
+    int saverMinutes() { return sp.getInt("saverMinutes", 0); }
+    void setSaverMinutes(int v) { sp.edit().putInt("saverMinutes", v).apply(); }
 
     private static int clamp(int v, int length) { return Math.max(0, Math.min(length - 1, v)); }
 
@@ -174,12 +188,73 @@ final class Prefs {
     // --- Trakt (advanced, opt-in) ---
     String traktClientId() { return sp.getString(K_TRAKT_CLIENT, "").trim(); }
     String traktLists() { return sp.getString(K_TRAKT_LISTS, ""); }
+
+    // Trakt sign-in. Kept with the other tokens, which are excluded from backups and device transfer.
+    String traktAccess() { return sp.getString("traktAccess", ""); }
+    String traktRefresh() { return sp.getString("traktRefresh", ""); }
+    long traktExpires() { return sp.getLong("traktExpires", 0); }
+    String traktAccount() { return sp.getString("traktAccount", ""); }
+    void saveTraktSignIn(String access, String refresh, long expiresAtMs) {
+        sp.edit().putString("traktAccess", access).putString("traktRefresh", refresh).putLong("traktExpires", expiresAtMs).apply();
+    }
+    void setTraktAccount(String name) { sp.edit().putString("traktAccount", name).apply(); }
+    void clearTraktSignIn() {
+        sp.edit().remove("traktAccess").remove("traktRefresh").remove("traktExpires").remove("traktAccount").apply();
+    }
+
+    /** Trakt username whose public watch history is shown in the Library; empty when unused. */
+    String traktUser() { return sp.getString("traktUser", "").trim(); }
+    void setTraktUser(String user) { sp.edit().putString("traktUser", user.trim()).apply(); }
+
+    // --- library: which part is open and how each part is ordered ---
+    int librarySection() { return clamp(sp.getInt("libSection", 0), 3); }
+    void setLibrarySection(int v) { sp.edit().putInt("libSection", v).apply(); }
+    int librarySort(String part) { return sp.getInt("libSort_" + part, 0); }
+    void setLibrarySort(String part, int v) { sp.edit().putInt("libSort_" + part, v).apply(); }
     void saveTrakt(String clientId, String lists) {
         sp.edit().putString(K_TRAKT_CLIENT, clientId.trim()).putString(K_TRAKT_LISTS, lists.trim()).apply();
     }
 
     boolean plexPromptDismissed() { return sp.getBoolean(K_PLEX_PROMPT, false); }
     void dismissPlexPrompt() { sp.edit().putBoolean(K_PLEX_PROMPT, true).apply(); }
+
+    /** Settings that never go into a setup backup: sign-ins, tokens and this device's Plex link. */
+    private static boolean privateKey(String key) {
+        return key.startsWith("plex") || key.startsWith("traktAccess") || key.startsWith("traktRefresh")
+                || key.startsWith("traktExpires") || key.startsWith("traktAccount");
+    }
+
+    /** Every other setting, with its type, so a restore puts back exactly what was there. */
+    JSONObject exportSettings() throws JSONException {
+        JSONObject out = new JSONObject();
+        for (Map.Entry<String, ?> e : sp.getAll().entrySet()) {
+            Object v = e.getValue();
+            if (privateKey(e.getKey()) || v == null) continue;
+            String type = v instanceof Boolean ? "b" : v instanceof Integer ? "i" : v instanceof Long ? "l"
+                    : v instanceof Float ? "f" : v instanceof String ? "s" : null;
+            if (type == null) continue; // string sets aren't used
+            out.put(e.getKey(), new JSONObject().put("t", type).put("v", v));
+        }
+        return out;
+    }
+
+    void importSettings(JSONObject in) throws JSONException {
+        SharedPreferences.Editor ed = sp.edit();
+        for (java.util.Iterator<String> it = in.keys(); it.hasNext(); ) {
+            String key = it.next();
+            if (privateKey(key)) continue;
+            JSONObject o = in.getJSONObject(key);
+            switch (o.getString("t")) {
+                case "b": ed.putBoolean(key, o.getBoolean("v")); break;
+                case "i": ed.putInt(key, o.getInt("v")); break;
+                case "l": ed.putLong(key, o.getLong("v")); break;
+                case "f": ed.putFloat(key, (float) o.getDouble("v")); break;
+                case "s": ed.putString(key, o.getString("v")); break;
+                default: break;
+            }
+        }
+        ed.apply(); // read back from memory at once; the disk write follows
+    }
 
     static List<String> listOf(String... items) { return new ArrayList<>(Arrays.asList(items)); }
 }

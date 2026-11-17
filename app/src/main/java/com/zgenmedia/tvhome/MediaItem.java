@@ -23,6 +23,8 @@ final class MediaItem {
     String genres = "";
     int progressPercent;  // Plex resume position, 0 when unwatched
     long viewOffsetMs;    // same position in milliseconds, passed to Plex when resuming
+    long savedAt;         // when the user added it to their library, 0 if they haven't
+    long watchedAt;       // when Plex last saw it played, 0 if never
 
     // Raw artwork references: full URLs for the catalog, server paths for Plex.
     String posterRef, backdropRef, logoRef;
@@ -31,6 +33,19 @@ final class MediaItem {
     String plexBaseUri, plexToken, plexMachineId;
 
     MediaItem(Source source) { this.source = source; }
+
+    /** A catalog title known only by its IMDb id; artwork comes from the catalog's image host. */
+    static MediaItem catalog(String imdbId, String type, String title, String year) {
+        MediaItem m = new MediaItem(Source.CATALOG);
+        m.id = imdbId;
+        m.type = type;
+        m.title = title;
+        m.year = year == null ? "" : year;
+        m.posterRef = "https://images.metahub.space/poster/small/" + imdbId + "/img";
+        m.backdropRef = "https://images.metahub.space/background/medium/" + imdbId + "/img";
+        m.logoRef = "https://images.metahub.space/logo/medium/" + imdbId + "/img";
+        return m;
+    }
 
     boolean isShow() { return "series".equals(type) || "season".equals(type); }
 
@@ -50,6 +65,7 @@ final class MediaItem {
     String logo() { return logoRef == null || logoRef.isEmpty() ? null : logoRef; }
 
     private String plexImage(String path, int w, int h) {
+        if (plexBaseUri == null || plexToken == null) return null; // a saved Plex title while Plex is unlinked
         return plexBaseUri + "/photo/:/transcode?width=" + w + "&height=" + h
                 + "&minSize=1&upscale=1&url=" + Uri.encode(path) + "&X-Plex-Token=" + plexToken;
     }

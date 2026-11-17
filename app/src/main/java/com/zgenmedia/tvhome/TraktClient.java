@@ -21,9 +21,13 @@ import java.util.regex.Pattern;
  * Optional rows built from public Trakt lists, for users who want to curate
  * their own home screen (e.g. Black cinema, Bollywood, anime, festival picks).
  *
- * Off by default. Turning it on needs the user's own Trakt API Client ID
- * (free at trakt.tv/oauth/applications) plus one or more public list URLs, so
- * casual users never see it and the app ships with no shared API key.
+ * Also the user's Trakt account, when they sign in: their watch history and
+ * watchlist for the Library. Sign-in is Trakt's device flow, the same one
+ * Nuvio uses: the TV shows a short code, the user enters it at
+ * trakt.tv/activate on any phone or computer, and the app is let in. Phone TV
+ * is registered with Trakt as a public (PKCE) app, so its Client ID below is
+ * meant to be public and there is no secret to protect. Users who prefer can
+ * still enter their own Client ID for list rows.
  *
  * Trakt doesn't serve artwork, so items are matched to metahub art by IMDb id,
  * the same source the built-in catalog uses. All methods block; call them
@@ -31,7 +35,22 @@ import java.util.regex.Pattern;
  */
 final class TraktClient {
     static final int MAX_LISTS = 5;
+    /** Phone TV's own Trakt app (zGenMedia). Public by design; see the class note. */
+    static final String APP_ID = "G7xysTRh7KAVT_abEoSzR7lmIBCASYmdQcHtwS8qJ-I";
+    static final String ACTIVATE_URL = "https://trakt.tv/activate";
     private static final String API = "https://api.trakt.tv";
+
+    /** A sign-in in progress: the code the user types, and how long it lasts. */
+    static final class DeviceCode {
+        String device, user, url;
+        int intervalSec;
+        long expiresAt;
+    }
+
+    /** The user said no at trakt.tv, or the code ran out. */
+    static final class SignInEnded extends IOException {
+        SignInEnded(String why) { super(why); }
+    }
     private static final Pattern LIST_URL =
             Pattern.compile("trakt\\.tv/users/([^/?#]+)/(?:lists/([^/?#]+)|(watchlist))", Pattern.CASE_INSENSITIVE);
 
@@ -53,7 +72,87 @@ final class TraktClient {
 
     TraktClient(Context context, Prefs prefs) { this.dir = context.getFilesDir(); this.prefs = prefs; }
 
-    boolean isConfigured() { return !prefs.traktClientId().isEmpty() && !refs().isEmpty(); }
+    boolean isConfigured() { return !refs().isEmpty(); }
+
+    boolean signedIn() { return !prefs.traktAccess().isEmpty(); }
+
+    /** The user's own Client ID if they entered one, otherwise Phone TV's. */
+    private String clientId() { return prefs.traktClientId().isEmpty() ? APP_ID : prefs.traktClientId(); }
+
+    // ------------------------------------------------------------- sign-in
+
+    DeviceCode startSignIn() throws IOException, JSONException {
+        JSONObject o = new JSONObject(post("/oauth/device/code", new JSONObject().put("client_id", APP_ID)));
+        DeviceCode c = new DeviceCode();
+        c.device = o.getString("device_code");
+        c.user = o.getString("user_code");
+        c.url = o.optString("verification_url", ACTIVATE_URL);
+        c.intervalSec = Math.max(1, o.optInt("interval", 5));
+        c.expiresAt = System.currentTimeMillis() + o.optInt("expires_in", 600) * 1000L;
+        return c;
+    }
+
+    /**
+     * One check on a sign-in. True once the user has approved it (the account is then saved),
+     * false while Trakt is still waiting for them.
+     * @throws SignInEnded when the code expired or was refused; start again.
+     */
+    boolean pollSignIn(DeviceCode c) throws IOException, JSONException {
+        if (System.currentTimeMillis() > c.expiresAt) throw new SignInEnded("expired");
+        String reply;
+        try {
+            reply = post("/oauth/device/token", new JSONObject().put("code", c.device).put("client_id", APP_ID));
+        } catch (Http.StatusException e) {
+            switch (e.code) {
+                case 400: case 429: return false;          // still waiting, or asked to slow down
+                case 404: case 409: case 410: case 418: throw new SignInEnded("code " + e.code);
+                default: throw e;
+            }
+        }
+        keep(new JSONObject(reply));
+        try {
+            JSONObject me = new JSONObject(authorized("/users/settings")).optJSONObject("user");
+            if (me != null) prefs.setTraktAccount(me.optString("username"));
+        } catch (IOException | JSONException ignored) { /* the name is only for the Settings line */ }
+        return true;
+    }
+
+    void signOut() {
+        String token = prefs.traktAccess();
+        prefs.clearTraktSignIn();
+        if (token.isEmpty()) return;
+        try { post("/oauth/revoke", new JSONObject().put("token", token).put("client_id", APP_ID)); }
+        catch (IOException | JSONException ignored) { /* signed out here either way */ }
+    }
+
+    private void keep(JSONObject token) {
+        long created = token.optLong("created_at", System.currentTimeMillis() / 1000L);
+        prefs.saveTraktSignIn(token.optString("access_token"), token.optString("refresh_token"),
+                (created + token.optLong("expires_in", 86_400)) * 1000L);
+    }
+
+    /** A GET as the signed-in user, renewing the sign-in first when it is about to lapse. */
+    private String authorized(String path) throws IOException, JSONException {
+        if (System.currentTimeMillis() > prefs.traktExpires() - 60_000) renew();
+        try {
+            return get(path, prefs.traktAccess());
+        } catch (Http.StatusException e) {
+            if (e.code != 401) throw e;
+            renew();
+            return get(path, prefs.traktAccess());
+        }
+    }
+
+    private void renew() throws IOException, JSONException {
+        try {
+            keep(new JSONObject(post("/oauth/token", new JSONObject().put("refresh_token", prefs.traktRefresh())
+                    .put("client_id", APP_ID).put("grant_type", "refresh_token").put("redirect_uri", "urn:ietf:wg:oauth:2.0:oob"))));
+        } catch (Http.StatusException e) {
+            // Refused for good (revoked at trakt.tv, or too old): sign out so Settings offers to sign in again.
+            if (e.code == 400 || e.code == 401) prefs.clearTraktSignIn();
+            throw e;
+        }
+    }
 
     /** Valid list references from the saved URLs, in the user's order. */
     List<ListRef> refs() {
@@ -105,17 +204,77 @@ final class TraktClient {
         return rows;
     }
 
+    /** Signed in, or a public profile's username. */
+    boolean hasHistory() { return signedIn() || !prefs.traktUser().isEmpty(); }
+
+    /**
+     * The latest plays on the user's Trakt profile, which other apps (Stremio, Nuvio, Plex
+     * scrobblers) write to. The profile must be public: Phone TV holds no Trakt login.
+     */
+    List<Library.Watch> history() throws IOException, JSONException {
+        if (signedIn()) return parseHistory(authorized("/sync/history?limit=80&extended=full"));
+        return parseHistory(get("/users/" + android.net.Uri.encode(prefs.traktUser()) + "/history?limit=80&extended=full"));
+    }
+
+    /** Movies and shows on the user's Trakt watchlist, most recently added first. */
+    List<MediaItem> watchlist() throws IOException, JSONException {
+        String path = "/watchlist?extended=full&sort_by=added&sort_how=desc&limit=100";
+        String json = signedIn() ? authorized("/sync" + path)
+                : get("/users/" + android.net.Uri.encode(prefs.traktUser()) + path);
+        return toItems(new JSONArray(json));
+    }
+
+    /** Trakt's history reply, one entry per play, in the library's own shape. Plays without an IMDb id are skipped. */
+    static List<Library.Watch> parseHistory(String json) throws JSONException {
+        JSONArray plays = new JSONArray(json);
+        java.text.SimpleDateFormat stamp = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US);
+        stamp.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+        List<Library.Watch> out = new ArrayList<>();
+        for (int i = 0; i < plays.length(); i++) {
+            JSONObject play = plays.getJSONObject(i);
+            boolean movie = "movie".equals(play.optString("type"));
+            JSONObject about = play.optJSONObject(movie ? "movie" : "show");
+            JSONObject ids = about == null ? null : about.optJSONObject("ids");
+            String imdb = ids == null ? "" : ids.optString("imdb", "");
+            if (!imdb.startsWith("tt")) continue;
+            Library.Watch w = new Library.Watch();
+            w.item = MediaItem.catalog(imdb, movie ? "movie" : "series", about.optString("title"),
+                    about.isNull("year") ? "" : String.valueOf(about.optInt("year")));
+            w.item.summary = about.optString("overview", "");
+            w.via = "Trakt";
+            JSONObject episode = play.optJSONObject("episode");
+            if (episode != null) w.episode = Library.episodeLabel(episode.optInt("season"), episode.optInt("number"));
+            String at = play.optString("watched_at");
+            try { if (at.length() >= 19) w.at = stamp.parse(at.substring(0, 19)).getTime(); }
+            catch (java.text.ParseException | NullPointerException ignored) { /* leave it undated */ }
+            out.add(w);
+        }
+        return out;
+    }
+
     private String listName(ListRef ref) throws IOException, JSONException {
         JSONObject meta = new JSONObject(get("/users/" + ref.user + "/lists/" + ref.slug));
         return meta.optString("name", ref.slug);
     }
 
-    private String get(String path) throws IOException {
+    private String get(String path) throws IOException { return get(path, null); }
+
+    private String get(String path, String bearer) throws IOException {
+        return new String(Http.get(API + path, headers(bearer), 15_000), StandardCharsets.UTF_8);
+    }
+
+    private String post(String path, JSONObject body) throws IOException {
+        return new String(Http.post(API + path, headers(null), body.toString()), StandardCharsets.UTF_8);
+    }
+
+    private Map<String, String> headers(String bearer) {
         Map<String, String> h = new HashMap<>();
         h.put("Content-Type", "application/json");
         h.put("trakt-api-version", "2");
-        h.put("trakt-api-key", prefs.traktClientId());
-        return new String(Http.get(API + path, h, 15_000), StandardCharsets.UTF_8);
+        // Requests made as the user go under Phone TV's app, which issued the sign-in.
+        h.put("trakt-api-key", bearer == null ? clientId() : APP_ID);
+        if (bearer != null) h.put("Authorization", "Bearer " + bearer);
+        return h;
     }
 
     private static List<MediaItem> toItems(JSONArray arr) {

@@ -27,8 +27,9 @@ import java.util.concurrent.Executor;
  * everyone. Responses are cached on disk so the screen is never empty offline.
  */
 final class CatalogRepository {
-    static final String MOVIES = "movie/top", SHOWS = "series/top", TOP_RATED = "movie/imdbRating";
-    private static final String[] KEYS = {MOVIES, SHOWS, TOP_RATED};
+    static final String MOVIES = "movie/top", SHOWS = "series/top", TOP_RATED = "movie/imdbRating",
+            TOP_RATED_SHOWS = "series/imdbRating";
+    private static final String[] KEYS = {MOVIES, SHOWS, TOP_RATED, TOP_RATED_SHOWS};
     private static final String BASE = "https://v3-cinemeta.strem.io/catalog/";
     private static final String META = "https://v3-cinemeta.strem.io/meta/";
 
