@@ -64,6 +64,7 @@ final class Library {
     }
 
     private final File file;
+    private final Prefs prefs; // for the Plex server address, which is never written into the library
     private final Map<String, MediaItem> titles = new LinkedHashMap<>();
     private final Map<String, Person> people = new LinkedHashMap<>();
     private final List<Watch> watched = new ArrayList<>();
@@ -82,21 +83,25 @@ final class Library {
 
     Library(Context context) {
         file = new File(context.getFilesDir(), "library.json");
+        prefs = new Prefs(context);
         load();
     }
 
     // ------------------------------------------------------------------ titles
 
-    boolean has(MediaItem m) { return titles.containsKey(m.id); }
+    /** Catalog titles are kept by IMDb id; Plex titles by their key on the server, marked so the two never collide. */
+    static String key(MediaItem m) { return (m.source == MediaItem.Source.PLEX ? "plex:" : "") + m.id; }
+
+    boolean has(MediaItem m) { return titles.containsKey(key(m)); }
 
     void add(MediaItem m) {
-        if (m.source != MediaItem.Source.CATALOG || has(m)) return;
+        if (has(m)) return;
         m.savedAt = System.currentTimeMillis();
-        titles.put(m.id, m);
+        titles.put(key(m), m);
         save();
     }
 
-    void remove(MediaItem m) { if (titles.remove(m.id) != null) save(); }
+    void remove(MediaItem m) { if (titles.remove(key(m)) != null) save(); }
 
     int titleCount() { return titles.size(); }
 
@@ -139,6 +144,8 @@ final class Library {
 
     void remove(Person p) { if (people.remove(p.id) != null) save(); }
 
+    void clearPeople() { if (!people.isEmpty()) { people.clear(); save(); } }
+
     int peopleCount() { return people.size(); }
 
     /** @param byName true for A to Z, false for most recently saved first. */
@@ -153,9 +160,8 @@ final class Library {
 
     /** Notes that a title (or one episode of it) was opened in a player, or marked watched by hand. */
     void watched(MediaItem m, String episode, String via) {
-        if (m.source != MediaItem.Source.CATALOG) return; // Plex keeps its own history
         Watch entry = null;
-        for (Watch w : watched) if (w.item.id.equals(m.id) && w.episode.equals(episode)) entry = w;
+        for (Watch w : watched) if (key(w.item).equals(key(m)) && w.episode.equals(episode)) entry = w;
         if (entry == null) {
             entry = new Watch();
             entry.item = m;
@@ -178,7 +184,7 @@ final class Library {
 
     /** True if any record of this title is kept here (the film itself, or any episode of the show). */
     boolean isWatched(MediaItem m) {
-        for (Watch w : watched) if (w.item.id.equals(m.id)) return true;
+        for (Watch w : watched) if (key(w.item).equals(key(m))) return true;
         return false;
     }
 
@@ -186,7 +192,7 @@ final class Library {
     void forget(MediaItem m) {
         boolean changed = false;
         for (int i = watched.size() - 1; i >= 0; i--) {
-            if (watched.get(i).item.id.equals(m.id)) { watched.remove(i); changed = true; }
+            if (key(watched.get(i).item).equals(key(m))) { watched.remove(i); changed = true; }
         }
         if (changed) save();
     }
@@ -276,11 +282,21 @@ final class Library {
     private void load() {
         if (!file.exists()) return;
         try (FileInputStream in = new FileInputStream(file)) {
-            JSONObject o = new JSONObject(new String(Http.readAll(in), StandardCharsets.UTF_8));
+            read(new JSONObject(new String(Http.readAll(in), StandardCharsets.UTF_8)));
+        } catch (IOException | JSONException e) {
+            // A damaged file must not take the launcher down. Keep it aside rather than overwrite it,
+            // so nothing the user saved is lost for good.
+            //noinspection ResultOfMethodCallIgnored
+            file.renameTo(new File(file.getPath() + ".damaged"));
+        }
+    }
+
+    private void read(JSONObject o) throws JSONException {
+        {
             JSONArray t = o.optJSONArray("titles");
             for (int i = 0; t != null && i < t.length(); i++) {
                 MediaItem m = title(t.getJSONObject(i));
-                titles.put(m.id, m);
+                titles.put(key(m), m);
             }
             JSONArray p = o.optJSONArray("people");
             for (int i = 0; p != null && i < p.length(); i++) {
@@ -303,16 +319,28 @@ final class Library {
                 entry.times = Math.max(1, j.optInt("times", 1));
                 watched.add(entry);
             }
-        } catch (IOException | JSONException e) {
-            // A damaged file must not take the launcher down. Keep it aside rather than overwrite it,
-            // so nothing the user saved is lost for good.
-            //noinspection ResultOfMethodCallIgnored
-            file.renameTo(new File(file.getPath() + ".damaged"));
         }
     }
 
-    private static MediaItem title(JSONObject j) throws JSONException {
-        MediaItem m = MediaItem.catalog(j.getString("id"), j.optString("type", "movie"), j.optString("title"), j.optString("year"));
+    private MediaItem title(JSONObject j) throws JSONException {
+        MediaItem m;
+        if ("plex".equals(j.optString("source"))) {
+            m = new MediaItem(MediaItem.Source.PLEX);
+            m.id = j.getString("id");
+            m.type = j.optString("type", "movie");
+            m.title = j.optString("title");
+            m.year = j.optString("year");
+            m.subtitle = j.optString("subtitle");
+            m.posterRef = j.optString("poster");
+            m.backdropRef = j.optString("backdrop");
+            // The server's address and key come from the current Plex link, so a saved title follows
+            // a server that moved, and a library copied to another device carries no Plex token.
+            m.plexBaseUri = prefs.plexServerUri();
+            m.plexToken = prefs.plexServerToken();
+            m.plexMachineId = prefs.plexServerId();
+        } else {
+            m = MediaItem.catalog(j.getString("id"), j.optString("type", "movie"), j.optString("title"), j.optString("year"));
+        }
         m.genres = j.optString("genres");
         m.rating = j.optString("rating");
         m.summary = j.optString("summary");
@@ -321,23 +349,64 @@ final class Library {
     }
 
     private static JSONObject json(MediaItem m) throws JSONException {
-        return new JSONObject().put("id", m.id).put("type", m.type).put("title", m.title).put("year", m.year)
+        JSONObject o = new JSONObject();
+        if (m.source == MediaItem.Source.PLEX) {
+            o.put("source", "plex").put("subtitle", m.subtitle).put("poster", m.posterRef).put("backdrop", m.backdropRef);
+        }
+        return o.put("id", m.id).put("type", m.type).put("title", m.title).put("year", m.year)
                 .put("genres", m.genres).put("rating", m.rating).put("summary", m.summary).put("savedAt", m.savedAt);
+    }
+
+    /** Everything kept here, as written to disk; used for a setup backup. */
+    String export() { try { return snapshot(); } catch (JSONException e) { return "{}"; } }
+
+    /**
+     * Folds in a library from a setup backup. Nothing already here is lost: titles and actors
+     * are added, and a play both sides know keeps the larger count and the later date.
+     * @return how many titles and actors were new.
+     */
+    int merge(String json) throws JSONException {
+        Library incoming = new Library(file, prefs, new JSONObject(json));
+        int added = 0;
+        for (Map.Entry<String, MediaItem> e : incoming.titles.entrySet()) if (titles.put(e.getKey(), keepOlder(titles.get(e.getKey()), e.getValue())) == null) added++;
+        for (Person p : incoming.people.values()) if (!people.containsKey(p.id)) { people.put(p.id, p); added++; }
+        for (Watch w : incoming.watched) {
+            Watch mine = null;
+            for (Watch m : watched) if (m.key().equals(w.key())) mine = m;
+            if (mine == null) { watched.add(w); continue; }
+            mine.times = Math.max(mine.times, w.times);
+            if (w.at > mine.at) { mine.at = w.at; mine.via = w.via; }
+        }
+        while (watched.size() > HISTORY_KEPT) watched.remove(oldest());
+        save();
+        return added;
+    }
+
+    private static MediaItem keepOlder(MediaItem mine, MediaItem theirs) { return mine != null ? mine : theirs; }
+
+    private Library(File file, Prefs prefs, JSONObject from) throws JSONException {
+        this.file = file;
+        this.prefs = prefs;
+        read(from);
+    }
+
+    private String snapshot() throws JSONException {
+        JSONArray t = new JSONArray(), p = new JSONArray(), w = new JSONArray();
+        for (MediaItem m : titles.values()) t.put(json(m));
+        for (Person person : people.values()) {
+            p.put(new JSONObject().put("id", person.id).put("name", person.name).put("photo", person.photo).put("savedAt", person.savedAt));
+        }
+        for (Watch entry : watched) {
+            w.put(json(entry.item).put("episode", entry.episode).put("via", entry.via).put("at", entry.at).put("times", entry.times));
+        }
+        return new JSONObject().put("titles", t).put("people", p).put("watched", w).toString();
     }
 
     /** Snapshots on the calling thread, writes on the disk thread; the temp file makes the swap all-or-nothing. */
     private void save() {
         final String snapshot;
         try {
-            JSONArray t = new JSONArray(), p = new JSONArray(), w = new JSONArray();
-            for (MediaItem m : titles.values()) t.put(json(m));
-            for (Person person : people.values()) {
-                p.put(new JSONObject().put("id", person.id).put("name", person.name).put("photo", person.photo).put("savedAt", person.savedAt));
-            }
-            for (Watch entry : watched) {
-                w.put(json(entry.item).put("episode", entry.episode).put("via", entry.via).put("at", entry.at).put("times", entry.times));
-            }
-            snapshot = new JSONObject().put("titles", t).put("people", p).put("watched", w).toString();
+            snapshot = snapshot();
         } catch (JSONException e) {
             return;
         }

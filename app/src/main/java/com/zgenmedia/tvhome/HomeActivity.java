@@ -43,6 +43,7 @@ import android.widget.TextClock;
 import android.widget.TextView;
 import android.widget.Toast;
 import org.json.JSONException;
+import org.json.JSONObject;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -93,7 +94,7 @@ public class HomeActivity extends Activity {
     private static final long HERO_INTERVAL_MS = 9_000;
     private static final long CONTENT_TTL_MS = 3 * 60 * 60 * 1000L;
     private static final long PLEX_POLL_MS = 2_000;
-    private static final int REQUEST_TILE_IMAGE = 41;
+    private static final int REQUEST_TILE_IMAGE = 41, REQUEST_BACKUP_SAVE = 42, REQUEST_BACKUP_OPEN = 43;
 
     // Rows on "For you" that can be switched off in Settings. Keys are stored; don't rename.
     static final String ROW_PLEX_CONTINUE = "plexContinue", ROW_PLEX_RECENT = "plexRecent",
@@ -122,6 +123,7 @@ public class HomeActivity extends Activity {
     // Remote navigation: named focus targets so focus survives a rebuild of the screen.
     final Map<String, View> focusTargets = new HashMap<>();
     private String restoreFocusKey;
+    private boolean insetsWaiting; // insets changed while a text box was in use
     private int rowSeq, heroHeightPx, heroBackdropWidthPx, selectedChipId, heroWatchId;
     private volatile AlertDialog plexDialog;
 
@@ -154,6 +156,8 @@ public class HomeActivity extends Activity {
     People people;
     private List<MediaItem> plexHistory = Collections.emptyList();
     private List<Library.Watch> traktHistory = Collections.emptyList();
+    private List<MediaItem> traktWatchlist = Collections.emptyList();
+    private TraktClient.DeviceCode traktCode; // a Trakt sign-in waiting for the user, if any
     private String historyError;
     private boolean historyLoading;
 
@@ -532,6 +536,8 @@ public class HomeActivity extends Activity {
     /** TV on-screen keyboards only open on request; do it whenever a text box is selected. */
     private void keyboardOnSelect(EditText box) {
         box.setOnClickListener(v -> showKeyboard(box));
+        // Insets held back while typing are applied once the box is let go.
+        box.setOnFocusChangeListener((v, has) -> { if (!has && insetsWaiting) root.post(root::requestApplyInsets); });
         box.setOnKeyListener((v, code, e) -> {
             boolean select = code == android.view.KeyEvent.KEYCODE_DPAD_CENTER || code == android.view.KeyEvent.KEYCODE_ENTER
                     || code == android.view.KeyEvent.KEYCODE_NUMPAD_ENTER || code == android.view.KeyEvent.KEYCODE_BUTTON_A;
@@ -569,6 +575,12 @@ public class HomeActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_BACKUP_SAVE || requestCode == REQUEST_BACKUP_OPEN) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                if (requestCode == REQUEST_BACKUP_SAVE) writeSetup(data.getData()); else readSetup(data.getData());
+            }
+            return;
+        }
         if (requestCode != REQUEST_TILE_IMAGE || tileImageTarget == null) return;
         String pkg = tileImageTarget;
         tileImageTarget = null;
@@ -579,6 +591,82 @@ public class HomeActivity extends Activity {
                 main.post(() -> { if (ok) renderPreservingScroll(); else toast(getString(R.string.open_failed, picked.getLastPathSegment())); });
             });
         }
+    }
+
+    // ================================================================ setup backup
+
+    /**
+     * Saves the Library (titles, actors, history) and the settings to a file the user picks:
+     * Google Drive, Downloads, a USB stick. Opening that file on another device with
+     * "Restore setup" brings everything across. Sign-ins and the Plex link stay behind:
+     * the file holds no tokens, so it is safe to keep in a shared folder.
+     */
+    void saveSetup() {
+        Intent pick = new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+                .setType("application/json").putExtra(Intent.EXTRA_TITLE, "PhoneTV-setup.json");
+        try { startActivityForResult(pick, REQUEST_BACKUP_SAVE); }
+        catch (android.content.ActivityNotFoundException e) { toast(getString(R.string.setup_no_picker)); }
+    }
+
+    void restoreSetup() {
+        Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+                .setType("*/*").putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"application/json", "text/plain", "application/octet-stream"});
+        try { startActivityForResult(pick, REQUEST_BACKUP_OPEN); }
+        catch (android.content.ActivityNotFoundException e) { toast(getString(R.string.setup_no_picker)); }
+    }
+
+    private void writeSetup(Uri to) {
+        final String json;
+        try {
+            json = new JSONObject().put("phoneTvSetup", 1).put("version", BuildConfig.VERSION_NAME)
+                    .put("settings", prefs.exportSettings()).put("library", new JSONObject(library.export())).toString(1);
+        } catch (JSONException e) {
+            toast(getString(R.string.setup_failed, e.getMessage()));
+            return;
+        }
+        io.execute(() -> {
+            String problem = null;
+            try (java.io.OutputStream out = getContentResolver().openOutputStream(to, "wt")) {
+                if (out == null) throw new IOException("no file");
+                out.write(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            } catch (IOException | SecurityException e) { problem = e.getMessage(); }
+            final String p = problem;
+            main.post(() -> toast(p == null ? getString(R.string.setup_saved, library.titleCount(), library.peopleCount()) : getString(R.string.setup_failed, p)));
+        });
+    }
+
+    private void readSetup(Uri from) {
+        io.execute(() -> {
+            String text;
+            try (java.io.InputStream in = getContentResolver().openInputStream(from)) {
+                if (in == null) throw new IOException("no file");
+                text = new String(Http.readAll(in), java.nio.charset.StandardCharsets.UTF_8);
+            } catch (IOException | SecurityException e) {
+                final String p = e.getMessage();
+                main.post(() -> toast(getString(R.string.setup_failed, p)));
+                return;
+            }
+            main.post(() -> applySetup(text));
+        });
+    }
+
+    /** Puts a setup backup in place: settings replaced, Library merged. */
+    void applySetup(String text) {
+        int added;
+        try {
+            JSONObject o = new JSONObject(text);
+            if (o.optInt("phoneTvSetup") != 1) { toast(getString(R.string.setup_not_ours)); return; }
+            prefs.importSettings(o.getJSONObject("settings"));
+            added = library.merge(o.getJSONObject("library").toString());
+        } catch (JSONException e) {
+            toast(getString(R.string.setup_not_ours));
+            return;
+        }
+        Ui.applyTheme(prefs);
+        applyLook();
+        render();
+        for (Overlay page : pages) page.rebuild();
+        toast(getString(R.string.setup_restored, added));
     }
 
     private void goHome() {
@@ -616,7 +704,16 @@ public class HomeActivity extends Activity {
                 t = in.getSystemWindowInsetTop(); b = in.getSystemWindowInsetBottom();
                 l = in.getSystemWindowInsetLeft(); r = in.getSystemWindowInsetRight();
             }
-            if (t != insetTop || b != insetBottom || l != insetLeft || r != insetRight) {
+            // Typing: the keyboard brings the navigation bar back, and on older Android its height
+            // arrives as an inset. Rebuilding now would replace the text box and close the keyboard,
+            // so the new insets wait until the box is let go.
+            boolean typing = focused() instanceof EditText && (Build.VERSION.SDK_INT < 30 || in.isVisible(WindowInsets.Type.ime()));
+            if (typing) {
+                if (t != insetTop || b != insetBottom || l != insetLeft || r != insetRight) insetsWaiting = true;
+                return in;
+            }
+            if (insetsWaiting || t != insetTop || b != insetBottom || l != insetLeft || r != insetRight) {
+                insetsWaiting = false;
                 insetTop = t; insetBottom = b; insetLeft = l; insetRight = r;
                 // Rebuild after the insets pass finishes rather than mutating the tree mid-dispatch.
                 main.post(() -> { render(); for (Overlay page : pages) page.rebuild(); });
@@ -931,6 +1028,7 @@ public class HomeActivity extends Activity {
         } else {
             backdropRow(column, getString(R.string.row_trending_shows), slice(shows, 7, 20));
             posterRow(column, getString(R.string.row_popular_shows), slice(shows, 20, 50));
+            posterRow(column, getString(R.string.row_top_rated_shows), catalog.get(CatalogRepository.TOP_RATED_SHOWS));
         }
         column.addView(footer());
 
@@ -1436,7 +1534,7 @@ public class HomeActivity extends Activity {
             if (titles.isEmpty()) { column.addView(emptyNote(getString(library.titleCount() == 0 ? R.string.library_saved_empty : R.string.library_none_match))); return; }
             int[] plan = gridPlan(cardWidth(land() ? 116 : 104));
             List<View> cells = new ArrayList<>();
-            for (MediaItem m : titles) cells.add(posterCell(m, "lib:t:" + m.id, m.year, plan[1], () -> showDetails(m), null));
+            for (MediaItem m : titles) cells.add(posterCell(m, "lib:t:" + Library.key(m), m.year, plan[1], () -> showDetails(m), null));
             addGrid(column, cells, plan);
         } else if (part == 1) {
             boolean byName = prefs.librarySort(PART_ACTORS) % 2 == 1;
@@ -1445,6 +1543,15 @@ public class HomeActivity extends Activity {
             add.setOnClickListener(v -> askActorName());
             focusKey(add, "lib:add");
             bar.addView(add, chipSpacing(6));
+            if (library.peopleCount() > 0) {
+                TextView clear = chip(getString(R.string.library_clear_actors), false);
+                clear.setOnClickListener(v -> showNotice(getString(R.string.library_clear_actors_title),
+                        getString(R.string.library_clear_actors_body),
+                        new String[]{getString(R.string.library_clear_actors), getString(R.string.cancel)},
+                        new Runnable[]{() -> { library.clearPeople(); renderPreservingScroll(); }, null}));
+                focusKey(clear, "lib:clearActors");
+                bar.addView(clear, chipSpacing(6));
+            }
             List<Library.Person> actors = library.people(byName);
             if (actors.isEmpty()) { column.addView(emptyNote(getString(R.string.library_actors_empty))); return; }
             int[] plan = gridPlan(cardWidth(land() ? 116 : 104));
@@ -1463,6 +1570,15 @@ public class HomeActivity extends Activity {
                 bar.addView(clear, chipSpacing(6));
             }
             column.addView(emptyNote(historySources()));
+            if (!traktWatchlist.isEmpty()) {
+                // The Trakt watchlist: what the user means to watch, above what they have.
+                column.addView(rowTitle(getString(R.string.library_watchlist, traktWatchlist.size())));
+                int[] plan = gridPlan(cardWidth(land() ? 116 : 104));
+                List<View> cells = new ArrayList<>();
+                for (MediaItem m : traktWatchlist) cells.add(posterCell(m, "lib:w:" + m.id, m.year, plan[1], () -> showDetails(m), "Trakt"));
+                addGrid(column, cells, plan);
+                column.addView(rowTitle(getString(R.string.library_watched)));
+            }
             List<Library.Watch> history = library.history(remoteHistory(), sort);
             if (history.isEmpty()) { column.addView(emptyNote(getString(historyLoading ? R.string.library_history_loading : R.string.library_history_empty))); return; }
             int[] plan = gridPlan(cardWidth(land() ? 116 : 104));
@@ -1514,21 +1630,24 @@ public class HomeActivity extends Activity {
             // A source that fails keeps what it showed last time; one that is switched off is emptied.
             List<MediaItem> fromPlex = plex.isLinked() ? null : Collections.<MediaItem>emptyList();
             List<Library.Watch> fromTrakt = trakt.hasHistory() ? null : Collections.<Library.Watch>emptyList();
+            List<MediaItem> toWatch = trakt.hasHistory() ? null : Collections.<MediaItem>emptyList();
             List<String> problems = new ArrayList<>();
             if (plex.isLinked()) {
                 try { fromPlex = plex.history(); }
                 catch (IOException | JSONException e) { problems.add("Plex: " + CatalogRepository.describe(e)); }
             }
             if (trakt.hasHistory()) {
-                try { fromTrakt = trakt.history(); }
+                try { fromTrakt = trakt.history(); toWatch = trakt.watchlist(); }
                 catch (IOException | JSONException e) { problems.add("Trakt: " + CatalogRepository.describe(e)); }
             }
+            final List<MediaItem> watchlistResult = toWatch;
             final List<MediaItem> plexResult = fromPlex;
             final List<Library.Watch> traktResult = fromTrakt;
             main.post(() -> {
                 historyLoading = false;
                 if (plexResult != null) plexHistory = plexResult;
                 if (traktResult != null) traktHistory = traktResult;
+                if (watchlistResult != null) traktWatchlist = watchlistResult;
                 historyError = problems.isEmpty() ? null : TextUtils.join("\n", problems);
                 if (tab == TAB_LIBRARY) renderPreservingScroll();
             });
@@ -1645,6 +1764,7 @@ public class HomeActivity extends Activity {
         }
         face.setContentDescription(p.role.isEmpty() ? p.name : p.name + ", " + p.role);
         face.setOnClickListener(v -> onClick.run());
+        face.setOnLongClickListener(v -> { toggleSaved(p); return true; });
         if (key != null) focusKey(face, key);
         cell.addView(face, new LinearLayout.LayoutParams(diameter, diameter));
         TextView name = caption(p.name, 12, Ui.TEXT, 9);
@@ -1652,6 +1772,36 @@ public class HomeActivity extends Activity {
         cell.addView(name);
         if (!p.role.isEmpty()) cell.addView(caption(p.role, 11, Ui.MUTED, 2));
         return cell;
+    }
+
+    /**
+     * Long press on an actor: saves them, or takes them out of the Library if already saved.
+     * A cast name the catalog gave without a Wikidata match is looked up first.
+     */
+    void toggleSaved(Library.Person p) {
+        if (p.id != null && library.has(p)) {
+            library.remove(p);
+            toast(getString(R.string.person_removed, p.name));
+            libraryChanged(false);
+            return;
+        }
+        if (p.id != null) {
+            library.add(p);
+            toast(getString(R.string.person_added, p.name));
+            libraryChanged(false);
+            return;
+        }
+        new Thread(() -> {
+            Library.Person found;
+            try { found = people.find(p.name); } catch (IOException | JSONException e) { found = null; }
+            final Library.Person who = found;
+            main.post(() -> {
+                if (who == null) { toast(getString(R.string.person_unknown, p.name)); return; }
+                library.add(who);
+                toast(getString(R.string.person_added, who.name));
+                libraryChanged(false);
+            });
+        }, "phonetv-person").start();
     }
 
     TextView caption(String text, float sp, int color, float topDp) {
@@ -2397,9 +2547,112 @@ public class HomeActivity extends Activity {
                     refreshTrakt();
                     refreshHistory();
                 })
-                .setNeutralButton(R.string.trakt_turn_off, (dlg, w) -> { prefs.saveTrakt("", ""); prefs.setTraktUser(""); traktHistory = Collections.emptyList(); refreshTrakt(); })
+                .setNeutralButton(R.string.trakt_turn_off, (dlg, w) -> {
+                    prefs.saveTrakt("", "");
+                    prefs.setTraktUser("");
+                    if (!trakt.signedIn()) { traktHistory = Collections.emptyList(); traktWatchlist = Collections.emptyList(); }
+                    refreshTrakt();
+                })
                 .setNegativeButton(R.string.cancel, null)
                 .show();
+    }
+
+    /**
+     * Trakt sign-in, Nuvio's way: a short code to enter at trakt.tv/activate on any phone or
+     * computer. The app checks back by itself and closes the box once the user says yes.
+     * Pressing Back keeps the code alive until it expires; opening this again shows the same one.
+     */
+    void signInTrakt() {
+        float d = getResources().getDisplayMetrics().density;
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding((int) (24 * d), (int) (8 * d), (int) (24 * d), 0);
+        TextView help = new TextView(this);
+        help.setText(R.string.trakt_signin_help);
+        help.setTextColor(Ui.TEXT_DIM);
+        help.setTextSize(15);
+        form.addView(help);
+        TextView code = new TextView(this);
+        code.setText(R.string.plex_link_waiting);
+        code.setTextColor(0xFFED1C24); // Trakt red
+        code.setTextSize(20);
+        code.setTypeface(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD);
+        code.setGravity(Gravity.CENTER);
+        code.setPadding(0, (int) (16 * d), 0, (int) (12 * d));
+        form.addView(code, new LinearLayout.LayoutParams(-1, -2));
+        TextView note = new TextView(this);
+        note.setText(R.string.trakt_signin_note);
+        note.setTextColor(Ui.MUTED);
+        note.setTextSize(13);
+        form.addView(note);
+
+        AlertDialog dialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.trakt_signin_title)
+                .setView(form)
+                .setPositiveButton(R.string.plex_open_link, null)
+                .setNegativeButton(R.string.plex_cancel_link, (dlg, w) -> traktCode = null)
+                .create();
+        dialog.setOnShowListener(x -> {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+                TraktClient.DeviceCode c = traktCode;
+                String url = c == null ? TraktClient.ACTIVATE_URL : TraktClient.ACTIVATE_URL + "/" + c.user;
+                if (!openUrl(url, null)) toast(getString(R.string.plex_no_browser));
+            });
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).requestFocus();
+        });
+        dialog.show();
+
+        Runnable showCode = () -> { if (traktCode == null) return; code.setText(traktCode.user); code.setTextSize(40); code.setLetterSpacing(0.2f); };
+        if (traktCode != null && System.currentTimeMillis() < traktCode.expiresAt) { showCode.run(); return; } // already being checked
+        new Thread(() -> {
+            TraktClient.DeviceCode c;
+            try { c = trakt.startSignIn(); }
+            catch (IOException | JSONException e) {
+                final String reason = CatalogRepository.describe(e);
+                main.post(() -> { dialog.dismiss(); toast(getString(R.string.trakt_signin_failed, reason)); });
+                return;
+            }
+            traktCode = c;
+            main.post(showCode);
+            try {
+                while (traktCode == c) {
+                    Thread.sleep(c.intervalSec * 1000L);
+                    if (traktCode != c) return; // cancelled
+                    boolean done;
+                    try { done = trakt.pollSignIn(c); }
+                    catch (TraktClient.SignInEnded e) { throw e; }
+                    catch (IOException | JSONException e) { continue; } // network blip: keep checking
+                    if (!done) continue;
+                    traktCode = null;
+                    main.post(() -> {
+                        if (dialog.isShowing()) dialog.dismiss();
+                        String name = prefs.traktAccount();
+                        toast(getString(R.string.trakt_signed_in, name.isEmpty() ? "Trakt" : name));
+                        refreshHistory();
+                        if (overlay instanceof SettingsScreen) overlay.rebuild();
+                    });
+                    return;
+                }
+            } catch (TraktClient.SignInEnded e) {
+                traktCode = null;
+                main.post(() -> { if (dialog.isShowing()) dialog.dismiss(); toast(getString(R.string.trakt_signin_expired)); });
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
+        }, "phonetv-trakt-signin").start();
+    }
+
+    void signOutTrakt() {
+        showNotice(getString(R.string.trakt_signout_title), getString(R.string.trakt_signout_body),
+                new String[]{getString(R.string.trakt_signout), getString(R.string.cancel)},
+                new Runnable[]{() -> {
+                    io.execute(trakt::signOut);
+                    traktHistory = Collections.emptyList();
+                    traktWatchlist = Collections.emptyList();
+                    prefs.clearTraktSignIn(); // at once, so the screens below redraw signed out
+                    if (overlay instanceof SettingsScreen) overlay.rebuild();
+                    if (tab == TAB_LIBRARY) renderPreservingScroll();
+                }, null});
     }
 
     /**

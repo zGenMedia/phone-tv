@@ -26,6 +26,20 @@ version is shown in the app's footer and at the top of Settings.
   **Mark watched** on a title page adds one by hand. Sort by last watched,
   title or most watched. Phone TV can't see inside a player, so "watched"
   means "opened".
+- **Trakt sign-in, Nuvio's way.** Settings › Sources › *Sign in to Trakt*
+  shows a short code; enter it at trakt.tv/activate on any phone or
+  computer and Phone TV signs itself in. No Client ID or username needed
+  any more (both still work if you prefer them). Your Trakt **watchlist**
+  now sits at the top of Library › History, above what you've watched.
+- **Plex titles in the Library.** Long-press any Plex tile for its page, then
+  **+ Library** or **Mark watched**, same as catalog titles.
+- **Long-press an actor** in a cast (or in Library › Actors) to save or
+  remove them without opening their page. **Clear actors** empties the list.
+- **Move to another device.** Settings › *Save setup to a file* writes your
+  Library, saved actors, history and settings to one file (Drive, USB,
+  anywhere). *Restore setup from a file* on the other device brings it all
+  across. Sign-ins and the Plex link aren't in the file.
+- **Shows tab** now has three rows like Movies (adds *Top rated shows*).
 - **Pages stack.** A title opens an actor, an actor opens a title, and Back
   walks through them one at a time to the tile you started on.
 - **Case screen.** With a TV attached, the phone's own screen can show an
@@ -36,6 +50,10 @@ version is shown in the app's footer and at the top of Settings.
 - **Screen saver.** The cooling loop can cover an idle home screen after 2,
   5 or 10 minutes, with a preview button. Its readouts are real: battery
   temperature, charge and the time.
+
+### Fixed
+- In portrait, the Apps search keyboard closed as soon as it opened. The
+  screen no longer rebuilds itself while you're typing.
 
 ### Changed
 - The library, actor pages and history take their cue from

@@ -65,6 +65,7 @@ final class MediaItem {
     String logo() { return logoRef == null || logoRef.isEmpty() ? null : logoRef; }
 
     private String plexImage(String path, int w, int h) {
+        if (plexBaseUri == null || plexToken == null) return null; // a saved Plex title while Plex is unlinked
         return plexBaseUri + "/photo/:/transcode?width=" + w + "&height=" + h
                 + "&minSize=1&upscale=1&url=" + Uri.encode(path) + "&X-Plex-Token=" + plexToken;
     }

@@ -198,7 +198,7 @@ final class DetailsScreen implements Overlay {
 
         // A second, quieter line: the Library and Watched switches.
         saveButton = watchedButton = null;
-        if (item.source == MediaItem.Source.CATALOG) {
+        {
             LinearLayout second = new LinearLayout(a);
             second.setGravity(Gravity.CENTER_VERTICAL);
             saveButton = shelfButton(second, () -> {

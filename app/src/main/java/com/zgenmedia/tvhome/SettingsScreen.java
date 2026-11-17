@@ -412,6 +412,12 @@ final class SettingsScreen implements Overlay {
         }
 
         LinearLayout lists = group(R.string.set_group_lists);
+        if (a.trakt.signedIn()) {
+            String who = prefs.traktAccount().isEmpty() ? a.getString(R.string.trakt_connected) : prefs.traktAccount();
+            action(lists, "traktAccount", a.getString(R.string.set_trakt_signout), a.getString(R.string.set_trakt_account_hint), who, a::signOutTrakt);
+        } else {
+            action(lists, "traktAccount", a.getString(R.string.set_trakt_signin), a.getString(R.string.set_trakt_account_hint), null, a::signInTrakt);
+        }
         action(lists, "trakt", a.getString(R.string.set_trakt), a.getString(R.string.set_trakt_hint),
                 a.trakt.isConfigured() ? a.getString(R.string.set_trakt_on, a.trakt.refs().size()) : a.getString(R.string.off), a::editTrakt);
         action(lists, "refresh", a.getString(R.string.settings_refresh), a.getString(R.string.set_refresh_hint), null,
@@ -437,6 +443,10 @@ final class SettingsScreen implements Overlay {
                     a.isDefaultHome() ? a.getString(R.string.on) : null,
                     () -> { if (!a.startSafely(new Intent(Settings.ACTION_HOME_SETTINGS))) a.startSafely(new Intent(Settings.ACTION_SETTINGS)); });
         }
+
+        LinearLayout setup = group(R.string.set_group_setup);
+        action(setup, "setupSave", a.getString(R.string.set_setup_save), a.getString(R.string.set_setup_save_hint), null, a::saveSetup);
+        action(setup, "setupRestore", a.getString(R.string.set_setup_restore), a.getString(R.string.set_setup_restore_hint), null, a::restoreSetup);
 
         LinearLayout updates = group(R.string.set_group_updates);
         boolean ready = a.readyUpdate != null;
