@@ -3,6 +3,12 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.12.1 — 2026-11-17
+
+### Fixed
+- Trakt sign-in now works for everyone (Phone TV's Trakt app is approved
+  for public use).
+
 ## 0.12.0 — 2026-11-17
 
 ### Added

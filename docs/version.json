@@ -1,7 +1,7 @@
 {
-  "versionCode": 20,
-  "versionName": "0.12.0",
+  "versionCode": 21,
+  "versionName": "0.12.1",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "d114c8d5893e7a8e4a86effc7d1f8ebbd14849f702a41714288d17c799015325",
-  "notes": "Library tab with saved titles, saved actors and watch history; actor pages; Trakt sign-in with a code; setup backup to move devices; case screen for phones on a TV; voice search."
+  "sha256": "86ef1dd03aba89907059b43d1fb5f772b2e3b5966515398de90fa92631e7cc73",
+  "notes": "Trakt sign-in now works for everyone. Includes everything in 0.12.0: Library, actors, watch history, setup backup, case screen, voice search."
 }
