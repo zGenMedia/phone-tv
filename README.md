@@ -177,4 +177,8 @@ Phone TV is licensed under the **GNU GPL v3.0** from version 0.7.0 onward: you c
 
 Made by [zGenMedia](https://zgenmedia.com) · © 2026 zGenMedia
 
+## Trakt
+
+Phone TV uses Trakt but is not endorsed or certified by Trakt. It only reads your Trakt data (history, watchlist, lists). See the [privacy page](https://zgenmedia.github.io/phone-tv/privacy.html).
+
 <sub>Phone TV is an independent project and is not affiliated with or endorsed by Google, NVIDIA, Plex, Stremio or Nuvio. Android and Android TV are trademarks of Google LLC. Movie and show metadata and artwork are provided by third-party services and belong to their respective owners.</sub>

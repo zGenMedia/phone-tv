@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy | Phone TV by zGenMedia</title>
+<meta name="description" content="What Phone TV keeps, what it sends and to whom. No accounts, analytics or ads.">
+<meta name="author" content="zGenMedia">
+<meta name="theme-color" content="#0b0c10">
+<link rel="canonical" href="https://zgenmedia.github.io/phone-tv/privacy.html">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Phone TV by zGenMedia">
+<meta property="og:title" content="Phone TV privacy">
+<meta property="og:description" content="What Phone TV keeps, what it sends and to whom.">
+<meta property="og:url" content="https://zgenmedia.github.io/phone-tv/privacy.html">
+<meta property="og:image" content="https://zgenmedia.github.io/phone-tv/assets/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Phone TV privacy">
+<meta name="twitter:description" content="What Phone TV keeps, what it sends and to whom.">
+<meta name="twitter:image" content="https://zgenmedia.github.io/phone-tv/assets/og.jpg">
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type": "Question", "name": "What is sideloading?",
+     "acceptedAnswer": {"@type": "Answer", "text": "Sideloading means installing an Android app from an APK file instead of an app store. Android asks you to allow Install unknown apps for the app that opens the file, such as your browser or file manager."}},
+    {"@type": "Question", "name": "Is sideloading safe?",
+     "acceptedAnswer": {"@type": "Answer", "text": "It is as safe as the source of the file. Download APKs from the developer's own site or source repository, compare the published checksum when one is offered, and avoid repackaged or modded copies."}},
+    {"@type": "Question", "name": "Can any phone output video to a TV over USB-C?",
+     "acceptedAnswer": {"@type": "Answer", "text": "No. The phone needs DisplayPort Alt Mode on its USB-C port, which many budget phones leave out. If yours lacks it, cast the screen wirelessly instead."}},
+    {"@type": "Question", "name": "Can I install Android TV apps on a phone?",
+     "acceptedAnswer": {"@type": "Answer", "text": "Most Android TV editions install on phones from their APK. A TV-style launcher such as Phone TV lists them and opens them correctly. Some expect a remote, so pair a Bluetooth controller."}}
+  ]
+}
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#0b0c10; --bg2:#111319; --card:#161922; --line:#242836; --text:#eef0f5; --dim:#a3a9b8; --mute:#6f7688;
+  --amber:#ffb547; --blue:#7aa7ff; --green:#5ee6a8; --pink:#ff7a90;
+  --r:16px; --max:1120px;
+  --sans:"Space Grotesk",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit}
+img,svg{display:block;max-width:100%}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 16px}
+@media(min-width:720px){.wrap{padding:0 28px}}
+.mono{font-family:var(--mono)}
+.eyebrow{font:600 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+h1,h2,h3{line-height:1.08;letter-spacing:-.02em;margin:0}
+h2{font-size:clamp(28px,4.4vw,44px);font-weight:700}
+h3{font-size:19px;font-weight:600}
+p{margin:0}
+section{padding:88px 0;border-top:1px solid var(--line)}
+/* grid children default to min-width:auto, which lets <pre> blocks widen the page on phones */
+.split>*,.hero-grid>*,.plex>*{min-width:0}
+.lead{color:var(--dim);font-size:clamp(16px,1.7vw,19px);max-width:62ch}
+
+/* nav */
+header{position:sticky;top:0;z-index:20;background:rgba(11,12,16,.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,.05)}
+.nav{display:flex;align-items:center;gap:20px;height:62px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:700;letter-spacing:-.01em}
+.brand svg{width:28px;height:28px}
+.nav nav{display:none;gap:22px;margin-left:auto;font-size:14px;color:var(--dim)}
+.nav nav a{text-decoration:none}.nav nav a:hover{color:var(--text)}
+@media(min-width:860px){.nav nav{display:flex}}
+.nav .cta{margin-left:auto}
+@media(min-width:860px){.nav .cta{margin-left:0}}
+
+.btn{display:inline-flex;align-items:center;gap:10px;padding:13px 20px;border-radius:999px;font-weight:600;text-decoration:none;font-size:15px;transition:transform .15s,box-shadow .2s,background .2s;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--amber);color:#1a1205;box-shadow:0 8px 30px -8px rgba(255,181,71,.6)}
+.btn-primary:hover{box-shadow:0 10px 40px -6px rgba(255,181,71,.8)}
+.btn-ghost{border:1px solid var(--line);color:var(--text);background:rgba(255,255,255,.02)}
+.btn-ghost:hover{background:rgba(255,255,255,.06)}
+.btn-sm{padding:9px 15px;font-size:14px}
+
+/* hero */
+.hero{position:relative;padding:72px 0 40px;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:-30% -10% auto;height:120%;background:
+  radial-gradient(600px 340px at 18% 30%,rgba(122,167,255,.18),transparent 70%),
+  radial-gradient(520px 320px at 85% 20%,rgba(255,181,71,.14),transparent 70%);pointer-events:none}
+.hero-grid{position:relative;display:grid;gap:48px;align-items:center}
+@media(min-width:980px){.hero-grid{grid-template-columns:1fr 1.08fr}}
+.hero h1{font-size:clamp(40px,6.6vw,74px);font-weight:700}
+.hero h1 em{font-style:normal;background:linear-gradient(90deg,var(--amber),#ffd9a0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .lead{margin:22px 0 30px}
+.actions{display:flex;flex-wrap:wrap;gap:12px}
+.meta{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:22px;font:13px var(--mono);color:var(--mute)}
+.meta b{color:var(--green);font-weight:600}
+
+/* screenshots */
+.shot{position:relative;margin:0;border-radius:18px;overflow:hidden;background:#000;box-shadow:0 40px 90px -30px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.08)}
+.shot img{width:100%;height:auto}
+.shot-tilt{transform:perspective(1600px) rotateY(-7deg) rotateX(3deg)}
+@media(max-width:979px){.shot-tilt{transform:none}}
+.shot-phone{max-width:300px;border-radius:30px;border:8px solid #1d2029}
+.shot-pc{border:10px solid #1d2029;border-bottom-width:22px;border-radius:16px}
+.pc-grid{display:grid;gap:40px;align-items:center;margin-top:44px}
+@media(min-width:900px){.pc-grid{grid-template-columns:1.6fr 1fr}}
+.pc-grid>*{min-width:0}
+.badge-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.badge-row span{font:600 12px var(--mono);padding:7px 12px;border-radius:99px;background:var(--bg2);border:1px solid var(--line);color:var(--dim)}
+.caption{margin-top:14px;text-align:center;font:12px var(--mono);color:var(--mute)}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-top:56px}
+@media(min-width:760px){.stats{grid-template-columns:repeat(4,1fr)}}
+.stat{background:var(--bg2);padding:22px}
+.stat b{display:block;font:600 clamp(24px,3vw,32px)/1 var(--mono);color:var(--text)}
+.stat span{display:block;margin-top:8px;font-size:13px;color:var(--dim)}
+
+/* why / compare */
+.split{display:grid;gap:40px}
+@media(min-width:900px){.split{grid-template-columns:1fr 1fr;align-items:start}}
+.compare{width:100%;border-collapse:collapse;font-size:14px;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.compare th,.compare td{padding:13px 16px;text-align:left;border-bottom:1px solid var(--line)}
+.compare th{font:600 12px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--mute);background:#0f1117}
+.compare td:first-child{color:var(--dim)}
+.compare tr:last-child td{border-bottom:0}
+.yes{color:var(--green);font-weight:600}
+
+/* features */
+.grid{display:grid;gap:16px;margin-top:44px}
+@media(min-width:640px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1000px){.grid{grid-template-columns:repeat(3,1fr)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:24px;transition:border-color .2s,transform .2s}
+.card:hover{border-color:#3a4052;transform:translateY(-2px)}
+.card .ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;margin-bottom:16px;background:rgba(255,255,255,.05);color:var(--amber)}
+.card .ic svg{width:22px;height:22px}
+.card p{color:var(--dim);font-size:15px;margin-top:8px}
+
+/* setup */
+.steps{counter-reset:s;display:grid;gap:14px;margin-top:28px}
+.step{position:relative;padding:20px 20px 20px 66px;background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
+.step::before{counter-increment:s;content:counter(s,decimal-leading-zero);position:absolute;left:20px;top:19px;font:600 15px var(--mono);color:var(--amber)}
+.step p{color:var(--dim);font-size:15px;margin-top:4px}
+.kit{display:grid;gap:12px}
+.kit li{list-style:none;display:flex;gap:14px;padding:16px 18px;background:var(--bg2);border:1px solid var(--line);border-radius:12px}
+.kit li b{display:block}
+.kit li span{color:var(--dim);font-size:14px}
+.kit ul{padding:0;margin:0;display:grid;gap:12px}
+.term{margin-top:20px;background:#07080b;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.term-head{display:flex;align-items:center;gap:7px;padding:10px 14px;border-bottom:1px solid var(--line);font:12px var(--mono);color:var(--mute)}
+.term-head i{width:10px;height:10px;border-radius:50%;background:#2a2e3a}
+.term-head button{margin-left:auto;background:none;border:1px solid var(--line);color:var(--dim);font:12px var(--mono);padding:4px 10px;border-radius:6px;cursor:pointer}
+.term-head button:hover{color:var(--text)}
+pre{margin:0;padding:16px;overflow-x:auto;font:13px/1.7 var(--mono);color:#cfd5e3}
+pre .c{color:var(--mute)} pre .p{color:var(--green)}
+
+/* plex */
+.plex{display:grid;gap:36px;align-items:center}
+@media(min-width:900px){.plex{grid-template-columns:1.1fr .9fr}}
+.code-box{background:linear-gradient(160deg,#1b1d25,#121319);border:1px solid var(--line);border-radius:22px;padding:34px;text-align:center}
+.code-box small{font:12px var(--mono);color:var(--mute);letter-spacing:.1em;text-transform:uppercase}
+.code-box .code{margin:16px 0;font:700 clamp(44px,8vw,64px)/1 var(--mono);letter-spacing:.24em;color:var(--amber)}
+.code-box p{color:var(--dim);font-size:14px}
+
+/* nerds */
+.tree{font:13px/1.8 var(--mono);color:var(--dim);background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:20px;overflow-x:auto;white-space:pre}
+.tree b{color:var(--blue);font-weight:600}
+.specs{display:grid;gap:10px;margin-top:4px}
+.specs div{display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.specs dt{color:var(--dim)} .specs dd{margin:0;font-family:var(--mono);text-align:right}
+
+/* changelog + faq */
+.log{border-left:2px solid var(--line);padding-left:22px;margin-top:28px}
+.log h3{display:flex;align-items:baseline;gap:12px}
+.log h3 span{font:12px var(--mono);color:var(--mute);font-weight:400}
+.log ul{color:var(--dim);padding-left:18px;margin:12px 0 0}
+.log li{margin:6px 0}
+details{border-bottom:1px solid var(--line);padding:20px 0}
+summary{cursor:pointer;font-weight:600;font-size:17px;list-style:none;display:flex;justify-content:space-between;gap:16px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font:400 22px/1 var(--mono);color:var(--amber);transition:transform .2s}
+details[open] summary::after{transform:rotate(45deg)}
+details p{color:var(--dim);margin-top:12px;max-width:75ch}
+
+/* support */
+.support{text-align:center;background:radial-gradient(600px 260px at 50% 0%,rgba(255,122,144,.14),transparent 70%)}
+.support .lead{margin:16px auto 28px}
+.btn-kofi{background:#ff5e5b;color:#fff;box-shadow:0 8px 30px -8px rgba(255,94,91,.6)}
+
+footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);font-size:13px}
+.foot{display:flex;flex-wrap:wrap;gap:14px 28px;align-items:center}
+.foot a{color:var(--dim);text-decoration:none}.foot a:hover{color:var(--text)}
+.legal{margin-top:20px;max-width:90ch;line-height:1.7}
+:focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:6px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}.device{transform:none}}
+
+/* guide */
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin-top:28px}
+.toc a{font:600 12px var(--mono);padding:8px 13px;border-radius:99px;background:var(--bg2);border:1px solid var(--line);color:var(--dim);text-decoration:none}
+.toc a:hover{color:var(--text);border-color:#3a4052}
+.prose{max-width:74ch}
+.prose p{color:var(--dim);margin-top:14px}
+.prose a,.card a,.step a,.note a{color:var(--amber)}
+.note{margin-top:22px;padding:16px 18px;border-left:3px solid var(--amber);background:var(--bg2);border-radius:0 12px 12px 0;color:var(--dim);font-size:15px;max-width:74ch}
+.note b{color:var(--text)}
+.tabs3{display:grid;gap:16px;margin-top:32px}
+@media(min-width:900px){.tabs3{grid-template-columns:repeat(2,1fr)}}
+.card h3 small{display:block;margin-bottom:8px;font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--blue)}
+.card ol,.card ul{color:var(--dim);font-size:15px;padding-left:20px;margin:10px 0 0}
+.card li{margin:6px 0}
+section{padding:72px 0}
+@media(min-width:1000px){.grid.four{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="./" aria-label="Phone TV home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="7" width="28" height="18" rx="4" fill="none" stroke="#ffb547" stroke-width="2.4"/><path d="M13 12l7 4-7 4z" fill="#ffb547"/><rect x="11" y="27" width="10" height="2" rx="1" fill="#eef0f5"/></svg>
+      Phone TV
+    </a>
+    <nav aria-label="Primary">
+      <a href="./">Home</a>
+      <a href="guide.html#need">What you need</a>
+      <a href="guide.html#sideload">Sideloading</a>
+      <a href="guide.html#screen">Big screen</a>
+      <a href="guide.html#apps">Apps</a>
+      <a href="guide.html#fixes">Fixes</a>
+      <a href="https://github.com/zGenMedia/phone-tv">GitHub</a>
+    </nav>
+    <a class="btn btn-primary btn-sm cta" href="downloads/PhoneTV.apk" download>Download</a>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero" style="border-top:0;padding-bottom:40px">
+    <div class="wrap">
+      <p class="eyebrow">Privacy</p>
+      <h1 style="margin-top:16px;max-width:18ch">Your TV, <em>your business.</em></h1>
+      <p class="lead" style="margin:22px 0 0">Phone TV has no accounts, no analytics, no ads and no server of its own. This page lists everything it keeps and every place it talks to. Last updated 17 November 2026.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>What stays on your device</h2>
+      <ul class="lead" style="margin-top:18px">
+        <li>Your settings, your Library (saved titles, saved actors, watch history) and cached artwork and catalog pages.</li>
+        <li>Sign-in tokens for Plex and Trakt, if you connect them. They are kept out of Android's cloud backup and device-to-device transfer.</li>
+        <li>Nothing is collected, sold or shared by zGenMedia. We never see any of it.</li>
+      </ul>
+
+      <h2 style="margin-top:40px">Where Phone TV connects</h2>
+      <ul class="lead" style="margin-top:18px">
+        <li><b>Cinemeta and Metahub</b> (Stremio's public catalog and artwork) for the movies and shows on the home screen.</li>
+        <li><b>Wikidata, Wikimedia Commons and Wikipedia</b> for banner suggestions, cast lists, actor photos and short biographies. These requests contain the titles and names you look at.</li>
+        <li><b>GitHub Pages</b> (this site) to check for updates and download them.</li>
+        <li><b>Plex</b>, only if you link it: plex.tv to sign in, then your own Plex server for your libraries, Continue watching and watch history.</li>
+        <li><b>Trakt</b>, only if you sign in or add a username or lists: to read your watch history, watchlist and public lists. Phone TV only reads from Trakt; it never changes your Trakt data. Signing out removes the token from the device and asks Trakt to cancel it.</li>
+        <li>When you choose to watch something, the app you pick (Stremio, Nuvio, Plex, YouTube) opens and its own privacy policy applies.</li>
+      </ul>
+
+      <h2 style="margin-top:40px">Setup files</h2>
+      <p class="lead" style="margin-top:18px">Settings › Save setup to a file writes your Library and settings to a file you choose. It holds no sign-ins or tokens. Where it goes, and who sees it, is up to you.</p>
+
+      <h2 style="margin-top:40px">Trakt</h2>
+      <p class="lead" style="margin-top:18px">Phone TV uses Trakt but is not endorsed or certified by Trakt.</p>
+
+      <h2 style="margin-top:40px">Questions</h2>
+      <p class="lead" style="margin-top:18px">Phone TV is open source, so everything above can be checked in the <a href="https://github.com/zGenMedia/phone-tv">source code</a>. Ask anything on <a href="https://github.com/zGenMedia/phone-tv/issues">GitHub issues</a>.</p>
+    </div>
+  </section>
+</main>
+
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <a class="brand" href="https://zgenmedia.com" style="color:var(--text)">zGenMedia</a>
+      <a href="https://zgenmedia.com">zgenmedia.com</a>
+      <a href="./">Phone TV home</a>
+      <a href="guide.html">Guide</a>
+      <a href="https://github.com/zGenMedia/phone-tv">Source</a>
+      <a href="https://github.com/zGenMedia/phone-tv/releases">Releases</a>
+      <a href="https://github.com/zGenMedia/phone-tv/issues">Report an issue</a>
+      <a href="https://ko-fi.com/zgenmedia/tiers">Ko-fi</a>
+      <span style="margin-left:auto">© 2026 zGenMedia · GPL-3.0</span>
+    </div>
+    <p class="legal">Phone TV is an independent project by zGenMedia and is not affiliated with or endorsed by Google, NVIDIA, Plex, Stremio or Nuvio. Android and Android TV are trademarks of Google LLC; all other trademarks belong to their owners. Phone TV does not host, provide or stream any content; titles open in third-party apps you install.</p>
+  </div>
+</footer>
+</body>
+</html>
