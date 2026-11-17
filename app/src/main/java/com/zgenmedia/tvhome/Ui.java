@@ -181,6 +181,33 @@ final class Ui {
         });
     }
 
+    /**
+     * The same focus treatment as {@link #focusable} for a round view such as an actor's photo:
+     * the view is clipped to a circle and the ring follows it. The view must be laid out square.
+     */
+    void focusableCircle(View v) {
+        GradientDrawable disc = new GradientDrawable();
+        disc.setShape(GradientDrawable.OVAL);
+        disc.setColor(SURFACE);
+        v.setBackground(disc);
+        v.setClipToOutline(true);
+        v.setFocusable(true);
+        v.setClickable(true);
+        GradientDrawable ring = new GradientDrawable();
+        ring.setShape(GradientDrawable.OVAL);
+        ring.setColor(Color.TRANSPARENT);
+        ring.setStroke(Math.max(3, dp(2.5f)), RING);
+        StateListDrawable fx = new StateListDrawable();
+        if (focusStyle != FOCUS_ZOOM) fx.addState(new int[]{android.R.attr.state_focused}, ring);
+        fx.addState(new int[]{}, ripple(null));
+        v.setForeground(fx);
+        v.setRevealOnFocusHint(false);
+        v.setOnFocusChangeListener((view, has) -> {
+            if (focusStyle != FOCUS_OUTLINE) Motion.scale(view, has ? focusScale : 1f);
+            if (has && onFocus != null) onFocus.onFocused(view);
+        });
+    }
+
     /** Ring only, for buttons and chips that already have their own ripple background. */
     void focusRing(View v, float radiusDp) {
         StateListDrawable fx = new StateListDrawable();

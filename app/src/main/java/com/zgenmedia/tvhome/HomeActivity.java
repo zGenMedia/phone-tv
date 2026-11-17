@@ -20,6 +20,7 @@ import android.os.Process;
 import android.provider.Settings;
 import android.text.Editable;
 import android.text.TextUtils;
+import android.text.format.DateUtils;
 import android.text.TextWatcher;
 import android.util.DisplayMetrics;
 import android.view.GestureDetector;
@@ -44,9 +45,12 @@ import android.widget.Toast;
 import org.json.JSONException;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -83,8 +87,8 @@ public class HomeActivity extends Activity {
     private static final float HERO_ART_WIDTH = 0.72f;
     private static final String TVMATE_HINT = "tvmate";
 
-    private static final int TAB_FOR_YOU = 0, TAB_MOVIES = 1, TAB_SHOWS = 2, TAB_APPS = 3;
-    private static final int[] TAB_LABELS = {R.string.tab_for_you, R.string.tab_movies, R.string.tab_shows, R.string.tab_apps};
+    private static final int TAB_FOR_YOU = 0, TAB_MOVIES = 1, TAB_SHOWS = 2, TAB_LIBRARY = 3, TAB_APPS = 4;
+    private static final int[] TAB_LABELS = {R.string.tab_for_you, R.string.tab_movies, R.string.tab_shows, R.string.tab_library, R.string.tab_apps};
 
     private static final long HERO_INTERVAL_MS = 9_000;
     private static final long CONTENT_TTL_MS = 3 * 60 * 60 * 1000L;
@@ -93,7 +97,7 @@ public class HomeActivity extends Activity {
 
     // Rows on "For you" that can be switched off in Settings. Keys are stored; don't rename.
     static final String ROW_PLEX_CONTINUE = "plexContinue", ROW_PLEX_RECENT = "plexRecent",
-            ROW_TOP_PICKS = "topPicks", ROW_SHOWS = "popularShows", ROW_MOVIES = "popularMovies", ROW_TOP_RATED = "topRated";
+            ROW_LIBRARY = "library", ROW_TOP_PICKS = "topPicks", ROW_SHOWS = "popularShows", ROW_MOVIES = "popularMovies", ROW_TOP_RATED = "topRated";
 
     final Handler main = new Handler(Looper.getMainLooper());
     final ExecutorService io = Executors.newSingleThreadExecutor(r -> {
@@ -116,7 +120,7 @@ public class HomeActivity extends Activity {
     private boolean autoFocusHero = true;
 
     // Remote navigation: named focus targets so focus survives a rebuild of the screen.
-    private final java.util.Map<String, View> focusTargets = new java.util.HashMap<>();
+    final Map<String, View> focusTargets = new HashMap<>();
     private String restoreFocusKey;
     private int rowSeq, heroHeightPx, heroBackdropWidthPx, selectedChipId, heroWatchId;
     private volatile AlertDialog plexDialog;
@@ -140,8 +144,33 @@ public class HomeActivity extends Activity {
 
     // Screen state. "home" holds the launcher; pages (details, settings) are added to root above it.
     private FrameLayout root, home;
-    private Overlay overlay;
+    private Overlay overlay; // the page on top, if any
+    private final ArrayDeque<Overlay> pages = new ArrayDeque<>(); // every open page, newest first
+    private final Map<Overlay, View> pageFocus = new HashMap<>();                     // where the remote was on a covered page
     private String overlayReturnKey;
+
+    // The user's shelf, and watch history reported by services other than this app.
+    Library library;
+    People people;
+    private List<MediaItem> plexHistory = Collections.emptyList();
+    private List<Library.Watch> traktHistory = Collections.emptyList();
+    private String historyError;
+    private boolean historyLoading;
+
+    // TV link: what the phone's own screen does while a TV is attached (see syncTvLink).
+    /** Set when Android wouldn't give the TV its own picture; cleared when the displays change. */
+    static boolean tvLinkRefused;
+    private android.hardware.display.DisplayManager displayManager;
+    private boolean caseDismissed, refusalTold, resumed;
+    private final android.hardware.display.DisplayManager.DisplayListener displayListener =
+            new android.hardware.display.DisplayManager.DisplayListener() {
+                @Override public void onDisplayAdded(int id) { displaysChanged(); }
+                @Override public void onDisplayRemoved(int id) { displaysChanged(); }
+                @Override public void onDisplayChanged(int id) { }
+            };
+    private final Runnable screenSaver = () -> {
+        if (overlay == null && resumed && hasWindowFocus()) openOverlay(new CaseScreen(this, false));
+    };
     private ScrollView scroll;
     private View topBar;
     private boolean topBarHidden;
@@ -173,10 +202,11 @@ public class HomeActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        if (!acceptDisplay()) { finish(); return; }
         prefs = new Prefs(this);
         ui = new Ui(this, prefs.scale());
         images = new ImageLoader(this);
-        tvDevice = isTvDevice();
+        tvDevice = isTvDevice() || isTvInstance();
         if (tvDevice) prefs.setDefaultSizeIndex(2);
         applyLook();
         ui.onFocus = this::reveal;
@@ -185,6 +215,8 @@ public class HomeActivity extends Activity {
         catalog = new CatalogRepository(this, io);
         plex = new PlexClient(prefs);
         trakt = new TraktClient(this, prefs);
+        library = Library.of(this);
+        people = new People(this);
         heroMood = new HeroMood(this, new HeroMood.WikidataSource());
         updater = new Updater(this);
 
@@ -198,6 +230,10 @@ public class HomeActivity extends Activity {
         render();
         refreshContent();
         checkForUpdate(false);
+        if (!tvDevice) {
+            displayManager = (android.hardware.display.DisplayManager) getSystemService(DISPLAY_SERVICE);
+            if (displayManager != null) displayManager.registerDisplayListener(displayListener, main);
+        }
     }
 
     @Override
@@ -210,9 +246,18 @@ public class HomeActivity extends Activity {
         if (updater.due()) checkForUpdate(false);
         if (appsChanged) renderPreservingScroll();
         else restartHeroTimer();
+        resumed = true;
+        syncTvLink();
+        restartScreenSaver();
     }
 
-    @Override protected void onPause() { super.onPause(); main.removeCallbacks(heroAdvance); }
+    @Override
+    protected void onPause() {
+        super.onPause();
+        resumed = false;
+        main.removeCallbacks(heroAdvance);
+        main.removeCallbacks(screenSaver);
+    }
 
     /** Pushes the look settings into the theme and the view helpers. Call before rebuilding views. */
     void applyLook() {
@@ -228,6 +273,8 @@ public class HomeActivity extends Activity {
     protected void onDestroy() {
         super.onDestroy();
         main.removeCallbacksAndMessages(null);
+        if (images == null) return; // never got past onCreate (see acceptDisplay)
+        if (displayManager != null) displayManager.unregisterDisplayListener(displayListener);
         images.shutdown();
         io.shutdownNow();
     }
@@ -238,7 +285,7 @@ public class HomeActivity extends Activity {
     public void onConfigurationChanged(Configuration c) {
         super.onConfigurationChanged(c);
         render();
-        if (overlay != null) overlay.rebuild();
+        for (Overlay page : pages) page.rebuild();
     }
 
     /** Home pressed while already home: go back to the top of "For you", like a TV. */
@@ -247,6 +294,8 @@ public class HomeActivity extends Activity {
         super.onNewIntent(intent);
         if (Updater.ACTION_INSTALL_STATUS.equals(intent.getAction())) { onInstallStatus(intent); return; }
         goHome();
+        caseDismissed = false; // Home on the phone puts the case screen back
+        syncTvLink();
     }
 
     /**
@@ -258,7 +307,7 @@ public class HomeActivity extends Activity {
     public void onBackPressed() {
         if (overlay != null) { if (!overlay.onBack()) closeOverlay(); return; }
         boolean atTop = tab == TAB_FOR_YOU && (scroll == null || scroll.getScrollY() == 0);
-        if (atTop && !isDefaultHome() && !homeKeeperEnabled()) { moveTaskToBack(true); return; }
+        if (atTop && !isTvInstance() && !isDefaultHome() && !homeKeeperEnabled()) { moveTaskToBack(true); return; }
         goHome();
     }
 
@@ -286,6 +335,12 @@ public class HomeActivity extends Activity {
      */
     @Override
     public boolean dispatchKeyEvent(android.view.KeyEvent e) {
+        if (overlay instanceof CaseScreen && !e.isSystem()) {
+            // Volume, Back and Home pass through; anything else is for the case screen to answer.
+            if (e.getAction() == android.view.KeyEvent.ACTION_DOWN) ((CaseScreen) overlay).onInput(false);
+            return true;
+        }
+        restartScreenSaver();
         int direction = focusDirection(e.getKeyCode());
         boolean select = e.getKeyCode() == android.view.KeyEvent.KEYCODE_DPAD_CENTER;
         if (e.getAction() == android.view.KeyEvent.ACTION_DOWN && (direction != 0 || select)) {
@@ -322,6 +377,43 @@ public class HomeActivity extends Activity {
         }
     }
 
+    @Override
+    public boolean dispatchTouchEvent(android.view.MotionEvent e) {
+        restartScreenSaver();
+        return super.dispatchTouchEvent(e);
+    }
+
+    /**
+     * The tile with this focus name. Rows are numbered top to bottom, so a row appearing above
+     * (the library row, after the first save) renumbers the ones below it; when the exact name
+     * is gone, this finds the same title in the nearest row instead.
+     */
+    private View focusTarget(String key) {
+        View exact = focusTargets.get(key);
+        int colon = key.indexOf(':');
+        if (exact != null || !key.startsWith("row") || colon < 0) return exact;
+        String title = key.substring(colon);
+        int row = rowNumber(key), nearest = Integer.MAX_VALUE;
+        View best = null;
+        for (Map.Entry<String, View> e : focusTargets.entrySet()) {
+            String k = e.getKey();
+            if (!k.startsWith("row") || !k.endsWith(title) || k.indexOf(':') != k.length() - title.length()) continue;
+            int away = Math.abs(rowNumber(k) - row);
+            if (away < nearest) { nearest = away; best = e.getValue(); }
+        }
+        return best;
+    }
+
+    private static int rowNumber(String key) {
+        try { return Integer.parseInt(key.substring(3, key.indexOf(':'))); }
+        catch (NumberFormatException e) { return 0; }
+    }
+
+    /** A row the D-pad moves along sideways: a scrolling shelf, or one line of a grid. */
+    private static boolean isShelf(android.view.ViewParent p) {
+        return p instanceof HorizontalScrollView || (p instanceof View && ((View) p).getTag(R.id.focus_row) != null);
+    }
+
     /** The view under the remote, on the home screen or on a page above it. */
     View focused() { return root == null ? null : root.findFocus(); }
 
@@ -348,7 +440,7 @@ public class HomeActivity extends Activity {
         }
         ViewGroup group = null;
         for (android.view.ViewParent p = focused.getParent(); p instanceof ViewGroup && p != page; p = p.getParent()) {
-            if (p instanceof HorizontalScrollView) { group = (ViewGroup) p; break; }
+            if (isShelf(p)) { group = (ViewGroup) p; break; }
         }
         if (group == null && focused.getParent() instanceof ViewGroup) group = (ViewGroup) focused.getParent();
         return group == null ? null : finder.findNextFocus(group, focused, direction);
@@ -373,7 +465,7 @@ public class HomeActivity extends Activity {
             ViewGroup group = null;
             boolean inTopBar = false;
             for (android.view.ViewParent p = focused.getParent(); p instanceof ViewGroup; p = p.getParent()) {
-                if (group == null && p instanceof HorizontalScrollView) group = (ViewGroup) p;
+                if (group == null && isShelf(p)) group = (ViewGroup) p;
                 if (p == topBar) inTopBar = true;
             }
             if (group == null && focused.getParent() instanceof ViewGroup) group = (ViewGroup) focused.getParent();
@@ -385,6 +477,12 @@ public class HomeActivity extends Activity {
             if (next != null && isInside(next, topBar) && !isInside(focused, topBar)) {
                 View current = focusTargets.get("tab:" + tab);
                 if (current != null) next = current;
+            }
+            // Arriving at a strip of chips (the Library's parts): land on the chosen one, not the nearest.
+            if (next != null && next.getParent() instanceof View) {
+                View strip = (View) next.getParent();
+                Object chosen = strip.getTag(R.id.selected_chip);
+                if (chosen instanceof View && focused.getParent() != strip) next = (View) chosen;
             }
         }
         if (next != null && next != focused) next.requestFocus();
@@ -484,7 +582,9 @@ public class HomeActivity extends Activity {
     }
 
     private void goHome() {
-        closeOverlay();
+        boolean caseUp = overlay instanceof CaseScreen && ((CaseScreen) overlay).forTv();
+        if (caseUp) return; // with a TV attached, Home on the phone is the case screen
+        while (overlay != null) closeOverlay();
         if (tab != TAB_FOR_YOU) { tab = TAB_FOR_YOU; render(); }
         else if (scroll != null) { Motion.glideY(scroll, 0); setTopBarVisible(true); }
     }
@@ -519,7 +619,7 @@ public class HomeActivity extends Activity {
             if (t != insetTop || b != insetBottom || l != insetLeft || r != insetRight) {
                 insetTop = t; insetBottom = b; insetLeft = l; insetRight = r;
                 // Rebuild after the insets pass finishes rather than mutating the tree mid-dispatch.
-                main.post(() -> { render(); if (overlay != null) overlay.rebuild(); });
+                main.post(() -> { render(); for (Overlay page : pages) page.rebuild(); });
             }
             return in;
         });
@@ -561,6 +661,7 @@ public class HomeActivity extends Activity {
         refreshPlex();
         refreshTrakt();
         refreshMood();
+        if (tab == TAB_LIBRARY) refreshHistory();
     }
 
     // ==================================================================== updates
@@ -726,7 +827,7 @@ public class HomeActivity extends Activity {
     void render() {
         if (root == null) return;
         main.removeCallbacks(heroAdvance);
-        images.clearDeferred();
+        images.clearDeferred(home);
         View had = focused();
         Object key = had == null ? null : had.getTag(R.id.focus_key);
         restoreFocusKey = key instanceof String ? (String) key : null;
@@ -760,12 +861,15 @@ public class HomeActivity extends Activity {
         if (tab == TAB_APPS) {
             column.setPadding(0, insetTop + ui.dp(62), 0, insetBottom + ui.dp(24));
             buildAppsTab(column);
+        } else if (tab == TAB_LIBRARY) {
+            column.setPadding(0, insetTop + ui.dp(54), 0, insetBottom + ui.dp(24));
+            buildLibraryTab(column);
         } else {
             buildMediaTab(column);
         }
         topBar = buildTopBar();
         home.addView(topBar, new FrameLayout.LayoutParams(-1, -2, Gravity.TOP));
-        View target = restoreFocusKey == null ? null : focusTargets.get(restoreFocusKey);
+        View target = restoreFocusKey == null ? null : focusTarget(restoreFocusKey);
         if (target != null) target.post(target::requestFocus);
     }
 
@@ -798,6 +902,7 @@ public class HomeActivity extends Activity {
             if (readyUpdate != null) column.addView(updateCard());
             column.addView(rowTitle(getString(R.string.row_your_apps)));
             column.addView(buildFavoritesRow());
+            if (prefs.rowShown(ROW_LIBRARY)) posterRow(column, getString(R.string.row_library), library.titles(Library.SORT_RECENT, Library.ONLY_ALL));
             if (moodItems.size() > 8) posterRow(column, getString(R.string.row_more_mood, prefs.heroMood()), moodItems.subList(8, moodItems.size()));
             if (plex.isLinked()) {
                 if (prefs.rowShown(ROW_PLEX_CONTINUE)) backdropRow(column, getString(R.string.row_plex_continue), plexContinue);
@@ -882,7 +987,13 @@ public class HomeActivity extends Activity {
             if (selected) chip.setId(selectedChipId);
             if (heroWatchId != 0) chip.setNextFocusDownId(heroWatchId);
             chip.setOnFocusChangeListener((v, has) -> { if (has) { setTopBarVisible(true); setHeroCollapsed(true); } });
-            chip.setOnClickListener(v -> { if (tab != index) { tab = index; heroIndex = 0; render(); } });
+            chip.setOnClickListener(v -> {
+                if (tab == index) return;
+                tab = index;
+                heroIndex = 0;
+                render();
+                if (tab == TAB_LIBRARY) refreshHistory();
+            });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
             lp.rightMargin = ui.dp(2);
             tabs.addView(chip, lp);
@@ -1207,7 +1318,7 @@ public class HomeActivity extends Activity {
         tile.setTag(app); // read by the remote's MENU key
         focusKey(tile, (onShelf ? "fav:" : "app:") + app.pkg);
         if (onShelf && heroWatchId != 0) tile.setNextFocusUpId(heroWatchId); // Up from the shelf always reaches the banner
-        tile.setOnClickListener(v -> { if (!apps.launch(app)) toast(getString(R.string.open_failed, app.label)); });
+        tile.setOnClickListener(v -> { if (!launch(app)) toast(getString(R.string.open_failed, app.label)); });
         tile.setOnLongClickListener(v -> { showAppMenu(app); return true; });
         return tile;
     }
@@ -1286,6 +1397,304 @@ public class HomeActivity extends Activity {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, h, 1);
         lp.setMargins(ui.dp(5), 0, ui.dp(5), 0);
         return lp;
+    }
+
+    // ============================================================== library tab
+
+    private static final String PART_SAVED = "saved", PART_ACTORS = "actors", PART_HISTORY = "history";
+    private static final int[] TITLE_SORTS = {R.string.sort_recent, R.string.sort_title, R.string.sort_newest, R.string.sort_rating};
+    private static final int[] TITLE_SORT_VALUES = {Library.SORT_RECENT, Library.SORT_TITLE, Library.SORT_NEWEST, Library.SORT_RATING};
+    private static final int[] ONLY_LABELS = {R.string.only_all, R.string.only_movies, R.string.only_shows};
+    private static final int[] HISTORY_SORTS = {R.string.sort_last_watched, R.string.sort_title, R.string.sort_most_watched};
+    private static final java.util.regex.Pattern PLEX_EPISODE = java.util.regex.Pattern.compile("^S\\d+ · E\\d+");
+
+    /**
+     * The user's shelf in three parts: saved titles, saved actors, and watch history.
+     * Each part remembers its own order; the chips beside the part names change it.
+     */
+    private void buildLibraryTab(LinearLayout column) {
+        column.setClipChildren(false);
+        int part = prefs.librarySection();
+        LinearLayout bar = rowContainer(column);
+        rowSeq--; // a row of controls, not a shelf of titles
+        String[] parts = {getString(R.string.library_saved, library.titleCount()),
+                getString(R.string.library_actors, library.peopleCount()), getString(R.string.library_history)};
+        for (int i = 0; i < parts.length; i++) {
+            final int index = i;
+            TextView chip = chip(parts[i], i == part);
+            chip.setOnClickListener(v -> { prefs.setLibrarySection(index); renderPreservingScroll(); });
+            focusKey(chip, "lib:part:" + i);
+            bar.addView(chip, chipSpacing(i == parts.length - 1 ? 18 : 6));
+            if (i == part) bar.setTag(R.id.selected_chip, chip);
+        }
+
+        if (part == 0) {
+            int sort = prefs.librarySort(PART_SAVED) % TITLE_SORTS.length, only = prefs.librarySort(PART_SAVED + "Only") % ONLY_LABELS.length;
+            bar.addView(cycleChip("lib:sort", TITLE_SORTS, sort, PART_SAVED), chipSpacing(6));
+            bar.addView(cycleChip("lib:only", ONLY_LABELS, only, PART_SAVED + "Only"), chipSpacing(6));
+            List<MediaItem> titles = library.titles(TITLE_SORT_VALUES[sort], only);
+            if (titles.isEmpty()) { column.addView(emptyNote(getString(library.titleCount() == 0 ? R.string.library_saved_empty : R.string.library_none_match))); return; }
+            int[] plan = gridPlan(cardWidth(land() ? 116 : 104));
+            List<View> cells = new ArrayList<>();
+            for (MediaItem m : titles) cells.add(posterCell(m, "lib:t:" + m.id, m.year, plan[1], () -> showDetails(m), null));
+            addGrid(column, cells, plan);
+        } else if (part == 1) {
+            boolean byName = prefs.librarySort(PART_ACTORS) % 2 == 1;
+            bar.addView(cycleChip("lib:sort", new int[]{R.string.sort_recent, R.string.sort_name}, byName ? 1 : 0, PART_ACTORS), chipSpacing(6));
+            TextView add = chip(getString(R.string.library_add_actor), false);
+            add.setOnClickListener(v -> askActorName());
+            focusKey(add, "lib:add");
+            bar.addView(add, chipSpacing(6));
+            List<Library.Person> actors = library.people(byName);
+            if (actors.isEmpty()) { column.addView(emptyNote(getString(R.string.library_actors_empty))); return; }
+            int[] plan = gridPlan(cardWidth(land() ? 116 : 104));
+            List<View> cells = new ArrayList<>();
+            for (Library.Person p : actors) cells.add(personCell(p, "lib:p:" + p.id, plan[1], () -> showPerson(p)));
+            addGrid(column, cells, plan);
+        } else {
+            int sort = prefs.librarySort(PART_HISTORY) % HISTORY_SORTS.length;
+            bar.addView(cycleChip("lib:sort", HISTORY_SORTS, sort, PART_HISTORY), chipSpacing(6));
+            if (library.historyCount() > 0) {
+                TextView clear = chip(getString(R.string.library_clear), false);
+                clear.setOnClickListener(v -> showNotice(getString(R.string.library_clear_title), getString(R.string.library_clear_body),
+                        new String[]{getString(R.string.library_clear), getString(R.string.cancel)},
+                        new Runnable[]{() -> { library.clearHistory(); renderPreservingScroll(); }, null}));
+                focusKey(clear, "lib:clear");
+                bar.addView(clear, chipSpacing(6));
+            }
+            column.addView(emptyNote(historySources()));
+            List<Library.Watch> history = library.history(remoteHistory(), sort);
+            if (history.isEmpty()) { column.addView(emptyNote(getString(historyLoading ? R.string.library_history_loading : R.string.library_history_empty))); return; }
+            int[] plan = gridPlan(cardWidth(land() ? 116 : 104));
+            List<View> cells = new ArrayList<>();
+            for (Library.Watch w : history) {
+                String when = DateUtils.getRelativeTimeSpanString(w.at, System.currentTimeMillis(), DateUtils.DAY_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE).toString();
+                String line = (w.episode.isEmpty() ? "" : w.episode + "  ·  ") + when;
+                boolean own = w.item.source == MediaItem.Source.PLEX;
+                cells.add(posterCell(w.item, "lib:h:" + w.key(), line, plan[1],
+                        () -> { if (own) play(w.item); else showDetails(w.item); }, w.times > 1 ? w.via + "  ·  " + w.times + "×" : w.via));
+            }
+            addGrid(column, cells, plan);
+        }
+    }
+
+    /** Says where the history comes from, so an empty or short list explains itself. */
+    private String historySources() {
+        List<String> on = new ArrayList<>();
+        on.add(getString(R.string.app_name));
+        if (plex.isLinked()) on.add("Plex");
+        if (trakt.hasHistory()) on.add("Trakt");
+        String line = getString(R.string.library_history_sources, TextUtils.join(", ", on));
+        if (historyError != null) line += "\n" + historyError;
+        else if (!trakt.hasHistory()) line += "  " + getString(R.string.library_history_trakt_hint);
+        return line;
+    }
+
+    /** History reported by Plex and Trakt, in the library's own shape. */
+    private List<Library.Watch> remoteHistory() {
+        List<Library.Watch> out = new ArrayList<>(traktHistory);
+        for (MediaItem m : plexHistory) {
+            Library.Watch w = new Library.Watch();
+            w.item = m;
+            w.via = "Plex";
+            w.at = m.watchedAt;
+            // Plex folds the episode into the item's subtitle ("S2 · E4 · Name"); a movie's has none.
+            java.util.regex.Matcher episode = PLEX_EPISODE.matcher(m.subtitle == null ? "" : m.subtitle);
+            if (episode.find()) w.episode = episode.group();
+            out.add(w);
+        }
+        return out;
+    }
+
+    /** Fetches Plex and Trakt history in the background, then redraws the Library if it is showing. */
+    void refreshHistory() {
+        if (historyLoading || !(plex.isLinked() || trakt.hasHistory())) return;
+        historyLoading = true;
+        io.execute(() -> {
+            // A source that fails keeps what it showed last time; one that is switched off is emptied.
+            List<MediaItem> fromPlex = plex.isLinked() ? null : Collections.<MediaItem>emptyList();
+            List<Library.Watch> fromTrakt = trakt.hasHistory() ? null : Collections.<Library.Watch>emptyList();
+            List<String> problems = new ArrayList<>();
+            if (plex.isLinked()) {
+                try { fromPlex = plex.history(); }
+                catch (IOException | JSONException e) { problems.add("Plex: " + CatalogRepository.describe(e)); }
+            }
+            if (trakt.hasHistory()) {
+                try { fromTrakt = trakt.history(); }
+                catch (IOException | JSONException e) { problems.add("Trakt: " + CatalogRepository.describe(e)); }
+            }
+            final List<MediaItem> plexResult = fromPlex;
+            final List<Library.Watch> traktResult = fromTrakt;
+            main.post(() -> {
+                historyLoading = false;
+                if (plexResult != null) plexHistory = plexResult;
+                if (traktResult != null) traktHistory = traktResult;
+                historyError = problems.isEmpty() ? null : TextUtils.join("\n", problems);
+                if (tab == TAB_LIBRARY) renderPreservingScroll();
+            });
+        });
+    }
+
+    // ----------------------------------------------------------- grids and cells
+
+    private TextView chip(CharSequence text, boolean chosen) {
+        TextView chip = ui.label(text, 13, chosen ? Ui.ON_ACCENT : Ui.TEXT, Ui.MEDIUM);
+        chip.setPadding(ui.dp(14), ui.dp(7), ui.dp(14), ui.dp(7));
+        chip.setBackground(ui.ripple(ui.round(chosen ? Ui.ACCENT : 0x26FFFFFF, 18)));
+        chip.setFocusable(true);
+        chip.setClickable(true);
+        ui.focusRing(chip, 18);
+        return chip;
+    }
+
+    private LinearLayout.LayoutParams chipSpacing(float rightDp) {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
+        lp.rightMargin = ui.dp(rightDp);
+        return lp;
+    }
+
+    /** A chip that steps through a few choices each time it is pressed, showing the current one. */
+    private TextView cycleChip(String key, int[] labels, int current, String pref) {
+        TextView chip = chip(getString(labels[current]) + "  ⇅", false);
+        chip.setOnClickListener(v -> { prefs.setLibrarySort(pref, (current + 1) % labels.length); renderPreservingScroll(); });
+        focusKey(chip, key + ":" + pref);
+        return chip;
+    }
+
+    private TextView emptyNote(String text) {
+        TextView t = ui.label(text, 13, Ui.MUTED, null);
+        t.setLineSpacing(0, 1.25f);
+        t.setPadding(gutter(), ui.dp(4), insetRight + ui.dp(24), ui.dp(10));
+        return t;
+    }
+
+    /**
+     * How many cells fit across the screen and how wide each should be to fill it exactly.
+     * @return {cells per row, cell width in px}
+     */
+    int[] gridPlan(int idealWidth) {
+        int gap = ui.dp(12);
+        int available = metrics().widthPixels - gutter() - insetRight - ui.dp(16);
+        int perRow = Math.max(2, (available + gap) / (idealWidth + gap));
+        return new int[]{perRow, (available - gap * (perRow - 1)) / perRow};
+    }
+
+    /** Lays cells out left to right, wrapping into rows. Each row is a shelf to the D-pad. */
+    void addGrid(LinearLayout column, List<View> cells, int[] plan) {
+        LinearLayout row = null;
+        for (int i = 0; i < cells.size(); i++) {
+            if (i % plan[0] == 0) {
+                row = new LinearLayout(this);
+                row.setClipChildren(false);
+                row.setPadding(gutter(), ui.dp(8), 0, ui.dp(10));
+                row.setTag(R.id.focus_row, Boolean.TRUE);
+                column.addView(row);
+            }
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(plan[1], -2);
+            lp.rightMargin = ui.dp(12);
+            row.addView(cells.get(i), lp);
+        }
+        main.post(images::flush);
+    }
+
+    /**
+     * A poster with its title underneath and up to two dim lines of detail.
+     * @param key focus name on the home screen, or null on a page that keeps no names.
+     */
+    View posterCell(MediaItem m, String key, String line1, int width, Runnable onClick, String line2) {
+        LinearLayout cell = new LinearLayout(this);
+        cell.setOrientation(LinearLayout.VERTICAL);
+        cell.setClipChildren(false);
+        FrameLayout card = card();
+        TextView fallback = ui.label(m.title, 12, Ui.MUTED, null);
+        fallback.setGravity(Gravity.CENTER);
+        fallback.setPadding(ui.dp(8), 0, ui.dp(8), 0);
+        card.addView(fallback, new FrameLayout.LayoutParams(-1, -1));
+        ImageView art = new ImageView(this);
+        art.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        card.addView(art, new FrameLayout.LayoutParams(-1, -1));
+        images.defer(card, () -> images.load(art, m.poster(width), width, false, null));
+        card.setOnClickListener(v -> onClick.run());
+        if (key != null) focusKey(card, key);
+        cell.addView(card, new LinearLayout.LayoutParams(width, width * 3 / 2));
+        cell.addView(caption(m.title, 12, Ui.TEXT, 8));
+        if (line1 != null && !line1.isEmpty()) cell.addView(caption(line1, 11, Ui.MUTED, 1));
+        if (line2 != null && !line2.isEmpty()) cell.addView(caption(line2, 11, Ui.MUTED, 1));
+        return cell;
+    }
+
+    /**
+     * An actor as a round photo with their name underneath, and the part they play when
+     * that is known. Initials stand in for a missing photo. The same cell is used for a
+     * title's cast and for saved actors.
+     * @param key focus name on the home screen, or null on a page that keeps no names.
+     */
+    View personCell(Library.Person p, String key, int diameter, Runnable onClick) {
+        LinearLayout cell = new LinearLayout(this);
+        cell.setOrientation(LinearLayout.VERTICAL);
+        cell.setClipChildren(false);
+        FrameLayout face = new FrameLayout(this);
+        ui.focusableCircle(face);
+        TextView initials = ui.label(initials(p.name), 22, Ui.MUTED, Ui.BOLD);
+        initials.setGravity(Gravity.CENTER);
+        face.addView(initials, new FrameLayout.LayoutParams(-1, -1));
+        if (!p.photo.isEmpty()) {
+            ImageView photo = new Ui.TopCropImageView(this);
+            face.addView(photo, new FrameLayout.LayoutParams(-1, -1));
+            images.defer(face, () -> images.load(photo, p.photo, diameter, false, null));
+        }
+        face.setContentDescription(p.role.isEmpty() ? p.name : p.name + ", " + p.role);
+        face.setOnClickListener(v -> onClick.run());
+        if (key != null) focusKey(face, key);
+        cell.addView(face, new LinearLayout.LayoutParams(diameter, diameter));
+        TextView name = caption(p.name, 12, Ui.TEXT, 9);
+        name.setMaxLines(2);
+        cell.addView(name);
+        if (!p.role.isEmpty()) cell.addView(caption(p.role, 11, Ui.MUTED, 2));
+        return cell;
+    }
+
+    TextView caption(String text, float sp, int color, float topDp) {
+        TextView t = ui.label(text, sp, color, null);
+        t.setMaxLines(1);
+        t.setEllipsize(TextUtils.TruncateAt.END);
+        t.setPadding(ui.dp(2), ui.dp(topDp), ui.dp(2), 0);
+        return t;
+    }
+
+    static String initials(String name) {
+        StringBuilder sb = new StringBuilder();
+        for (String word : name.trim().split("\\s+")) if (!word.isEmpty() && sb.length() < 2) sb.append(Character.toUpperCase(word.charAt(0)));
+        return sb.toString();
+    }
+
+    // ------------------------------------------------------------------ actors
+
+    /** Opens an actor's page from a saved entry. */
+    void showPerson(Library.Person p) { openOverlay(new PersonScreen(this, p, null)); }
+
+    /** Opens an actor's page from just a name, e.g. one tapped in a title's cast. */
+    void showPerson(String name) { openOverlay(new PersonScreen(this, null, name)); }
+
+    private void askActorName() {
+        float d = getResources().getDisplayMetrics().density;
+        EditText name = new EditText(this);
+        name.setHint(R.string.library_actor_hint);
+        name.setSingleLine(true);
+        name.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_WORDS);
+        keyboardOnSelect(name);
+        FrameLayout form = new FrameLayout(this);
+        form.setPadding((int) (24 * d), (int) (8 * d), (int) (24 * d), 0);
+        form.addView(name);
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.library_add_actor)
+                .setView(form)
+                .setPositiveButton(R.string.library_find, (dlg, w) -> {
+                    String typed = name.getText().toString().trim();
+                    if (!typed.isEmpty()) showPerson(typed);
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
     }
 
     // ================================================================ media rows
@@ -1544,6 +1953,128 @@ public class HomeActivity extends Activity {
         return f;
     }
 
+    // ===================================================================== TV link
+
+    /** Overridden by {@link TvHomeActivity}, the copy of this screen that runs on an attached TV. */
+    boolean isTvInstance() { return false; }
+
+    /** False when this instance was started on a display it has no business on; it then ends at once. */
+    boolean acceptDisplay() { return true; }
+
+    /** Id of the display this instance is showing on. */
+    @SuppressWarnings("deprecation") // getDefaultDisplay() is the only route before Android 11
+    int displayId() {
+        android.view.Display d = null;
+        if (Build.VERSION.SDK_INT >= 30) {
+            try { d = getDisplay(); }
+            catch (UnsupportedOperationException notAttachedYet) { /* fall through to the window manager */ }
+        }
+        if (d == null) d = getWindowManager().getDefaultDisplay();
+        return d == null ? android.view.Display.DEFAULT_DISPLAY : d.getDisplayId();
+    }
+
+    /** The TV or monitor plugged into (or cast from) this phone, if there is one. */
+    android.view.Display externalDisplay() {
+        if (displayManager == null) return null;
+        for (android.view.Display d : displayManager.getDisplays(android.hardware.display.DisplayManager.DISPLAY_CATEGORY_PRESENTATION)) {
+            if (d.getDisplayId() != android.view.Display.DEFAULT_DISPLAY) return d;
+        }
+        return null;
+    }
+
+    private void displaysChanged() {
+        tvLinkRefused = false;
+        refusalTold = false;
+        caseDismissed = false;
+        if (resumed) syncTvLink();
+    }
+
+    /**
+     * Brings the phone's screen in line with the "Phone screen while on a TV" setting.
+     *
+     * Left alone, a phone mirrors itself to the TV, so both show the same thing. For
+     * the phone to show a cooling loop (or nothing) the TV needs a picture of its own:
+     * we start {@link TvHomeActivity} on the TV's display and cover this screen with a
+     * {@link CaseScreen}. Phones that can only mirror refuse that start, and we fall
+     * back to mirroring and say so once.
+     */
+    void syncTvLink() {
+        if (tvDevice || displayManager == null) return;
+        android.view.Display tv = externalDisplay();
+        boolean caseUp = overlay instanceof CaseScreen && ((CaseScreen) overlay).forTv();
+        boolean wanted = prefs.caseMode() != Prefs.CASE_MIRROR && tv != null && !tvLinkRefused && !caseDismissed
+                && Build.VERSION.SDK_INT >= 26;
+        if (!wanted) {
+            if (caseUp) closeOverlay();
+            if (tv == null) TvHomeActivity.end();
+            if (tvLinkRefused && !refusalTold && prefs.caseMode() != Prefs.CASE_MIRROR) {
+                refusalTold = true;
+                showNotice(getString(R.string.case_refused_title), getString(R.string.case_refused_body),
+                        new String[]{getString(R.string.close)}, new Runnable[]{null});
+            }
+            return;
+        }
+        // A running screen saver gives way to the TV screen; closing it comes back through here.
+        if (overlay instanceof CaseScreen && !caseUp) { closeOverlay(); return; }
+        if (overlay != null && !caseUp) return; // a page is open; applied when it closes
+        if (!caseUp) openOverlay(new CaseScreen(this, true));
+        if (!TvHomeActivity.alive && !startOnTv(new Intent(this, TvHomeActivity.class), tv)) {
+            tvLinkRefused = true;
+            syncTvLink();
+        }
+    }
+
+    /** Starts one of our activities on the TV's display. @return false if Android refused. */
+    @android.annotation.TargetApi(26)
+    private boolean startOnTv(Intent intent, android.view.Display tv) {
+        android.app.ActivityOptions options = android.app.ActivityOptions.makeBasic();
+        options.setLaunchDisplayId(tv.getDisplayId());
+        // Desktop-style modes open new windows small; ask for the whole screen.
+        android.graphics.Point size = new android.graphics.Point();
+        tv.getRealSize(size);
+        options.setLaunchBounds(new android.graphics.Rect(0, 0, size.x, size.y));
+        try {
+            startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION), options.toBundle());
+            return true;
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Key presses go to the display that was used last, so after a tap on the phone
+     * the remote would be talking to the phone. This makes the TV the active display again.
+     */
+    void returnRemoteToTv() {
+        android.view.Display tv = externalDisplay();
+        if (tv != null && TvHomeActivity.alive && Build.VERSION.SDK_INT >= 26) startOnTv(new Intent(this, TvFocusActivity.class), tv);
+    }
+
+    /** "Use this screen": the phone goes back to being a phone until Home is pressed on it. */
+    void dismissCase() {
+        caseDismissed = true;
+        closeOverlay();
+    }
+
+    /** When this screen runs on a TV, apps it opens should appear on that TV as well. */
+    @android.annotation.TargetApi(26)
+    private Bundle launchOptions() {
+        if (!isTvInstance() || Build.VERSION.SDK_INT < 26) return null;
+        android.app.ActivityOptions options = android.app.ActivityOptions.makeBasic();
+        options.setLaunchDisplayId(displayId());
+        return options.toBundle();
+    }
+
+    /** Starts the idle countdown again; the screen saver shows when it runs out. */
+    void restartScreenSaver() {
+        main.removeCallbacks(screenSaver);
+        int minutes = prefs == null ? 0 : prefs.saverMinutes();
+        if (minutes > 0 && resumed) main.postDelayed(screenSaver, minutes * 60_000L);
+    }
+
+    /** Shows the cooling loop right now, as the screen saver would. */
+    void previewScreenSaver() { openOverlay(new CaseScreen(this, false)); }
+
     // ============================================================ pages above home
 
     /** Opens the full-screen details page for a title. Back returns to where the user was. */
@@ -1556,12 +2087,16 @@ public class HomeActivity extends Activity {
      * scroll position, so closing the page lands exactly where the user left off.
      */
     private void openOverlay(Overlay page) {
-        if (overlay != null) root.removeView(overlay.view());
-        else {
+        if (overlay == null) {
             View focused = focused();
             Object key = focused == null ? null : focused.getTag(R.id.focus_key);
             overlayReturnKey = key instanceof String ? (String) key : null;
+        } else {
+            // Pages stack: the one underneath is hidden, not closed, so Back returns to it as it was.
+            pageFocus.put(overlay, focused());
+            overlay.view().setVisibility(View.GONE);
         }
+        pages.push(page);
         overlay = page;
         main.removeCallbacks(heroAdvance);
         // Nothing underneath may take focus or be read out while a page is open.
@@ -1575,22 +2110,46 @@ public class HomeActivity extends Activity {
         if (usingRemote()) { View first = page.firstFocus(); if (first != null) first.requestFocus(); }
     }
 
+    /** Closes the page on top and returns to the one beneath it, or to the home screen. */
     void closeOverlay() {
         if (overlay == null) return;
-        final View v = overlay.view();
-        overlay = null;
-        home.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
-        home.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
-        if (usingRemote()) {
-            // Same tile as before; the home screen may have been rebuilt meanwhile, hence the lookup by name.
-            View back = overlayReturnKey == null ? null : focusTargets.get(overlayReturnKey);
-            if (back == null || !back.isShown()) back = focusTargets.get("hero:watch");
-            if (back == null || !back.isShown()) back = focusTargets.get("tab:" + tab);
-            if (back != null) back.requestFocus();
+        Overlay closing = pages.pop();
+        pageFocus.remove(closing);
+        final View v = closing.view();
+        overlay = pages.peek();
+        if (overlay != null) {
+            overlay.view().setVisibility(View.VISIBLE);
+            if (usingRemote()) {
+                View back = pageFocus.remove(overlay);
+                if (back == null || !back.isShown()) back = overlay.firstFocus();
+                if (back != null) back.requestFocus();
+            }
+        } else {
+            home.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+            home.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
+            if (usingRemote()) {
+                // Same tile as before; the home screen may have been rebuilt meanwhile, hence the lookup by name.
+                View back = overlayReturnKey == null ? null : focusTarget(overlayReturnKey);
+                if (back == null || !back.isShown()) back = focusTargets.get("hero:watch");
+                if (back == null || !back.isShown()) back = focusTargets.get("tab:" + tab);
+                if (back != null) back.requestFocus();
+            }
         }
         v.animate().alpha(0f).translationY(ui.dp(16)).setDuration(Motion.FAST).setInterpolator(Motion.STANDARD)
                 .withEndAction(() -> root.removeView(v)).start();
         restartHeroTimer();
+        restartScreenSaver();
+        // Titles may have been saved from the TV while this screen sat behind the case screen.
+        if (closing instanceof CaseScreen && ((CaseScreen) closing).forTv()) renderPreservingScroll();
+        syncTvLink();
+    }
+
+    /**
+     * The library changed while a page was open or a player was starting; the home screen
+     * underneath catches up. Only saved titles appear on For you, so only they redraw it.
+     */
+    void libraryChanged(boolean savedTitles) {
+        if (tab == TAB_LIBRARY || (savedTitles && tab == TAB_FOR_YOU && prefs.rowShown(ROW_LIBRARY))) renderPreservingScroll();
     }
 
     /** True when the user is driving with a remote, keyboard or controller rather than touch. */
@@ -1820,17 +2379,25 @@ public class HomeActivity extends Activity {
         lists.setText(prefs.traktLists());
         keyboardOnSelect(lists);
         form.addView(lists);
+        EditText user = new EditText(this);
+        user.setHint(R.string.trakt_user_hint);
+        user.setSingleLine(true);
+        user.setText(prefs.traktUser());
+        keyboardOnSelect(user);
+        form.addView(user);
 
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle(R.string.trakt_title)
                 .setView(form)
                 .setPositiveButton(R.string.save, (dlg, w) -> {
                     prefs.saveTrakt(clientId.getText().toString(), lists.getText().toString());
+                    prefs.setTraktUser(user.getText().toString());
                     int valid = trakt.refs().size();
                     if (!prefs.traktLists().isEmpty() && valid == 0) toast(getString(R.string.trakt_no_valid_urls));
                     refreshTrakt();
+                    refreshHistory();
                 })
-                .setNeutralButton(R.string.trakt_turn_off, (dlg, w) -> { prefs.saveTrakt("", ""); refreshTrakt(); })
+                .setNeutralButton(R.string.trakt_turn_off, (dlg, w) -> { prefs.saveTrakt("", ""); prefs.setTraktUser(""); traktHistory = Collections.emptyList(); refreshTrakt(); })
                 .setNegativeButton(R.string.cancel, null)
                 .show();
     }
@@ -2017,10 +2584,11 @@ public class HomeActivity extends Activity {
                 // Pinned to Stremio's own package: other apps also register the stremio:// scheme.
                 opened = openUrl("stremio:///detail/" + type + "/" + m.id + (episodeId == null ? "" : "/" + Uri.encode(episodeId)), pkg);
         }
-        if (opened) return;
+        // Phone TV can't see what the player does next; opening a title is what counts as watching it.
+        if (opened) { library.watched(m, Library.episodeLabel(episodeId), playerName(player)); libraryChanged(false); return; }
         // The link wasn't accepted (very old or unusual build): open the app and tell the user what to look for.
         AppRepository.App app = apps.byPackage(pkg);
-        if (app != null && apps.launch(app)) toast(getString(R.string.opening_search, playerName(player), m.title));
+        if (app != null && launch(app)) toast(getString(R.string.opening_search, playerName(player), m.title));
         else showMissingApp(player, m);
     }
 
@@ -2031,7 +2599,7 @@ public class HomeActivity extends Activity {
         if (startSafely(resume)) return;
         if (openUrl(PlexClient.webUrl(m), PlexClient.PACKAGE)) return;
         AppRepository.App app = apps.byPackage(PlexClient.PACKAGE);
-        if (app != null && apps.launch(app)) toast(getString(R.string.opening_search, "Plex", m.title));
+        if (app != null && launch(app)) toast(getString(R.string.opening_search, "Plex", m.title));
         else showMissingApp(Prefs.PLAY_PLEX, null);
     }
 
@@ -2080,9 +2648,18 @@ public class HomeActivity extends Activity {
         return startSafely(i);
     }
 
+    /** Opens an installed app. @return false if it couldn't be started. */
+    private boolean launch(AppRepository.App app) { return startSafely(apps.launchIntent(app)); }
+
     boolean startSafely(Intent i) {
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        Bundle onThisScreen = launchOptions();
+        if (onThisScreen != null) {
+            try { startActivity(i, onThisScreen); return true; }
+            catch (RuntimeException refused) { /* this app won't open on the TV; let Android place it */ }
+        }
         try {
-            startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            startActivity(i);
             return true;
         } catch (RuntimeException e) {
             return false;

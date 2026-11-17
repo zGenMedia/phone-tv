@@ -93,7 +93,16 @@ final class ImageLoader {
         deferredLoads.add(load);
     }
 
-    void clearDeferred() { deferredViews.clear(); deferredLoads.clear(); }
+    /** Forgets queued loads for views inside {@code screen}, which is about to be rebuilt. */
+    void clearDeferred(View screen) {
+        for (int i = deferredViews.size() - 1; i >= 0; i--) {
+            View v = deferredViews.get(i);
+            boolean inside = false;
+            for (android.view.ViewParent p = v.getParent(); p != null && !inside; p = p.getParent()) inside = p == screen;
+            // Never attached, or attached under this screen: either way it won't be needed again.
+            if (inside || !v.isAttachedToWindow()) { deferredViews.remove(i); deferredLoads.remove(i); }
+        }
+    }
 
     /** Starts any deferred loads whose anchor is within ~1.5 screens of the viewport. */
     void flush() {

@@ -4,6 +4,7 @@ import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
@@ -42,7 +43,10 @@ final class DetailsScreen implements Overlay {
 
     private ScrollView scroll;
     private LinearLayout extras, episodeRow;
-    private TextView metaLine, summary, credits;
+    private TextView metaLine, summary, credits, saveButton, watchedButton;
+    private List<Library.Person> knownCast; // the cast as Wikidata lists it; null until fetched
+    private View castHeading;
+    private LinearLayout castShelf;
     private View primaryAction;
     private final List<TextView> seasonChips = new ArrayList<>();
     // Episode thumbnails load as their cards scroll near; kept here rather than in the
@@ -59,6 +63,8 @@ final class DetailsScreen implements Overlay {
         if (item.source == MediaItem.Source.CATALOG) {
             details = a.catalog.cachedDetails(item);
             if (details == null) fetch();
+            knownCast = a.people.cachedCast(item.id);
+            if (knownCast == null || a.people.castStale(item.id)) fetchCast();
         }
         build();
     }
@@ -70,7 +76,7 @@ final class DetailsScreen implements Overlay {
     @Override
     public void rebuild() {
         build();
-        if (a.usingRemote() && primaryAction != null) primaryAction.requestFocus();
+        if (a.usingRemote() && root.getVisibility() == View.VISIBLE && primaryAction != null) primaryAction.requestFocus();
     }
 
     @Override
@@ -97,6 +103,16 @@ final class DetailsScreen implements Overlay {
                 if (extras != null) { fillHeader(); fillExtras(); }
             });
         }, "phonetv-details").start();
+    }
+
+    /** Photos and parts for the cast. The names alone come with the details, so this only ever adds. */
+    private void fetchCast() {
+        new Thread(() -> {
+            List<Library.Person> found;
+            try { found = a.people.cast(item.id); }
+            catch (IOException | JSONException e) { return; } // the cast stays as plain names
+            a.main.post(() -> { knownCast = found; fillCast(); });
+        }, "phonetv-cast").start();
     }
 
     // ======================================================================= build
@@ -180,6 +196,28 @@ final class DetailsScreen implements Overlay {
 
         head.addView(buildActions());
 
+        // A second, quieter line: the Library and Watched switches.
+        saveButton = watchedButton = null;
+        if (item.source == MediaItem.Source.CATALOG) {
+            LinearLayout second = new LinearLayout(a);
+            second.setGravity(Gravity.CENTER_VERTICAL);
+            saveButton = shelfButton(second, () -> {
+                if (a.library.has(item)) a.library.remove(item); else a.library.add(item);
+                a.libraryChanged(true);
+            });
+            watchedButton = shelfButton(second, () -> {
+                if (a.library.isWatched(item)) a.library.forget(item); else a.library.watched(item, "", a.getString(R.string.library_marked));
+                a.libraryChanged(false);
+            });
+            labelShelfButtons();
+            HorizontalScrollView secondStrip = new HorizontalScrollView(a);
+            secondStrip.setHorizontalScrollBarEnabled(false);
+            secondStrip.setClipToPadding(false);
+            secondStrip.setPadding(0, ui.dp(10), a.insetRight + ui.dp(8), ui.dp(2));
+            secondStrip.addView(second);
+            head.addView(secondStrip);
+        }
+
         extras = new LinearLayout(a);
         extras.setOrientation(LinearLayout.VERTICAL);
         extras.setPadding(0, 0, 0, a.insetBottom + ui.dp(28));
@@ -234,6 +272,24 @@ final class DetailsScreen implements Overlay {
         if (primaryAction == null) primaryAction = b;
     }
 
+    /** A switch on the second line. Its label is set by {@link #labelShelfButtons}. */
+    private TextView shelfButton(LinearLayout row, Runnable flip) {
+        TextView b = ui.pill("", 0x33FFFFFF, Ui.TEXT);
+        b.setPadding(ui.dp(14), ui.dp(6), ui.dp(14), ui.dp(6));
+        b.setOnClickListener(v -> { flip.run(); labelShelfButtons(); });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
+        lp.rightMargin = ui.dp(8);
+        row.addView(b, lp);
+        return b;
+    }
+
+    /** The Library and Watched switches say what they are now; pressing again undoes it. */
+    private void labelShelfButtons() {
+        if (saveButton == null) return;
+        saveButton.setText(a.getString(a.library.has(item) ? R.string.details_in_library : R.string.details_add_library));
+        watchedButton.setText(a.getString(a.library.isWatched(item) ? R.string.details_watched : R.string.details_mark_watched));
+    }
+
     /** The chosen player first, then installed ones, then the rest. */
     private List<String> orderedPlayers() {
         List<String> out = new ArrayList<>();
@@ -265,21 +321,17 @@ final class DetailsScreen implements Overlay {
         summary.setText(text);
         summary.setVisibility(text.isEmpty() ? View.GONE : View.VISIBLE);
 
-        StringBuilder who = new StringBuilder();
-        if (details != null && !details.directors.isEmpty()) who.append(a.getString(R.string.details_director, TextUtils.join(", ", details.directors)));
-        if (details != null && !details.cast.isEmpty()) {
-            if (who.length() > 0) who.append('\n');
-            who.append(a.getString(R.string.details_cast, TextUtils.join(", ", details.cast)));
-        }
-        credits.setText(who);
-        credits.setVisibility(who.length() == 0 ? View.GONE : View.VISIBLE);
+        boolean directed = details != null && !details.directors.isEmpty();
+        credits.setText(directed ? a.getString(R.string.details_director, TextUtils.join(", ", details.directors)) : "");
+        credits.setVisibility(directed ? View.VISIBLE : View.GONE);
     }
 
-    /** Everything below the header: a status line while loading, then seasons and episodes for shows. */
+    /** Everything below the header: a status line while loading, seasons and episodes for shows, then the cast. */
     private void fillExtras() {
         extras.removeAllViews();
         seasonChips.clear();
         episodeRow = null;
+        castShelf = null;
         if (details == null) {
             if (loading) extras.addView(note(a.getString(R.string.details_loading)));
             else if (loadError != null) {
@@ -292,7 +344,7 @@ final class DetailsScreen implements Overlay {
             }
             return;
         }
-        if (details.episodes.isEmpty()) return;
+        if (details.episodes.isEmpty()) { addCast(); return; }
 
         List<Integer> seasons = details.seasons();
         if (!seasons.contains(season)) season = seasons.get(0);
@@ -322,6 +374,42 @@ final class DetailsScreen implements Overlay {
         int shown = season;
         season = Integer.MIN_VALUE; // force the first fill
         showSeason(shown);
+        addCast();
+    }
+
+    /** The cast as a shelf of round photos. Each opens that actor's page. */
+    private void addCast() {
+        TextView heading = ui.label(a.getString(R.string.details_cast_heading), 15, Ui.TEXT, Ui.MEDIUM);
+        heading.setPadding(a.gutter(), ui.dp(12), ui.dp(20), 0);
+        extras.addView(heading);
+        castHeading = heading;
+        castShelf = strip(ui.dp(12), ui.dp(12));
+        ((HorizontalScrollView) castShelf.getParent()).setOnScrollChangeListener((v, x, y, ox, oy) -> a.images.flush());
+        fillCast();
+    }
+
+    /** Fills the cast shelf from the catalog's names and whatever Wikidata has added so far. */
+    private void fillCast() {
+        if (castShelf == null || details == null) return;
+        View focused = a.focused();
+        int at = focused == null || !HomeActivity.isInside(focused, castShelf) ? -1 : castShelf.indexOfChild((View) focused.getParent());
+        castShelf.removeAllViews();
+        List<Library.Person> cast = People.billed(details.cast, knownCast, 24);
+        int show = cast.isEmpty() ? View.GONE : View.VISIBLE;
+        castHeading.setVisibility(show);
+        ((View) castShelf.getParent()).setVisibility(show);
+        int size = (int) (ui.dp(a.land() ? 88 : 72) * Prefs.CARD_SCALES[a.prefs.cardSize()]);
+        for (Library.Person p : cast) {
+            View cell = a.personCell(p, null, size, () -> { if (p.id != null) a.showPerson(p); else a.showPerson(p.name); });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(size + ui.dp(30), -2); // room for a name wider than the face
+            lp.rightMargin = ui.dp(8);
+            castShelf.addView(cell, lp);
+        }
+        // Photos arriving must not knock the remote off the actor it was on.
+        if (at >= 0 && castShelf.getChildCount() > 0 && a.usingRemote()) {
+            ((ViewGroup) castShelf.getChildAt(Math.min(at, castShelf.getChildCount() - 1))).getChildAt(0).requestFocus();
+        }
+        castShelf.post(a.images::flush);
     }
 
     private void showSeason(int number) {

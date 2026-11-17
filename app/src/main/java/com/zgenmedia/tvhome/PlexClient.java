@@ -136,6 +136,17 @@ final class PlexClient {
         return metadata("/library/recentlyAdded?X-Plex-Container-Size=30");
     }
 
+    /** What this Plex user played most recently: movies, then episodes, newest first within each. Blocking. */
+    List<MediaItem> history() throws IOException, JSONException {
+        List<MediaItem> out = new ArrayList<>();
+        for (int type : new int[]{1, 4}) { // Plex's numbers for movies and episodes
+            for (MediaItem m : metadata("/library/all?type=" + type + "&sort=lastViewedAt:desc&X-Plex-Container-Size=40")) {
+                if (m.watchedAt > 0) out.add(m);
+            }
+        }
+        return out;
+    }
+
     /**
      * Deep link that makes the Plex app start (or resume) playback. Plex changed
      * this format in 2025: playback now needs autoPlay=1 in the URI instead of
@@ -250,6 +261,7 @@ final class PlexClient {
             long duration = o.optLong("duration"), offset = o.optLong("viewOffset");
             if (duration > 0 && offset > 0) m.progressPercent = (int) Math.min(100, offset * 100 / duration);
             m.viewOffsetMs = offset;
+            m.watchedAt = o.optLong("lastViewedAt") * 1000L;
             if (!m.id.isEmpty() && !m.title.isEmpty()) out.add(m);
         }
         return out;

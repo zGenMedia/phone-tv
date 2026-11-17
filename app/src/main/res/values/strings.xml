@@ -6,6 +6,7 @@
     <string name="tab_for_you">For you</string>
     <string name="tab_movies">Movies</string>
     <string name="tab_shows">Shows</string>
+    <string name="tab_library">Library</string>
     <string name="tab_apps">Apps</string>
 
     <!-- Rows -->
@@ -162,6 +163,55 @@
     <string name="trakt_no_valid_urls">None of those look like Trakt list links</string>
     <string name="trakt_status_title">Some Trakt lists didn\'t load</string>
 
+    <string name="trakt_user_hint">Trakt username (optional, for watch history)</string>
+
+    <!-- Library: saved titles, saved actors, watch history -->
+    <string name="row_library">Your library</string>
+    <string name="library_saved">Saved · %1$d</string>
+    <string name="library_actors">Actors · %1$d</string>
+    <string name="library_history">History</string>
+    <string name="library_saved_empty">Nothing saved yet. Open any movie or show and choose \"+ Library\".</string>
+    <string name="library_actors_empty">No actors saved yet. Tap a name in any title\'s cast, or use \"Add an actor\", then save them here with everything they have been in.</string>
+    <string name="library_history_empty">Nothing watched yet. Titles you open from Phone TV are listed here, along with Plex and Trakt history when those are connected.</string>
+    <string name="library_history_loading">Checking your history…</string>
+    <string name="library_none_match">Nothing matches that filter.</string>
+    <string name="library_history_sources">From: %1$s</string>
+    <string name="library_history_trakt_hint">Add a Trakt username in Settings to include plays from other apps.</string>
+    <string name="library_add_actor">Add an actor</string>
+    <string name="library_actor_hint">Actor\'s name</string>
+    <string name="library_find">Find</string>
+    <string name="library_clear">Clear history</string>
+    <string name="library_clear_title">Clear watch history?</string>
+    <string name="library_clear_body">This forgets what was opened from Phone TV. History kept by Plex or Trakt stays with them.</string>
+    <string name="library_marked">Marked watched</string>
+    <string name="sort_recent">Recently added</string>
+    <string name="sort_title">Title A–Z</string>
+    <string name="sort_name">Name A–Z</string>
+    <string name="sort_newest">Newest first</string>
+    <string name="sort_oldest">Oldest first</string>
+    <string name="sort_rating">Top rated</string>
+    <string name="sort_last_watched">Last watched</string>
+    <string name="sort_most_watched">Most watched</string>
+    <string name="only_all">Movies and shows</string>
+    <string name="only_movies">Movies</string>
+    <string name="only_shows">Shows</string>
+    <string name="details_add_library">+ Library</string>
+    <string name="details_in_library">✓ In Library</string>
+    <string name="details_mark_watched">Mark watched</string>
+    <string name="details_watched">✓ Watched</string>
+    <string name="details_cast_heading">Cast</string>
+    <string name="person_save">Save actor</string>
+    <string name="person_saved">✓ Saved</string>
+    <string name="person_loading">Looking up their work…</string>
+    <string name="person_no_credits">No film or TV credits were found for this person.</string>
+    <string name="person_unknown">Couldn\'t find an actor called \"%1$s\". Check the spelling and try again.</string>
+    <string name="person_photo_credit">Photo: Wikimedia Commons</string>
+    <string name="person_text_credit">Text: Wikipedia</string>
+    <string name="person_filmography">Filmography</string>
+    <string name="person_born">Born %1$s</string>
+    <string name="person_lived">%1$s – %2$s</string>
+    <string name="person_age">" (age %1$d)"</string>
+
     <!-- Footer -->
     <string name="footer">Phone TV %1$s  ·  by zGenMedia</string>
     <string name="footer_donate">♥  Support on Ko-fi</string>
@@ -170,7 +220,6 @@
     <string name="details_watch_on">▶  Watch on %1$s</string>
     <string name="details_resume_plex">▶  Resume in Plex</string>
     <string name="details_director">Director: %1$s</string>
-    <string name="details_cast">Cast: %1$s</string>
     <string name="details_loading">Getting cast, runtime and episodes…</string>
     <string name="details_failed">Couldn\'t load more details: %1$s</string>
     <string name="details_episodes">Episodes</string>
@@ -277,7 +326,7 @@
 
     <string name="set_group_lists">Lists and catalog</string>
     <string name="set_trakt">Trakt lists (advanced)</string>
-    <string name="set_trakt_hint">Add rows from public Trakt lists with your own Client ID.</string>
+    <string name="set_trakt_hint">Add rows from public Trakt lists, and your Trakt watch history, with your own Client ID.</string>
     <string name="set_trakt_on">%1$d on</string>
     <string name="set_refresh_hint">Fetch the latest titles now.</string>
 
@@ -294,4 +343,20 @@
     <string name="set_donate_hint">Keeps the project going.</string>
     <string name="set_source">Source code</string>
     <string name="set_source_hint">Read it, build it, report a problem.</string>
+
+    <!-- The phone's own screen: case display and screen saver -->
+    <string name="set_group_phone_screen">This phone\'s screen</string>
+    <string name="set_case">While a TV is attached</string>
+    <string name="set_case_hint">Mirror shows the same on both. The others put Phone TV on the TV and leave this screen for show. Needs a phone that can drive a second screen (Samsung DeX, desktop mode); others keep mirroring.</string>
+    <string name="case_mirror">Mirror</string>
+    <string name="case_loop">Cooling loop</string>
+    <string name="case_off">Off</string>
+    <string name="set_saver">Screen saver</string>
+    <string name="set_saver_hint">Shows the cooling loop when the home screen sits idle. Any key or tap brings it back.</string>
+    <string name="set_minutes">%1$d min</string>
+    <string name="set_saver_preview">Preview the cooling loop</string>
+    <string name="set_saver_preview_hint">See it now. Tap or press any key to return.</string>
+    <string name="case_use_phone">Use this screen</string>
+    <string name="case_refused_title">This phone only mirrors</string>
+    <string name="case_refused_body">Android on this phone sends the TV a copy of the phone\'s screen and won\'t give it a picture of its own, so the phone can\'t show something different.\n\nOn Samsung, choose DeX instead of screen mirroring when you plug in. The cooling loop still works as a screen saver.</string>
 </resources>

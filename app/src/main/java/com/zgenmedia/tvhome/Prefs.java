@@ -88,6 +88,17 @@ final class Prefs {
     boolean rowShown(String key) { return !sp.getBoolean("rowOff_" + key, false); }
     void setRowShown(String key, boolean shown) { sp.edit().putBoolean("rowOff_" + key, !shown).apply(); }
 
+    // --- the phone's own screen ---
+    /** What the phone shows while a TV is attached: the same picture, a cooling loop, or nothing. */
+    static final int CASE_MIRROR = 0, CASE_LOOP = 1, CASE_OFF = 2;
+    int caseMode() { return clamp(sp.getInt("caseMode", CASE_MIRROR), 3); }
+    void setCaseMode(int v) { sp.edit().putInt("caseMode", v).apply(); }
+
+    /** Minutes the home screen may sit idle before the screen saver; 0 turns it off. */
+    static final int[] SAVER_MINUTES = {0, 2, 5, 10};
+    int saverMinutes() { return sp.getInt("saverMinutes", 0); }
+    void setSaverMinutes(int v) { sp.edit().putInt("saverMinutes", v).apply(); }
+
     private static int clamp(int v, int length) { return Math.max(0, Math.min(length - 1, v)); }
 
     boolean hideSystemBars() { return sp.getBoolean(K_HIDE_BARS, true); }
@@ -174,6 +185,16 @@ final class Prefs {
     // --- Trakt (advanced, opt-in) ---
     String traktClientId() { return sp.getString(K_TRAKT_CLIENT, "").trim(); }
     String traktLists() { return sp.getString(K_TRAKT_LISTS, ""); }
+
+    /** Trakt username whose public watch history is shown in the Library; empty when unused. */
+    String traktUser() { return sp.getString("traktUser", "").trim(); }
+    void setTraktUser(String user) { sp.edit().putString("traktUser", user.trim()).apply(); }
+
+    // --- library: which part is open and how each part is ordered ---
+    int librarySection() { return clamp(sp.getInt("libSection", 0), 3); }
+    void setLibrarySection(int v) { sp.edit().putInt("libSection", v).apply(); }
+    int librarySort(String part) { return sp.getInt("libSort_" + part, 0); }
+    void setLibrarySort(String part, int v) { sp.edit().putInt("libSort_" + part, v).apply(); }
     void saveTrakt(String clientId, String lists) {
         sp.edit().putString(K_TRAKT_CLIENT, clientId.trim()).putString(K_TRAKT_LISTS, lists.trim()).apply();
     }

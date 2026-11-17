@@ -9,4 +9,6 @@
     <item name="top_zone" type="id" />
     <!-- On a strip of chips: the chip that is currently chosen, so the remote lands on it. -->
     <item name="selected_chip" type="id" />
+    <!-- On one line of a grid: the D-pad moves along it sideways, like a scrolling shelf. -->
+    <item name="focus_row" type="id" />
 </resources>

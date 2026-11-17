@@ -105,6 +105,45 @@ final class TraktClient {
         return rows;
     }
 
+    /** A Client ID and a username are enough to read a public profile's watch history. */
+    boolean hasHistory() { return !prefs.traktClientId().isEmpty() && !prefs.traktUser().isEmpty(); }
+
+    /**
+     * The latest plays on the user's Trakt profile, which other apps (Stremio, Nuvio, Plex
+     * scrobblers) write to. The profile must be public: Phone TV holds no Trakt login.
+     */
+    List<Library.Watch> history() throws IOException, JSONException {
+        return parseHistory(get("/users/" + android.net.Uri.encode(prefs.traktUser()) + "/history?limit=80&extended=full"));
+    }
+
+    /** Trakt's history reply, one entry per play, in the library's own shape. Plays without an IMDb id are skipped. */
+    static List<Library.Watch> parseHistory(String json) throws JSONException {
+        JSONArray plays = new JSONArray(json);
+        java.text.SimpleDateFormat stamp = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US);
+        stamp.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+        List<Library.Watch> out = new ArrayList<>();
+        for (int i = 0; i < plays.length(); i++) {
+            JSONObject play = plays.getJSONObject(i);
+            boolean movie = "movie".equals(play.optString("type"));
+            JSONObject about = play.optJSONObject(movie ? "movie" : "show");
+            JSONObject ids = about == null ? null : about.optJSONObject("ids");
+            String imdb = ids == null ? "" : ids.optString("imdb", "");
+            if (!imdb.startsWith("tt")) continue;
+            Library.Watch w = new Library.Watch();
+            w.item = MediaItem.catalog(imdb, movie ? "movie" : "series", about.optString("title"),
+                    about.isNull("year") ? "" : String.valueOf(about.optInt("year")));
+            w.item.summary = about.optString("overview", "");
+            w.via = "Trakt";
+            JSONObject episode = play.optJSONObject("episode");
+            if (episode != null) w.episode = Library.episodeLabel(episode.optInt("season"), episode.optInt("number"));
+            String at = play.optString("watched_at");
+            try { if (at.length() >= 19) w.at = stamp.parse(at.substring(0, 19)).getTime(); }
+            catch (java.text.ParseException | NullPointerException ignored) { /* leave it undated */ }
+            out.add(w);
+        }
+        return out;
+    }
+
     private String listName(ListRef ref) throws IOException, JSONException {
         JSONObject meta = new JSONObject(get("/users/" + ref.user + "/lists/" + ref.slug));
         return meta.optString("name", ref.slug);

@@ -305,6 +305,22 @@ final class SettingsScreen implements Overlay {
         LinearLayout screen = group(R.string.set_group_screen);
         toggle(screen, "bars", R.string.set_bars, R.string.set_bars_hint, prefs.hideSystemBars(),
                 () -> { prefs.setHideSystemBars(!prefs.hideSystemBars()); a.applySystemBars(); apply(PANE); });
+        LinearLayout phone = group(R.string.set_group_phone_screen);
+        if (!a.tvDevice) {
+            // Takes effect when Settings closes, so this page isn't swapped out from under the user.
+            choice(phone, "case", R.string.set_case, R.string.set_case_hint, names(R.string.case_mirror, R.string.case_loop, R.string.case_off),
+                    prefs.caseMode(), i -> { prefs.setCaseMode(i); apply(PANE); });
+        }
+        String[] waits = new String[Prefs.SAVER_MINUTES.length];
+        int wait = 0;
+        for (int i = 0; i < waits.length; i++) {
+            int minutes = Prefs.SAVER_MINUTES[i];
+            waits[i] = minutes == 0 ? a.getString(R.string.off) : a.getString(R.string.set_minutes, minutes);
+            if (minutes == prefs.saverMinutes()) wait = i;
+        }
+        choice(phone, "saver", R.string.set_saver, R.string.set_saver_hint, waits, wait,
+                i -> { prefs.setSaverMinutes(Prefs.SAVER_MINUTES[i]); apply(PANE); });
+        action(phone, "saverPreview", a.getString(R.string.set_saver_preview), a.getString(R.string.set_saver_preview_hint), null, a::previewScreenSaver);
     }
 
     private void home() {
@@ -342,6 +358,7 @@ final class SettingsScreen implements Overlay {
             rowToggle(rows, HomeActivity.ROW_PLEX_CONTINUE, R.string.row_plex_continue);
             rowToggle(rows, HomeActivity.ROW_PLEX_RECENT, R.string.row_plex_recent);
         }
+        rowToggle(rows, HomeActivity.ROW_LIBRARY, R.string.row_library);
         rowToggle(rows, HomeActivity.ROW_TOP_PICKS, R.string.row_top_picks);
         rowToggle(rows, HomeActivity.ROW_SHOWS, R.string.row_popular_shows);
         rowToggle(rows, HomeActivity.ROW_MOVIES, R.string.row_popular_movies);

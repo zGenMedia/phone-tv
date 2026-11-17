@@ -3,6 +3,45 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.12.0 — preview, not released yet
+
+### Added
+- **Library tab.** Save any movie or show with **+ Library** on its page and
+  find it under Library › Saved, and in a *Your library* row on For you
+  (switch it off in Settings › Home screen). Sort by recently added, title,
+  newest or rating; show movies, shows or both.
+- **Actors, shown the way Nuvio shows them.** A title page now has a
+  **Cast** shelf of round photos with each actor's name and the part they
+  play. Choosing one opens their page: portrait, when and where they were
+  born, a short biography, and **Filmography** as a shelf of posters you can
+  sort and filter. **Save actor** keeps them under Library › Actors (round
+  photos there too), or use *Add an actor* and type a name. People, parts
+  and credits come from Wikidata, photos from Wikimedia Commons, biographies
+  from Wikipedia; coverage is as complete as those are, and an actor without
+  a photo shows their initials.
+- **Watch history.** Library › History lists what you opened from Phone TV
+  (title or episode, which app, when, how many times), merged with your Plex
+  history when Plex is linked and with your Trakt history when a Trakt
+  username is set (Settings › Sources › Trakt; the profile must be public).
+  **Mark watched** on a title page adds one by hand. Sort by last watched,
+  title or most watched. Phone TV can't see inside a player, so "watched"
+  means "opened".
+- **Pages stack.** A title opens an actor, an actor opens a title, and Back
+  walks through them one at a time to the tile you started on.
+- **Case screen.** With a TV attached, the phone's own screen can show an
+  animated cooling loop or go dark instead of mirroring (Settings › Look ›
+  This phone's screen). Phone TV then runs on the TV itself and opens apps
+  there. Needs a phone that can drive a second screen (Samsung DeX, desktop
+  mode); phones that only mirror keep mirroring and say so once.
+- **Screen saver.** The cooling loop can cover an idle home screen after 2,
+  5 or 10 minutes, with a preview button. Its readouts are real: battery
+  temperature, charge and the time.
+
+### Changed
+- The library, actor pages and history take their cue from
+  [Nuvio](https://github.com/NuvioMedia). They are written for Phone TV and
+  keep its look; no Nuvio code is included.
+
 ## 0.10.0 — 2026-11-12
 
 ### Added
