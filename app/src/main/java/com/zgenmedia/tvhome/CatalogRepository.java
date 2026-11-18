@@ -1,6 +1,7 @@
 package com.zgenmedia.tvhome;
 
 import android.content.Context;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import org.json.JSONArray;
@@ -190,6 +191,11 @@ final class CatalogRepository {
             String s = from.optString(i, "");
             if (!s.isEmpty()) into.add(s);
         }
+    }
+
+    /** Titles whose name or cast match what was typed; "movie" or "series". At most 20. */
+    static List<MediaItem> search(String type, String typed) throws IOException, JSONException {
+        return parse(new String(Http.get(BASE + type + "/top/search=" + Uri.encode(typed.trim()) + ".json"), StandardCharsets.UTF_8));
     }
 
     private static List<MediaItem> parse(String json) throws JSONException {

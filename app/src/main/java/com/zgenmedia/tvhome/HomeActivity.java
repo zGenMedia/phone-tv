@@ -1484,17 +1484,105 @@ public class HomeActivity extends Activity {
         hint.setPadding(g, ui.dp(2), ui.dp(20), ui.dp(14));
         column.addView(hint);
 
+        // Actors and titles matching the search, above the apps. Filled from the network, so
+        // they arrive a moment after typing stops.
+        searchResults = new LinearLayout(this);
+        searchResults.setOrientation(LinearLayout.VERTICAL);
+        column.addView(searchResults);
+
         appGrid = new LinearLayout(this);
         appGrid.setOrientation(LinearLayout.VERTICAL);
         appGrid.setPadding(g - ui.dp(5), 0, insetRight + ui.dp(15), 0);
         column.addView(appGrid);
         renderAppGrid();
+        searchElsewhere(appFilter);
 
         search.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
-            @Override public void onTextChanged(CharSequence s, int a, int b, int c) { appFilter = s.toString(); renderAppGrid(); }
+            @Override public void onTextChanged(CharSequence s, int a, int b, int c) { appFilter = s.toString(); renderAppGrid(); searchElsewhere(appFilter); }
             @Override public void afterTextChanged(Editable e) {}
         });
+    }
+
+    private LinearLayout searchResults;
+    private int searchTicket;                               // newer typing makes older answers stale
+    private String shownSearch = "";
+    private List<Library.Person> foundActors = Collections.emptyList();
+    private List<MediaItem> foundTitles = Collections.emptyList();
+
+    /**
+     * Looks the typed text up as actors (Wikidata) and as movies and shows (the catalog,
+     * which also matches cast names), once typing has paused.
+     */
+    private void searchElsewhere(String typed) {
+        final String q = typed.trim();
+        final int ticket = ++searchTicket;
+        if (q.length() < 3) { foundActors = Collections.emptyList(); foundTitles = Collections.emptyList(); shownSearch = ""; fillSearchResults(); return; }
+        if (q.equalsIgnoreCase(shownSearch)) { fillSearchResults(); return; } // a rebuild of the tab, same words
+        main.postDelayed(() -> {
+            if (ticket != searchTicket) return;
+            io.execute(() -> {
+                List<Library.Person> actors;
+                List<MediaItem> titles = new ArrayList<>();
+                try { actors = people.search(q); } catch (IOException | JSONException e) { actors = Collections.emptyList(); }
+                for (String type : new String[]{"movie", "series"}) {
+                    try { titles.addAll(CatalogRepository.search(type, q)); } catch (IOException | JSONException ignored) { /* the other type may still answer */ }
+                }
+                final List<Library.Person> a = actors;
+                main.post(() -> {
+                    if (ticket != searchTicket) return;
+                    foundActors = a;
+                    foundTitles = titles;
+                    shownSearch = q;
+                    fillSearchResults();
+                });
+            });
+        }, 450);
+    }
+
+    private void fillSearchResults() {
+        if (searchResults == null) return;
+        View focused = focused();
+        boolean inside = focused != null && isInside(focused, searchResults);
+        searchResults.removeAllViews();
+        int g = gutter();
+        if (!foundActors.isEmpty()) {
+            searchResults.addView(rowTitle(getString(R.string.search_actors)));
+            LinearLayout row = searchShelf(g);
+            int size = cardWidth(land() ? 88 : 72);
+            for (Library.Person p : foundActors) {
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(size + ui.dp(30), -2);
+                lp.rightMargin = ui.dp(8);
+                row.addView(personCell(p, null, size, () -> showPerson(p)), lp);
+            }
+        }
+        if (!foundTitles.isEmpty()) {
+            searchResults.addView(rowTitle(getString(R.string.search_titles)));
+            LinearLayout row = searchShelf(g);
+            int w = cardWidth(land() ? 116 : 104);
+            for (MediaItem m : foundTitles) {
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(w, -2);
+                lp.rightMargin = ui.dp(12);
+                row.addView(posterCell(m, null, m.year, w, () -> showDetails(m), null), lp);
+            }
+        }
+        if (searchResults.getChildCount() > 0) searchResults.addView(rowTitle(getString(R.string.search_apps)));
+        if (inside && usingRemote()) { View first = searchResults.findFocus(); if (first == null) searchResults.requestFocus(View.FOCUS_DOWN); }
+        searchResults.post(images::flush);
+    }
+
+    private LinearLayout searchShelf(int g) {
+        HorizontalScrollView shelf = new HorizontalScrollView(this);
+        shelf.setHorizontalScrollBarEnabled(false);
+        shelf.setClipToPadding(false);
+        shelf.setClipChildren(false);
+        shelf.setPadding(g, ui.dp(8), insetRight + ui.dp(12), ui.dp(12));
+        shelf.setOnScrollChangeListener((v, x, y, ox, oy) -> images.flush());
+        LinearLayout row = new LinearLayout(this);
+        row.setClipChildren(false);
+        shelf.addView(row);
+        searchResults.addView(shelf);
+        return row;
     }
 
     /** Rebuilds only the grid, so typing in the search box doesn't lose focus. */

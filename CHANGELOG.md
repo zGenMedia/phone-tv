@@ -3,6 +3,20 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.12.2 — 2026-11-18
+
+### Added
+- **Search finds actors, movies and shows.** Type (or say) a name in the
+  search box: matching actors appear as circles and titles as posters, above
+  your apps.
+
+### Fixed
+- Actors whose names Wikidata stores in its all-languages field (Denzel
+  Washington among them) were missing from casts, search and saved actors.
+- Filmographies now also include films from an actor's awards and
+  nominations and from the catalog's own search, which fills gaps in
+  Wikidata's cast lists (Glory now shows up for Denzel Washington).
+
 ## 0.12.1 — 2026-11-17
 
 ### Fixed
