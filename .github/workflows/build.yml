@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
+          # Keeps Gradle downloads between runs, so a busy Maven Central (429s) rarely fails a build.
+          cache: gradle
           java-version: 17
       - name: Build and lint
         run: ./gradlew --no-daemon assembleRelease lintRelease
