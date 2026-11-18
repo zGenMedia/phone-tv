@@ -36,7 +36,7 @@ final class People {
     private static final long FRESH_MS = 7 * 24 * 60 * 60 * 1000L;
     private static final int PHOTO_WIDTH = 330; // Wikimedia only serves a fixed set of thumbnail widths
     private static final int CAST_KEPT = 60;
-    private static final int PROFILE_VERSION = 3;
+    private static final int PROFILE_VERSION = 4;
 
     /** What is known about a person beyond their name. Any field may be empty. */
     static final class Profile {
@@ -99,17 +99,19 @@ final class People {
         if (hits == null || hits.length() == 0) return new ArrayList<>();
         StringBuilder ids = new StringBuilder();
         for (int i = 0; i < hits.length(); i++) ids.append(" wd:").append(hits.getJSONObject(i).optString("id"));
-        JSONArray rows = query("SELECT ?p ?name (SAMPLE(?img) AS ?photo) (COUNT(DISTINCT ?f) AS ?n) WHERE { VALUES ?p {" + ids + " } "
-                + "?p wdt:P31 wd:Q5; rdfs:label ?name. FILTER(LANG(?name) IN (\"en\", \"mul\")) ?f wdt:P161 ?p. OPTIONAL { ?p wdt:P18 ?img } "
-                + "} GROUP BY ?p ?name ORDER BY DESC(?n) LIMIT 12");
+        JSONArray rows = query("SELECT ?p (SAMPLE(?en) AS ?nameEn) (SAMPLE(?mul) AS ?nameMul) (SAMPLE(?img) AS ?photo) (COUNT(DISTINCT ?f) AS ?n) WHERE { VALUES ?p {" + ids + " } "
+                + "?p wdt:P31 wd:Q5. ?f wdt:P161 ?p. OPTIONAL { ?p rdfs:label ?en. FILTER(LANG(?en) = \"en\") } "
+                + "OPTIONAL { ?p rdfs:label ?mul. FILTER(LANG(?mul) = \"mul\") } OPTIONAL { ?p wdt:P18 ?img } "
+                + "} GROUP BY ?p ORDER BY DESC(?n) LIMIT 12");
         List<Library.Person> out = new ArrayList<>();
         java.util.Set<String> seen = new java.util.HashSet<>();
         for (int i = 0; i < rows.length(); i++) {
             JSONObject r = rows.getJSONObject(i);
             Library.Person p = new Library.Person();
             p.id = value(r, "p").substring(value(r, "p").lastIndexOf('/') + 1);
-            if (!seen.add(p.id)) continue; // named in English and in "mul"
-            p.name = value(r, "name");
+            if (!seen.add(p.id)) continue;
+            p.name = value(r, "nameEn").isEmpty() ? value(r, "nameMul") : value(r, "nameEn");
+            if (p.name.isEmpty()) continue;
             String image = value(r, "photo");
             if (!image.isEmpty()) p.photo = image.replaceFirst("^http:", "https:") + "?width=" + PHOTO_WIDTH;
             out.add(p);
@@ -164,22 +166,24 @@ final class People {
      * are simply left empty when they can't be had.
      */
     Profile load(Library.Person p) throws IOException, JSONException {
-        JSONArray rows = query("SELECT ?imdb ?title (MIN(?d) AS ?date) (SAMPLE(?show) AS ?isShow) WHERE { "
+        JSONArray rows = query("SELECT ?imdb (SAMPLE(?en) AS ?titleEn) (SAMPLE(?mul) AS ?titleMul) (MIN(?d) AS ?date) (SAMPLE(?show) AS ?isShow) WHERE { "
                 // Cast lists on Wikidata have gaps (Glory has no Denzel Washington), so films
                 // named in their awards and nominations count too.
                 + "{ ?f wdt:P161 wd:" + p.id + " } UNION { wd:" + p.id + " (p:P166|p:P1411) ?award. ?award pq:P1686 ?f } "
-                + "?f wdt:P345 ?imdb; rdfs:label ?title. FILTER(LANG(?title) IN (\"en\", \"mul\")) "
+                + "?f wdt:P345 ?imdb. OPTIONAL { ?f rdfs:label ?en. FILTER(LANG(?en) = \"en\") } "
+                + "OPTIONAL { ?f rdfs:label ?mul. FILTER(LANG(?mul) = \"mul\") } "
                 + "FILTER NOT EXISTS { ?f wdt:P31 wd:" + TV_EPISODE + " } "
                 + "OPTIONAL { ?f wdt:P577 ?d } OPTIONAL { ?f wdt:P580 ?d } "
                 + "BIND(EXISTS { ?f wdt:P31/wdt:P279* wd:" + TV_SERIES + " } AS ?show) "
-                + "} GROUP BY ?imdb ?title ORDER BY DESC(?date) LIMIT 250");
+                + "} GROUP BY ?imdb ORDER BY DESC(?date) LIMIT 300");
         JSONArray slim = new JSONArray();
         java.util.Set<String> have = new java.util.HashSet<>();
         for (int i = 0; i < rows.length(); i++) {
             JSONObject r = rows.getJSONObject(i);
             String imdb = value(r, "imdb"), date = value(r, "date");
-            if (!imdb.startsWith("tt") || !have.add(imdb)) continue;
-            slim.put(new JSONObject().put("id", imdb).put("title", value(r, "title"))
+            String title = value(r, "titleEn").isEmpty() ? value(r, "titleMul") : value(r, "titleEn");
+            if (!imdb.startsWith("tt") || title.isEmpty() || !have.add(imdb)) continue;
+            slim.put(new JSONObject().put("id", imdb).put("title", title)
                     .put("year", date.length() >= 4 ? date.substring(0, 4) : "")
                     .put("show", "true".equals(value(r, "isShow"))));
         }
@@ -259,6 +263,7 @@ final class People {
     List<Library.Person> cachedCast(String imdbId) {
         try {
             String json = read(castCache(imdbId));
+            if (json == null) json = read(new File(dir, "cast-" + imdbId.replaceAll("[^A-Za-z0-9]", "") + ".json")); // kept by 0.12.0/0.12.1
             if (json == null) return null;
             JSONArray rows = new JSONArray(json);
             List<Library.Person> out = new ArrayList<>();
@@ -282,22 +287,42 @@ final class People {
     /** Who is in a title, with photos and the parts they play, in one request. Updates the cache. */
     List<Library.Person> cast(String imdbId) throws IOException, JSONException {
         if (!imdbId.matches("tt\\d+")) return new ArrayList<>();
-        JSONArray rows = query("SELECT ?p ?name ?img ?role ?roleName WHERE { ?f wdt:P345 \"" + imdbId + "\"; p:P161 ?st. ?st ps:P161 ?p. "
-                + "?p rdfs:label ?name. FILTER(LANG(?name) IN (\"en\", \"mul\")) OPTIONAL { ?p wdt:P18 ?img } "
-                + "OPTIONAL { ?st pq:P453 ?c. ?c rdfs:label ?role. FILTER(LANG(?role) IN (\"en\", \"mul\")) } "
-                + "OPTIONAL { ?st pq:P4633 ?roleName } } LIMIT 300");
-        JSONArray slim = new JSONArray();
-        List<String> seen = new ArrayList<>();
-        for (int i = 0; i < rows.length() && slim.length() < CAST_KEPT; i++) {
+        // One row per person. Their name is taken in English, else from Wikidata's
+        // all-languages field; the part they play likewise. Billing order, where Wikidata
+        // records it, comes from the statement's ordinal.
+        JSONArray rows = query("SELECT ?p (SAMPLE(?en) AS ?nameEn) (SAMPLE(?mul) AS ?nameMul) (SAMPLE(?img) AS ?photo) "
+                + "(SAMPLE(?r) AS ?role) (SAMPLE(?rm) AS ?roleMul) (SAMPLE(?rn) AS ?roleName) (MIN(?o) AS ?order) (MAX(?sl) AS ?fame) WHERE { "
+                + "?f wdt:P345 \"" + imdbId + "\"; p:P161 ?st. ?st ps:P161 ?p. "
+                + "OPTIONAL { ?p rdfs:label ?en. FILTER(LANG(?en) = \"en\") } OPTIONAL { ?p rdfs:label ?mul. FILTER(LANG(?mul) = \"mul\") } "
+                + "OPTIONAL { ?p wdt:P18 ?img } OPTIONAL { ?p wikibase:sitelinks ?sl } "
+                + "OPTIONAL { ?st pq:P453 ?c. OPTIONAL { ?c rdfs:label ?r. FILTER(LANG(?r) = \"en\") } OPTIONAL { ?c rdfs:label ?rm. FILTER(LANG(?rm) = \"mul\") } } "
+                + "OPTIONAL { ?st pq:P4633 ?rn } OPTIONAL { ?st pq:P1545 ?ord. BIND(xsd:integer(?ord) AS ?o) } "
+                + "} GROUP BY ?p");
+        List<JSONObject> people = new ArrayList<>();
+        for (int i = 0; i < rows.length(); i++) {
             JSONObject r = rows.getJSONObject(i);
-            String id = value(r, "p").substring(value(r, "p").lastIndexOf('/') + 1);
-            if (seen.contains(id)) continue; // a second photo or a second part repeats the person
-            seen.add(id);
-            String image = value(r, "img"), role = value(r, "role");
-            slim.put(new JSONObject().put("id", id).put("name", value(r, "name"))
+            String name = value(r, "nameEn").isEmpty() ? value(r, "nameMul") : value(r, "nameEn");
+            if (name.isEmpty()) continue; // no name we can show
+            String image = value(r, "photo");
+            String role = !value(r, "role").isEmpty() ? value(r, "role") : !value(r, "roleMul").isEmpty() ? value(r, "roleMul") : value(r, "roleName");
+            int order;
+            try { order = Integer.parseInt(value(r, "order")); } catch (NumberFormatException e) { order = Integer.MAX_VALUE; }
+            people.add(new JSONObject().put("id", value(r, "p").substring(value(r, "p").lastIndexOf('/') + 1)).put("name", name)
                     .put("photo", image.isEmpty() ? "" : image.replaceFirst("^http:", "https:") + "?width=" + PHOTO_WIDTH)
-                    .put("role", role.isEmpty() ? value(r, "roleName") : role));
+                    .put("role", role).put("order", order).put("fame", r.has("fame") ? Integer.parseInt(value(r, "fame")) : 0));
         }
+        // Billed first, in order. Wikidata rarely records billing, so the rest go best known
+        // first (how many Wikipedias have an article on them), which puts the stars ahead of
+        // the bit parts, and faces ahead of initials among equals.
+        java.util.Collections.sort(people, (x, y) -> {
+            int byOrder = Integer.compare(x.optInt("order"), y.optInt("order"));
+            if (byOrder != 0) return byOrder;
+            int byFame = Integer.compare(y.optInt("fame"), x.optInt("fame"));
+            if (byFame != 0) return byFame;
+            return Boolean.compare(x.optString("photo").isEmpty(), y.optString("photo").isEmpty());
+        });
+        JSONArray slim = new JSONArray();
+        for (int i = 0; i < people.size() && i < CAST_KEPT; i++) slim.put(people.get(i));
         write(castCache(imdbId), slim.toString());
         return cachedCast(imdbId);
     }
@@ -317,9 +342,7 @@ final class People {
             else { match = new Library.Person(); match.name = name; } // no id: looked up by name when opened
             out.add(match);
         }
-        // Among the others, faces first: a row of photos reads better than a row of initials.
-        for (Library.Person p : rest) if (!p.photo.isEmpty()) out.add(p);
-        for (Library.Person p : rest) if (p.photo.isEmpty()) out.add(p);
+        out.addAll(rest); // already in billing order, faces ahead of initials (see cast())
         return out.size() > max ? new ArrayList<>(out.subList(0, max)) : out;
     }
 
@@ -351,7 +374,16 @@ final class People {
     private static JSONArray query(String sparql) throws IOException, JSONException {
         Map<String, String> headers = new HashMap<>();
         headers.put("Accept", "application/sparql-results+json");
-        byte[] body = Http.get(ENDPOINT + "?query=" + Uri.encode(sparql), headers, 30_000);
+        byte[] body;
+        try {
+            body = Http.get(ENDPOINT + "?query=" + Uri.encode(sparql), headers, 30_000);
+        } catch (Http.StatusException e) {
+            // Wikidata turns busy clients away with 429 or 503 for a moment; one patient retry
+            // gets most lookups through instead of showing a thinner page.
+            if (e.code != 429 && e.code != 503) throw e;
+            try { Thread.sleep(1_500); } catch (InterruptedException stop) { Thread.currentThread().interrupt(); throw e; }
+            body = Http.get(ENDPOINT + "?query=" + Uri.encode(sparql), headers, 30_000);
+        }
         return new JSONObject(new String(body, StandardCharsets.UTF_8)).getJSONObject("results").getJSONArray("bindings");
     }
 

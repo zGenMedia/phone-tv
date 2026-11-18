@@ -394,7 +394,7 @@ final class DetailsScreen implements Overlay {
         View focused = a.focused();
         int at = focused == null || !HomeActivity.isInside(focused, castShelf) ? -1 : castShelf.indexOfChild((View) focused.getParent());
         castShelf.removeAllViews();
-        List<Library.Person> cast = People.billed(details.cast, knownCast, 24);
+        List<Library.Person> cast = People.billed(details.cast, knownCast, 40);
         int show = cast.isEmpty() ? View.GONE : View.VISIBLE;
         castHeading.setVisibility(show);
         ((View) castShelf.getParent()).setVisibility(show);

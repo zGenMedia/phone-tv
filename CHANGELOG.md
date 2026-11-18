@@ -3,6 +3,18 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.12.3 — 2026-11-18
+
+### Fixed
+- Fuller casts. Each title now lists up to 40 people, merging the catalog's
+  top-billed names with Wikidata's full cast, duplicates removed. After the
+  billed names, the best-known actors come first, so stars aren't buried
+  behind bit parts.
+- Busy-server hiccups no longer leave a title with only three names: lookups
+  retry once, and the last good cast is kept if Wikidata can't be reached.
+- Actor search and filmographies no longer lose people or titles that
+  Wikidata names in more than one language.
+
 ## 0.12.2 — 2026-11-18
 
 ### Added

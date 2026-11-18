@@ -1,7 +1,7 @@
 {
-  "versionCode": 22,
-  "versionName": "0.12.2",
+  "versionCode": 23,
+  "versionName": "0.12.3",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "0fed3fdab64ce9d7f2f3624a36178b7e9db90ba97ca5e7a4e8c7091bfc1d1436",
-  "notes": "Search now finds actors, movies and shows. Fixes actors missing from casts and fills gaps in filmographies."
+  "sha256": "66c44d05a3589f66bf5a0372b6713839c123f2ae9112d3c1c430ccc9558c1389",
+  "notes": "Fuller casts from both sources with no duplicates, best-known actors first. More reliable actor lookups."
 }
