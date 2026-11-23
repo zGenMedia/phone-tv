@@ -1,7 +1,7 @@
 {
-  "versionCode": 23,
-  "versionName": "0.12.3",
+  "versionCode": 24,
+  "versionName": "0.12.4",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "66c44d05a3589f66bf5a0372b6713839c123f2ae9112d3c1c430ccc9558c1389",
-  "notes": "Fuller casts from both sources with no duplicates, best-known actors first. More reliable actor lookups."
+  "sha256": "fd94828694192f0ed68f358d642e22a9342fef605b783dfed7574712e1249cf5",
+  "notes": "Move your setup to a new device over Wi-Fi with a 6-digit code, no file app needed. Fixes a crash when saving a setup file on some TV boxes."
 }

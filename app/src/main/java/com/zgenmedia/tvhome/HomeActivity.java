@@ -626,21 +626,28 @@ public class HomeActivity extends Activity {
         catch (android.content.ActivityNotFoundException e) { toast(getString(R.string.setup_no_picker)); }
     }
 
+    /** The whole setup as one JSON text: settings (no sign-ins) and the Library. */
+    private String setupJson() throws JSONException {
+        return new JSONObject().put("phoneTvSetup", 1).put("version", BuildConfig.VERSION_NAME)
+                .put("settings", prefs.exportSettings()).put("library", new JSONObject(library.export())).toString();
+    }
+
     private void writeSetup(Uri to) {
         final String json;
         try {
-            json = new JSONObject().put("phoneTvSetup", 1).put("version", BuildConfig.VERSION_NAME)
-                    .put("settings", prefs.exportSettings()).put("library", new JSONObject(library.export())).toString(1);
+            json = setupJson();
         } catch (JSONException e) {
             toast(getString(R.string.setup_failed, e.getMessage()));
             return;
         }
         io.execute(() -> {
             String problem = null;
-            try (java.io.OutputStream out = getContentResolver().openOutputStream(to, "wt")) {
+            // Some file providers (Android TV's among them) reject "wt"; plain "w" is the fallback.
+            // Anything a provider throws is reported, never allowed to take the launcher down.
+            try (java.io.OutputStream out = openForWriting(to)) {
                 if (out == null) throw new IOException("no file");
                 out.write(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            } catch (IOException | SecurityException e) { problem = e.getMessage(); }
+            } catch (Exception e) { problem = String.valueOf(e.getMessage()); }
             final String p = problem;
             main.post(() -> toast(p == null ? getString(R.string.setup_saved, library.titleCount(), library.peopleCount()) : getString(R.string.setup_failed, p)));
         });
@@ -652,8 +659,8 @@ public class HomeActivity extends Activity {
             try (java.io.InputStream in = getContentResolver().openInputStream(from)) {
                 if (in == null) throw new IOException("no file");
                 text = new String(Http.readAll(in), java.nio.charset.StandardCharsets.UTF_8);
-            } catch (IOException | SecurityException e) {
-                final String p = e.getMessage();
+            } catch (Exception e) {
+                final String p = String.valueOf(e.getMessage());
                 main.post(() -> toast(getString(R.string.setup_failed, p)));
                 return;
             }
@@ -661,7 +668,12 @@ public class HomeActivity extends Activity {
         });
     }
 
-    /** Puts a setup backup in place: settings replaced, Library merged. */
+    private java.io.OutputStream openForWriting(Uri to) throws IOException {
+        try { return getContentResolver().openOutputStream(to, "wt"); }
+        catch (IllegalArgumentException | UnsupportedOperationException e) { return getContentResolver().openOutputStream(to, "w"); }
+    }
+
+    /** Puts a setup in place: settings replaced, Library merged. */
     void applySetup(String text) {
         int added;
         try {
@@ -669,7 +681,7 @@ public class HomeActivity extends Activity {
             if (o.optInt("phoneTvSetup") != 1) { toast(getString(R.string.setup_not_ours)); return; }
             prefs.importSettings(o.getJSONObject("settings"));
             added = library.merge(o.getJSONObject("library").toString());
-        } catch (JSONException e) {
+        } catch (JSONException | RuntimeException e) {
             toast(getString(R.string.setup_not_ours));
             return;
         }
@@ -678,6 +690,175 @@ public class HomeActivity extends Activity {
         render();
         for (Overlay page : pages) page.rebuild();
         toast(getString(R.string.setup_restored, added));
+    }
+
+    // ------------------------------------------------- device to device, built in
+
+    private SetupTransfer transfer;
+
+    private SetupTransfer transfer() {
+        if (transfer == null) transfer = new SetupTransfer(this);
+        return transfer;
+    }
+
+    /**
+     * This device offers its setup on the local network and shows a code. Nothing to install
+     * or carry: the other device finds it in "Get setup from another device".
+     */
+    void sendSetup() {
+        final String json;
+        try { json = setupJson(); }
+        catch (JSONException e) { toast(getString(R.string.setup_failed, e.getMessage())); return; }
+        final String code = SetupTransfer.newCode();
+        final String name = SetupTransfer.deviceName(this);
+        TextView body = dialogText(getString(R.string.setup_send_help));
+        TextView codeView = dialogCode(code.substring(0, 3) + " " + code.substring(3));
+        TextView where = dialogText("");
+        where.setTextSize(13);
+        LinearLayout form = dialogForm(body, codeView, where);
+        AlertDialog dialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.setup_send_title).setView(form)
+                .setNegativeButton(R.string.setup_stop, null).create();
+        dialog.setOnDismissListener(d -> transfer().stopOffering());
+        dialog.show();
+        io.execute(() -> {
+            try {
+                int port = transfer().offer(name, code, json, new SetupTransfer.Offering() {
+                    @Override public void sent(String to) {
+                        main.post(() -> { if (dialog.isShowing()) dialog.dismiss(); toast(getString(R.string.setup_sent)); });
+                    }
+                    @Override public void ended(String why) {
+                        main.post(() -> {
+                            if (dialog.isShowing()) dialog.dismiss();
+                            toast(getString("wrong".equals(why) ? R.string.setup_too_many : R.string.setup_offer_ended));
+                        });
+                    }
+                });
+                String ip = SetupTransfer.localAddress();
+                main.post(() -> where.setText(getString(R.string.setup_send_where, name, ip.isEmpty() ? "?" : ip + ":" + port)));
+            } catch (IOException | RuntimeException e) {
+                main.post(() -> { if (dialog.isShowing()) dialog.dismiss(); toast(getString(R.string.setup_failed, String.valueOf(e.getMessage()))); });
+            }
+        });
+    }
+
+    /**
+     * Lists devices on the network that are offering their setup. Picking one asks for its
+     * code. A box for the address covers networks that block discovery.
+     */
+    void receiveSetup() {
+        LinearLayout found = new LinearLayout(this);
+        found.setOrientation(LinearLayout.VERTICAL);
+        TextView looking = dialogText(getString(R.string.setup_looking));
+        EditText address = new EditText(this);
+        address.setHint(R.string.setup_address_hint);
+        address.setSingleLine(true);
+        address.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
+        keyboardOnSelect(address);
+        LinearLayout form = dialogForm(dialogText(getString(R.string.setup_get_help)), looking, found, address);
+        AlertDialog dialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.setup_get_title).setView(form)
+                .setPositiveButton(R.string.setup_use_address, null)
+                .setNegativeButton(R.string.cancel, null).create();
+        java.util.Map<String, View> rows = new java.util.HashMap<>();
+        dialog.setOnDismissListener(d -> transfer().stopFinding());
+        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String typed = address.getText().toString().trim();
+            int colon = typed.lastIndexOf(':');
+            if (colon <= 0) { address.setError(getString(R.string.setup_address_hint)); return; }
+            try {
+                int port = Integer.parseInt(typed.substring(colon + 1));
+                dialog.dismiss();
+                askCode(typed, typed.substring(0, colon), port);
+            } catch (NumberFormatException e) { address.setError(getString(R.string.setup_address_hint)); }
+        }));
+        dialog.show();
+        transfer().find(new SetupTransfer.Finding() {
+            @Override public void found(String name, String host, int port) {
+                main.post(() -> {
+                    if (!dialog.isShowing() || rows.containsKey(name)) return;
+                    looking.setText(R.string.setup_pick);
+                    TextView row = ui.pill(name, 0x33FFFFFF, Ui.TEXT);
+                    row.setPadding(ui.dp(16), ui.dp(10), ui.dp(16), ui.dp(10));
+                    row.setOnClickListener(v -> { dialog.dismiss(); askCode(name, host, port); });
+                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+                    lp.topMargin = ui.dp(8);
+                    found.addView(row, lp);
+                    rows.put(name, row);
+                    if (found.getChildCount() == 1) row.requestFocus();
+                });
+            }
+            @Override public void lost(String name) {
+                main.post(() -> { View row = rows.remove(name); if (row != null) found.removeView(row); });
+            }
+        });
+    }
+
+    private void askCode(String name, String host, int port) {
+        EditText code = new EditText(this);
+        code.setHint(R.string.setup_code_hint);
+        code.setSingleLine(true);
+        code.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        code.setTextSize(24);
+        code.setLetterSpacing(0.2f);
+        keyboardOnSelect(code);
+        AlertDialog dialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(name).setView(dialogForm(dialogText(getString(R.string.setup_code_help)), code))
+                .setPositiveButton(R.string.setup_get, null)
+                .setNegativeButton(R.string.cancel, null).create();
+        dialog.setOnShowListener(d -> {
+            code.requestFocus();
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+                String typed = code.getText().toString().replaceAll("\\D", "");
+                if (typed.length() != 6) { code.setError(getString(R.string.setup_code_hint)); return; }
+                v.setEnabled(false);
+                io.execute(() -> {
+                    try {
+                        String json = SetupTransfer.fetch(host, port, typed);
+                        main.post(() -> { dialog.dismiss(); applySetup(json); });
+                    } catch (SetupTransfer.WrongCode e) {
+                        main.post(() -> { v.setEnabled(true); code.setError(getString(R.string.setup_wrong_code)); });
+                    } catch (IOException | RuntimeException e) {
+                        main.post(() -> { dialog.dismiss(); toast(getString(R.string.setup_failed, String.valueOf(e.getMessage()))); });
+                    }
+                });
+            });
+        });
+        dialog.show();
+    }
+
+    private TextView dialogText(String text) {
+        TextView t = new TextView(this);
+        t.setText(text);
+        t.setTextColor(Ui.TEXT_DIM);
+        t.setTextSize(15);
+        t.setLineSpacing(0, 1.2f);
+        t.setPadding(0, ui.dp(6), 0, ui.dp(6));
+        return t;
+    }
+
+    private TextView dialogCode(String text) {
+        TextView t = new TextView(this);
+        t.setText(text);
+        t.setTextColor(Ui.ACCENT);
+        t.setTextSize(40);
+        t.setLetterSpacing(0.15f);
+        t.setTypeface(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD);
+        t.setGravity(Gravity.CENTER);
+        t.setPadding(0, ui.dp(14), 0, ui.dp(10));
+        return t;
+    }
+
+    private LinearLayout dialogForm(View... parts) {
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(ui.dp(24), ui.dp(8), ui.dp(24), 0);
+        for (View part : parts) form.addView(part, new LinearLayout.LayoutParams(-1, -2));
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(form);
+        LinearLayout holder = new LinearLayout(this);
+        holder.addView(scroll, new LinearLayout.LayoutParams(-1, -2));
+        return holder;
     }
 
     @Override

@@ -6,6 +6,10 @@
     <uses-feature android:name="android.software.leanback" android:required="false" />
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Finding another Phone TV on the same Wi-Fi to move a setup across. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <!-- Wired-only boxes are welcome: Wi-Fi is never required. -->
+    <uses-feature android:name="android.hardware.wifi" android:required="false" />
     <!-- Needed to offer "Uninstall" from an app tile's menu (Android 9+). -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <!-- Lets the built-in updater hand new releases to the system installer. -->

@@ -3,6 +3,20 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.12.4 — 2026-11-23
+
+### Added
+- **Move your setup without a file.** Settings › *Send my setup to another
+  device* shows a 6-digit code; on the new device, *Get setup from another
+  device* finds it on the same Wi-Fi, you enter the code, and the Library,
+  saved actors, history and settings come across. Nothing to install, works
+  on Chromecast with Google TV and other boxes that have no file app.
+  Sign-ins stay on the old device.
+
+### Fixed
+- Saving or restoring a setup file could crash Phone TV with some file apps
+  (NVIDIA Shield). Problems are now reported instead.
+
 ## 0.12.3 — 2026-11-18
 
 ### Fixed
