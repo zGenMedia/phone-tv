@@ -109,7 +109,7 @@ final class DetailsScreen implements Overlay {
     private void fetchCast() {
         new Thread(() -> {
             List<Library.Person> found;
-            try { found = a.people.cast(item.id); }
+            try { found = a.people.cast(item.id, item.isShow()); }
             catch (IOException | JSONException e) { return; } // the cast stays as plain names
             a.main.post(() -> { knownCast = found; fillCast(); });
         }, "phonetv-cast").start();
@@ -359,7 +359,7 @@ final class DetailsScreen implements Overlay {
             chip.setFocusable(true);
             chip.setClickable(true);
             chip.setTag(number);
-            ui.focusRing(chip, 18);
+            ui.chipStyle(chip, false);
             View.OnFocusChangeListener base = chip.getOnFocusChangeListener();
             // Moving along the seasons with a remote switches season straight away.
             chip.setOnFocusChangeListener((v, has) -> { if (base != null) base.onFocusChange(v, has); if (has) showSeason(number); });
@@ -394,7 +394,7 @@ final class DetailsScreen implements Overlay {
         View focused = a.focused();
         int at = focused == null || !HomeActivity.isInside(focused, castShelf) ? -1 : castShelf.indexOfChild((View) focused.getParent());
         castShelf.removeAllViews();
-        List<Library.Person> cast = People.billed(details.cast, knownCast, 40);
+        List<Library.Person> cast = People.billed(details.cast, knownCast, 60);
         int show = cast.isEmpty() ? View.GONE : View.VISIBLE;
         castHeading.setVisibility(show);
         ((View) castShelf.getParent()).setVisibility(show);
@@ -418,8 +418,9 @@ final class DetailsScreen implements Overlay {
         LinearLayout chips = seasonChips.isEmpty() ? null : (LinearLayout) seasonChips.get(0).getParent();
         for (TextView chip : seasonChips) {
             boolean on = Integer.valueOf(number).equals(chip.getTag());
-            chip.setBackground(ui.ripple(ui.round(on ? Ui.ACCENT : 0x26FFFFFF, 18)));
-            chip.setTextColor(on ? Ui.ON_ACCENT : Ui.TEXT);
+            View.OnFocusChangeListener keep = chip.getOnFocusChangeListener();
+            ui.chipStyle(chip, on);
+            chip.setOnFocusChangeListener(keep); // the season switch on focus stays
             if (on && chips != null) chips.setTag(R.id.selected_chip, chip);
         }
 

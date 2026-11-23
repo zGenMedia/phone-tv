@@ -45,7 +45,7 @@ Plenty of us have a 2–6 year old phone that still has a great screen, Wi-Fi, H
 | **Make it yours** | Accent colors, pure black, card size and corners, banner layout, and a switch for each row |
 | **Made for old hardware** | No dependencies, ~150 KB APK, lazy image loading, downsized disk cache, background-priority threads |
 | **Fullscreen** | Hides status and navigation bars; portrait and landscape layouts |
-| **Private** | No accounts, analytics or ads. Network calls: the public catalog and image CDN, Wikidata, Wikimedia Commons and Wikipedia (banner tuning, actors), and your Plex server or Trakt if you set them up |
+| **Private** | No accounts, analytics or ads. Network calls: the public catalog and image CDN, Wikidata, Wikimedia Commons, Wikipedia and TVmaze (banner tuning, actors, casts), and your Plex server or Trakt if you set them up |
 
 ## Install
 

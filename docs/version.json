@@ -1,7 +1,7 @@
 {
-  "versionCode": 24,
-  "versionName": "0.12.4",
+  "versionCode": 25,
+  "versionName": "0.12.5",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "fd94828694192f0ed68f358d642e22a9342fef605b783dfed7574712e1249cf5",
-  "notes": "Move your setup to a new device over Wi-Fi with a 6-digit code, no file app needed. Fixes a crash when saving a setup file on some TV boxes."
+  "sha256": "575f882bc4b676824a26c30c13b39f5b375cba02dcf8691de1fb7cf0c1263ef2",
+  "notes": "The button under the remote now lights up white everywhere. Full casts for TV shows. Nuvio opens the exact episode."
 }

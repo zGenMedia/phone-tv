@@ -35,7 +35,7 @@ final class People {
     private static final String TV_SERIES = "Q5398426", TV_EPISODE = "Q21191270";
     private static final long FRESH_MS = 7 * 24 * 60 * 60 * 1000L;
     private static final int PHOTO_WIDTH = 330; // Wikimedia only serves a fixed set of thumbnail widths
-    private static final int CAST_KEPT = 60;
+    private static final int CAST_KEPT = 80;
     private static final int PROFILE_VERSION = 4;
 
     /** What is known about a person beyond their name. Any field may be empty. */
@@ -263,14 +263,17 @@ final class People {
     List<Library.Person> cachedCast(String imdbId) {
         try {
             String json = read(castCache(imdbId));
-            if (json == null) json = read(new File(dir, "cast-" + imdbId.replaceAll("[^A-Za-z0-9]", "") + ".json")); // kept by 0.12.0/0.12.1
+            // Lists kept by earlier versions stand in until the fuller one has been fetched.
+            for (String older : new String[]{"cast2-", "cast-"}) {
+                if (json == null) json = read(new File(dir, older + imdbId.replaceAll("[^A-Za-z0-9]", "") + ".json"));
+            }
             if (json == null) return null;
             JSONArray rows = new JSONArray(json);
             List<Library.Person> out = new ArrayList<>();
             for (int i = 0; i < rows.length(); i++) {
                 JSONObject r = rows.getJSONObject(i);
                 Library.Person p = new Library.Person();
-                p.id = r.getString("id");
+                p.id = r.optString("id").isEmpty() ? null : r.optString("id"); // none: looked up by name when opened
                 p.name = r.optString("name");
                 p.photo = r.optString("photo");
                 p.role = r.optString("role");
@@ -285,8 +288,104 @@ final class People {
     boolean castStale(String imdbId) { return System.currentTimeMillis() - castCache(imdbId).lastModified() > FRESH_MS; }
 
     /** Who is in a title, with photos and the parts they play, in one request. Updates the cache. */
-    List<Library.Person> cast(String imdbId) throws IOException, JSONException {
+    /**
+     * Who is in a title, from every source that knows, merged and without repeats. For shows
+     * TVmaze comes first: it keeps every show's main cast in billing order with photos and
+     * parts, and lists who appeared in each episode, which covers new shows Wikidata hasn't
+     * caught up with. Wikidata then adds anyone else, and its ids for those it knows, so their
+     * pages open without a name search. If one source fails the other still counts; only
+     * when both fail is the old list kept.
+     */
+    List<Library.Person> cast(String imdbId, boolean show) throws IOException, JSONException {
         if (!imdbId.matches("tt\\d+")) return new ArrayList<>();
+        JSONArray fromTvmaze = new JSONArray(), fromWikidata;
+        IOException failed = null;
+        if (show) {
+            try { fromTvmaze = tvmazeCast(imdbId); }
+            catch (IOException | JSONException e) { failed = e instanceof IOException ? (IOException) e : new IOException(e.getMessage()); }
+        }
+        try {
+            fromWikidata = wikidataCast(imdbId);
+        } catch (IOException | JSONException e) {
+            if (fromTvmaze.length() == 0) throw failed != null ? failed : e instanceof IOException ? (IOException) e : new IOException(e.getMessage());
+            fromWikidata = new JSONArray();
+        }
+        JSONArray merged = new JSONArray();
+        java.util.Map<String, JSONObject> byName = new java.util.LinkedHashMap<>();
+        for (JSONArray source : new JSONArray[]{fromTvmaze, fromWikidata}) {
+            for (int i = 0; i < source.length(); i++) {
+                JSONObject p = source.getJSONObject(i);
+                String key = plain(p.optString("name"));
+                JSONObject seen = byName.get(key);
+                if (seen == null) { byName.put(key, p); continue; }
+                // Same person twice: keep the first entry's place, fill in what it lacks.
+                if (seen.optString("id").isEmpty()) seen.put("id", p.optString("id"));
+                if (seen.optString("photo").isEmpty()) seen.put("photo", p.optString("photo"));
+                if (seen.optString("role").isEmpty()) seen.put("role", p.optString("role"));
+            }
+        }
+        for (JSONObject p : byName.values()) { if (merged.length() >= CAST_KEPT) break; merged.put(p); }
+        write(castCache(imdbId), merged.toString());
+        return cachedCast(imdbId);
+    }
+
+    private static final String TVMAZE = "https://api.tvmaze.com";
+    private static final int GUEST_EPISODES = 12;
+
+    /** Main cast in billing order, then those seen most often in the latest episodes. */
+    private static JSONArray tvmazeCast(String imdbId) throws IOException, JSONException {
+        JSONObject showInfo = new JSONObject(tvmaze("/lookup/shows?imdb=" + imdbId));
+        int id = showInfo.getInt("id");
+        JSONArray out = new JSONArray();
+        JSONArray main = new JSONArray(tvmaze("/shows/" + id + "/cast"));
+        for (int i = 0; i < main.length(); i++) out.put(tvmazePerson(main.getJSONObject(i)));
+        // Guest and recurring players: counted over the most recent episodes that have aired.
+        try {
+            JSONArray episodes = new JSONArray(tvmaze("/shows/" + id + "/episodes"));
+            java.util.Map<String, JSONObject> guests = new java.util.LinkedHashMap<>();
+            java.util.Map<String, Integer> count = new java.util.HashMap<>();
+            int asked = 0;
+            for (int i = episodes.length() - 1; i >= 0 && asked < GUEST_EPISODES; i--) {
+                JSONObject ep = episodes.getJSONObject(i);
+                if (ep.optString("airdate").isEmpty() || ep.optString("airdate").compareTo(today()) > 0) continue;
+                asked++;
+                JSONArray gc = new JSONArray(tvmaze("/episodes/" + ep.getInt("id") + "/guestcast"));
+                for (int j = 0; j < gc.length(); j++) {
+                    JSONObject p = tvmazePerson(gc.getJSONObject(j));
+                    String key = plain(p.optString("name"));
+                    if (!guests.containsKey(key)) guests.put(key, p);
+                    count.put(key, count.getOrDefault(key, 0) + 1);
+                }
+            }
+            List<String> order = new ArrayList<>(guests.keySet());
+            java.util.Collections.sort(order, (x, y) -> Integer.compare(count.get(y), count.get(x))); // stable: first seen wins ties
+            for (String key : order) out.put(guests.get(key));
+        } catch (IOException | JSONException ignored) { /* the main cast is already in hand */ }
+        return out;
+    }
+
+    private static JSONObject tvmazePerson(JSONObject credit) throws JSONException {
+        JSONObject person = credit.optJSONObject("person"), character = credit.optJSONObject("character");
+        JSONObject image = person == null ? null : person.optJSONObject("image");
+        String photo = image == null ? "" : image.optString("medium", image.optString("original", ""));
+        return new JSONObject().put("id", "").put("name", person == null ? "" : person.optString("name"))
+                .put("photo", photo.replaceFirst("^http:", "https:"))
+                .put("role", character == null ? "" : character.optString("name"));
+    }
+
+    private static String tvmaze(String path) throws IOException {
+        try {
+            return new String(Http.get(TVMAZE + path, new HashMap<String, String>(), 15_000), StandardCharsets.UTF_8);
+        } catch (Http.StatusException e) {
+            if (e.code != 429) throw e; // TVmaze allows about 20 calls in 10 seconds
+            try { Thread.sleep(2_000); } catch (InterruptedException stop) { Thread.currentThread().interrupt(); throw e; }
+            return new String(Http.get(TVMAZE + path, new HashMap<String, String>(), 15_000), StandardCharsets.UTF_8);
+        }
+    }
+
+    private static String today() { return new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new java.util.Date()); }
+
+    private static JSONArray wikidataCast(String imdbId) throws IOException, JSONException {
         // One row per person. Their name is taken in English, else from Wikidata's
         // all-languages field; the part they play likewise. Billing order, where Wikidata
         // records it, comes from the statement's ordinal.
@@ -323,8 +422,7 @@ final class People {
         });
         JSONArray slim = new JSONArray();
         for (int i = 0; i < people.size() && i < CAST_KEPT; i++) slim.put(people.get(i));
-        write(castCache(imdbId), slim.toString());
-        return cachedCast(imdbId);
+        return slim;
     }
 
     /**
@@ -369,7 +467,7 @@ final class People {
 
     private File cache(Library.Person p) { return new File(dir, p.id.replaceAll("[^A-Za-z0-9]", "") + ".json"); }
 
-    private File castCache(String imdbId) { return new File(dir, "cast2-" + imdbId.replaceAll("[^A-Za-z0-9]", "") + ".json"); }
+    private File castCache(String imdbId) { return new File(dir, "cast3-" + imdbId.replaceAll("[^A-Za-z0-9]", "") + ".json"); }
 
     private static JSONArray query(String sparql) throws IOException, JSONException {
         Map<String, String> headers = new HashMap<>();

@@ -716,7 +716,7 @@ public class HomeActivity extends Activity {
         TextView where = dialogText("");
         where.setTextSize(13);
         LinearLayout form = dialogForm(body, codeView, where);
-        AlertDialog dialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        AlertDialog dialog = new AlertDialog.Builder(this, R.style.PhoneTvDialog)
                 .setTitle(R.string.setup_send_title).setView(form)
                 .setNegativeButton(R.string.setup_stop, null).create();
         dialog.setOnDismissListener(d -> transfer().stopOffering());
@@ -756,7 +756,7 @@ public class HomeActivity extends Activity {
         address.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
         keyboardOnSelect(address);
         LinearLayout form = dialogForm(dialogText(getString(R.string.setup_get_help)), looking, found, address);
-        AlertDialog dialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        AlertDialog dialog = new AlertDialog.Builder(this, R.style.PhoneTvDialog)
                 .setTitle(R.string.setup_get_title).setView(form)
                 .setPositiveButton(R.string.setup_use_address, null)
                 .setNegativeButton(R.string.cancel, null).create();
@@ -802,7 +802,7 @@ public class HomeActivity extends Activity {
         code.setTextSize(24);
         code.setLetterSpacing(0.2f);
         keyboardOnSelect(code);
-        AlertDialog dialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        AlertDialog dialog = new AlertDialog.Builder(this, R.style.PhoneTvDialog)
                 .setTitle(name).setView(dialogForm(dialogText(getString(R.string.setup_code_help)), code))
                 .setPositiveButton(R.string.setup_get, null)
                 .setNegativeButton(R.string.cancel, null).create();
@@ -1961,12 +1961,11 @@ public class HomeActivity extends Activity {
     // ----------------------------------------------------------- grids and cells
 
     private TextView chip(CharSequence text, boolean chosen) {
-        TextView chip = ui.label(text, 13, chosen ? Ui.ON_ACCENT : Ui.TEXT, Ui.MEDIUM);
+        TextView chip = ui.label(text, 13, Ui.TEXT, Ui.MEDIUM);
         chip.setPadding(ui.dp(14), ui.dp(7), ui.dp(14), ui.dp(7));
-        chip.setBackground(ui.ripple(ui.round(chosen ? Ui.ACCENT : 0x26FFFFFF, 18)));
         chip.setFocusable(true);
         chip.setClickable(true);
-        ui.focusRing(chip, 18);
+        ui.chipStyle(chip, chosen);
         return chip;
     }
 
@@ -2140,7 +2139,7 @@ public class HomeActivity extends Activity {
         FrameLayout form = new FrameLayout(this);
         form.setPadding((int) (24 * d), (int) (8 * d), (int) (24 * d), 0);
         form.addView(name);
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        new AlertDialog.Builder(this, R.style.PhoneTvDialog)
                 .setTitle(R.string.library_add_actor)
                 .setView(form)
                 .setPositiveButton(R.string.library_find, (dlg, w) -> {
@@ -2670,7 +2669,7 @@ public class HomeActivity extends Activity {
         labels.add(getString(R.string.menu_uninstall));
         actions.add(() -> { if (!startSafely(new Intent(Intent.ACTION_DELETE, Uri.parse("package:" + app.pkg)))) toast(getString(R.string.open_failed, app.label)); });
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        new AlertDialog.Builder(this, R.style.PhoneTvDialog)
                 .setTitle(app.label)
                 .setItems(labels.toArray(new String[0]), (dialog, which) -> { actions.get(which).run(); renderPreservingScroll(); })
                 .show();
@@ -2697,7 +2696,7 @@ public class HomeActivity extends Activity {
                         PlexClient.HomeUser u = users.get(i);
                         names[i] = u.title + (u.needsPin ? getString(R.string.plex_profile_pin_suffix) : "");
                     }
-                    new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    new AlertDialog.Builder(this, R.style.PhoneTvDialog)
                             .setTitle(R.string.plex_profile_title)
                             .setItems(names, (d, which) -> {
                                 PlexClient.HomeUser u = users.get(which);
@@ -2720,7 +2719,7 @@ public class HomeActivity extends Activity {
         int pad = (int) (24 * getResources().getDisplayMetrics().density);
         box.setPadding(pad, 0, pad, 0);
         box.addView(pin);
-        AlertDialog dialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        AlertDialog dialog = new AlertDialog.Builder(this, R.style.PhoneTvDialog)
                 .setTitle(getString(R.string.plex_profile_pin_title, user.title))
                 .setView(box)
                 .setPositiveButton(android.R.string.ok, (d, w) -> switchPlexProfile(user, pin.getText().toString()))
@@ -2756,7 +2755,7 @@ public class HomeActivity extends Activity {
 
     /** Explains the experimental home replacement and opens the system screen that turns it on. */
     void explainHomeKeeper() {
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        new AlertDialog.Builder(this, R.style.PhoneTvDialog)
                 .setTitle(R.string.keeper_title)
                 .setMessage(getString(R.string.keeper_body, getPackageName() + "/" + HomeKeeperService.class.getName()))
                 .setPositiveButton(R.string.keeper_open_settings, (d, w) -> {
@@ -2785,7 +2784,7 @@ public class HomeActivity extends Activity {
         keyboardOnSelect(words);
         form.addView(words);
 
-        AlertDialog dialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        AlertDialog dialog = new AlertDialog.Builder(this, R.style.PhoneTvDialog)
                 .setTitle(R.string.mood_title)
                 .setView(form)
                 .setPositiveButton(R.string.mood_show, null)
@@ -2840,7 +2839,7 @@ public class HomeActivity extends Activity {
         keyboardOnSelect(user);
         form.addView(user);
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        new AlertDialog.Builder(this, R.style.PhoneTvDialog)
                 .setTitle(R.string.trakt_title)
                 .setView(form)
                 .setPositiveButton(R.string.save, (dlg, w) -> {
@@ -2890,7 +2889,7 @@ public class HomeActivity extends Activity {
         note.setTextSize(13);
         form.addView(note);
 
-        AlertDialog dialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        AlertDialog dialog = new AlertDialog.Builder(this, R.style.PhoneTvDialog)
                 .setTitle(R.string.trakt_signin_title)
                 .setView(form)
                 .setPositiveButton(R.string.plex_open_link, null)
@@ -2990,7 +2989,7 @@ public class HomeActivity extends Activity {
         note.setTextSize(13);
         form.addView(note);
 
-        AlertDialog dialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        AlertDialog dialog = new AlertDialog.Builder(this, R.style.PhoneTvDialog)
                 .setTitle(R.string.plex_link_title)
                 .setView(form)
                 .setPositiveButton(R.string.plex_copy_code, null)
@@ -3135,7 +3134,10 @@ public class HomeActivity extends Activity {
                 opened = startSafely(new Intent(Intent.ACTION_SEARCH).setPackage(pkg).putExtra(SearchManager.QUERY, m.title));
                 break;
             case Prefs.PLAY_NUVIO:
-                opened = openUrl("nuvio://meta?type=" + type + "&id=" + Uri.encode(m.id), pkg);
+                // Nuvio's links only reach a title's page. For one episode, Nuvio TV takes the same
+                // extras its own Continue watching row uses, which open that episode's sources.
+                opened = (episodeId != null && "com.nuvio.tv".equals(pkg) && openNuvioEpisode(pkg, m, episodeId))
+                        || openUrl("nuvio://meta?type=" + type + "&id=" + Uri.encode(m.id), pkg);
                 break;
             default:
                 // Pinned to Stremio's own package: other apps also register the stremio:// scheme.
@@ -3147,6 +3149,27 @@ public class HomeActivity extends Activity {
         AppRepository.App app = apps.byPackage(pkg);
         if (app != null && launch(app)) toast(getString(R.string.opening_search, playerName(player), m.title));
         else showMissingApp(player, m);
+    }
+
+    private boolean openNuvioEpisode(String pkg, MediaItem m, String episodeId) {
+        Intent start = getPackageManager().getLaunchIntentForPackage(pkg);
+        if (start == null) start = getPackageManager().getLeanbackLaunchIntentForPackage(pkg);
+        if (start == null) return false;
+        String[] parts = episodeId.split(":");
+        int season = -1, episode = -1;
+        try {
+            season = Integer.parseInt(parts[parts.length - 2]);
+            episode = Integer.parseInt(parts[parts.length - 1]);
+        } catch (NumberFormatException | ArrayIndexOutOfBoundsException ignored) { /* Nuvio reads them from the id too */ }
+        start.putExtra("contentId", m.id).putExtra("contentType", "series").putExtra("launchMode", "stream")
+                .putExtra("videoId", episodeId).putExtra("name", m.title)
+                .putExtra("season", season).putExtra("episode", episode);
+        String poster = m.poster(400), backdrop = m.backdrop(1280);
+        if (poster != null) start.putExtra("poster", poster);
+        if (backdrop != null) start.putExtra("backdrop", backdrop);
+        // Already running: bring it forward and let it act on the new extras.
+        start.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        return startSafely(start);
     }
 
     void openPlexItem(MediaItem m) {

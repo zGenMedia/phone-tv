@@ -3,6 +3,20 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.12.5 — 2026-11-23
+
+### Fixed
+- **You can always see where you are.** The button under the remote turns
+  solid white and grows: Watch, Trailer, chips, and the buttons in every pop-up
+  (Plex sign-in, updates). The chosen season or tab is outlined instead, so
+  "chosen" and "here" never look alike. Actor photos get a bold white ring
+  and zoom.
+- **Full casts for shows.** TV shows now also take their cast from TVmaze:
+  the main cast in billing order plus everyone who appeared in recent
+  episodes, merged with Wikidata, no duplicates. New shows like A Different
+  World (2026) go from 3 names to 60.
+- **Nuvio opens the episode you picked**, not just the show (Nuvio for TV).
+
 ## 0.12.4 — 2026-11-23
 
 ### Added

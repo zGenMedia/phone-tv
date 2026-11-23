@@ -152,11 +152,43 @@ final class Ui {
     TextView pill(CharSequence s, int bg, int fg) {
         TextView b = label(s, 13, fg, MEDIUM);
         b.setPadding(dp(16), dp(9), dp(16), dp(9));
-        b.setBackground(ripple(round(bg, 20)));
+        // Under the remote a button turns solid white with dark text and grows a little:
+        // a colour change reads from across a room where a thin outline doesn't.
+        StateListDrawable fill = new StateListDrawable();
+        fill.addState(new int[]{android.R.attr.state_focused}, round(Color.WHITE, 20));
+        fill.addState(new int[]{}, round(bg, 20));
+        b.setBackground(ripple(fill));
+        b.setTextColor(new android.content.res.ColorStateList(
+                new int[][]{{android.R.attr.state_focused}, {}}, new int[]{0xFF111317, fg}));
         b.setFocusable(true);
         b.setClickable(true);
-        focusRing(b, 20);
+        b.setRevealOnFocusHint(false);
+        b.setOnFocusChangeListener((view, has) -> {
+            Motion.scale(view, has ? 1.06f : 1f);
+            if (has && onFocus != null) onFocus.onFocused(view);
+        });
         return b;
+    }
+
+    /**
+     * A choice chip (season, Library part, sort). Chosen: tinted with the accent and outlined.
+     * Under the remote: solid white, like every button, so "chosen" and "here" never look alike.
+     */
+    void chipStyle(TextView chip, boolean chosen) {
+        GradientDrawable picked = round((ACCENT & 0x00FFFFFF) | 0x4D000000, 18);
+        picked.setStroke(Math.max(2, dp(1.5f)), ACCENT);
+        StateListDrawable fill = new StateListDrawable();
+        fill.addState(new int[]{android.R.attr.state_focused}, round(Color.WHITE, 18));
+        fill.addState(new int[]{}, chosen ? picked : round(0x26FFFFFF, 18));
+        chip.setBackground(ripple(fill));
+        chip.setTextColor(new ColorStateList(new int[][]{{android.R.attr.state_focused}, {}}, new int[]{0xFF111317, TEXT}));
+        chip.setTypeface(chosen ? BOLD : MEDIUM);
+        chip.setForeground(null);
+        chip.setRevealOnFocusHint(false);
+        chip.setOnFocusChangeListener((view, has) -> {
+            Motion.scale(view, has ? 1.06f : 1f);
+            if (has && onFocus != null) onFocus.onFocused(view);
+        });
     }
 
     /** The main action on a screen, in the accent color. */
@@ -196,14 +228,14 @@ final class Ui {
         GradientDrawable ring = new GradientDrawable();
         ring.setShape(GradientDrawable.OVAL);
         ring.setColor(Color.TRANSPARENT);
-        ring.setStroke(Math.max(3, dp(2.5f)), RING);
+        ring.setStroke(Math.max(5, dp(4f)), Color.WHITE); // bold and white: a face is busy, a thin ring gets lost in it
         StateListDrawable fx = new StateListDrawable();
-        if (focusStyle != FOCUS_ZOOM) fx.addState(new int[]{android.R.attr.state_focused}, ring);
+        fx.addState(new int[]{android.R.attr.state_focused}, ring);
         fx.addState(new int[]{}, ripple(null));
         v.setForeground(fx);
         v.setRevealOnFocusHint(false);
         v.setOnFocusChangeListener((view, has) -> {
-            if (focusStyle != FOCUS_OUTLINE) Motion.scale(view, has ? focusScale : 1f);
+            Motion.scale(view, has ? Math.max(focusScale, 1.12f) : 1f);
             if (has && onFocus != null) onFocus.onFocused(view);
         });
     }
