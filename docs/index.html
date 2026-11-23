@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Phone TV — Ad-Free TV Launcher for Shield, Fire TV, Phones &amp; PC | Free APK</title>
-<meta name="description" content="Phone TV is a free, open-source Android TV-style launcher. Turn an old Android phone into a streaming box, or get a clean lean-back TV screen on your Windows PC with BlueStacks. TV apps, Plex, 150 KB APK.">
+<meta name="description" content="Phone TV is a free, open-source Android TV-style launcher. Turn an old Android phone into a streaming box, or get a clean lean-back TV screen on your Windows PC with BlueStacks. TV apps, Plex, 210 KB APK.">
 <meta name="keywords" content="android tv launcher for phone, turn old phone into tv box, google tv launcher apk, android tv on phone, leanback launcher phone, plex launcher, diy streaming box, shield alternative, old android phone uses, android tv on pc, bluestacks tv launcher, lean back pc, htpc launcher windows, nvidia shield launcher, fire tv launcher no ads, firestick custom launcher, debloat fire tv, google tv launcher alternative">
 <meta name="author" content="zGenMedia">
 <meta name="theme-color" content="#0b0c10">
@@ -15,14 +15,14 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Phone TV by zGenMedia">
 <meta property="og:title" content="Phone TV — Android TV on mobile devices, finally">
-<meta property="og:description" content="A lean-back TV home screen for old Android phones and Windows PCs (via BlueStacks). Free, open-source, 150 KB.">
+<meta property="og:description" content="A lean-back TV home screen for old Android phones and Windows PCs (via BlueStacks). Free, open-source, 210 KB.">
 <meta property="og:url" content="https://zgenmedia.github.io/phone-tv/">
 <meta property="og:image" content="https://zgenmedia.github.io/phone-tv/assets/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Phone TV — Android TV on mobile devices, finally">
-<meta name="twitter:description" content="A lean-back TV home screen for old Android phones and Windows PCs (via BlueStacks). Free, open-source, 150 KB.">
+<meta name="twitter:description" content="A lean-back TV home screen for old Android phones and Windows PCs (via BlueStacks). Free, open-source, 210 KB.">
 <meta name="twitter:image" content="https://zgenmedia.github.io/phone-tv/assets/og.jpg">
 
 <script type="application/ld+json">
@@ -230,6 +230,15 @@ footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);fo
 .legal{margin-top:20px;max-width:90ch;line-height:1.7}
 :focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:6px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}.device{transform:none}}
+
+/* See it: a three-step picture of the idea, and a video that loads only when asked */
+@media(min-width:760px){.steps-3{grid-template-columns:repeat(3,1fr)}}
+.video{position:relative;display:block;width:100%;aspect-ratio:16/9;border:0;padding:0;margin:0;border-radius:18px;overflow:hidden;background:#000 center/cover no-repeat;cursor:pointer;box-shadow:0 40px 90px -30px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.08)}
+.video::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 45%,rgba(0,0,0,.65))}
+.video .play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:76px;height:76px;border-radius:50%;background:rgba(0,0,0,.6);border:2px solid rgba(255,255,255,.85);display:grid;place-items:center;z-index:1;transition:transform .2s}
+.video:hover .play,.video:focus-visible .play{transform:translate(-50%,-50%) scale(1.08)}
+.video .label{position:absolute;left:18px;bottom:14px;right:18px;z-index:1;color:#fff;text-align:left;font-weight:600;font-size:15px}
+.video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 </style>
 </head>
 <body>
@@ -241,6 +250,7 @@ footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);fo
       Phone TV
     </a>
     <nav aria-label="Primary">
+      <a href="#see">See it</a>
       <a href="#features">Features</a>
       <a href="#tv">Shield &amp; Fire TV</a>
       <a href="#pc">PC &amp; Phone</a>
@@ -274,7 +284,7 @@ footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);fo
               View source
             </a>
           </div>
-          <div class="meta"><span><b>●</b> Android 7.1+</span><span>Shield · Google TV · Fire TV</span><span>Windows via BlueStacks</span><span>150 KB</span><span>0 dependencies</span><span>No ads · No tracking</span><span>GPL-3.0</span></div>
+          <div class="meta"><span><b>●</b> Android 7.1+</span><span>Shield · Google TV · Fire TV</span><span>Windows via BlueStacks</span><span>210 KB</span><span>0 dependencies</span><span>No ads · No tracking</span><span>GPL-3.0</span></div>
         </div>
 
         <figure style="margin:0">
@@ -286,7 +296,7 @@ footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);fo
       </div>
 
       <div class="stats" aria-label="Key numbers">
-        <div class="stat"><b>150 KB</b><span>APK size. Smaller than one phone photo.</span></div>
+        <div class="stat"><b>210 KB</b><span>APK size. Smaller than one phone photo.</span></div>
         <div class="stat"><b>0</b><span>Third-party libraries, ads or trackers.</span></div>
         <div class="stat"><b>7.1+</b><span>Android version. Phones, Shield, Fire TV.</span></div>
         <div class="stat"><b>$0</b><span>Cost, forever. Optional coffee on Ko-fi.</span></div>
@@ -313,6 +323,39 @@ footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);fo
           <tr><td>Remote included</td><td>Use any BT controller</td><td>Yes</td></tr>
         </tbody>
       </table>
+    </div>
+  </section>
+
+  <!-- See it -->
+  <section id="see">
+    <div class="wrap">
+      <p class="eyebrow">What is this, exactly?</p>
+      <h2 style="margin-top:14px">A phone, a cable, and your TV becomes a smart TV.</h2>
+      <p class="lead" style="margin-top:18px">Phone TV is the screen you see on the TV. It replaces the phone's home screen with a big, remote-friendly one like Google TV's: movies, shows, your apps and Plex, all driven from the couch.</p>
+      <div class="steps steps-3">
+        <div class="step"><h3>Take any Android phone</h3><p>An old one from a drawer is perfect. Install Phone TV and set it as the home screen.</p></div>
+        <div class="step"><h3>Connect it to the TV</h3><p>A USB-C to HDMI cable, a dock, or a case that hides the phone behind the TV. Pair a remote or a game controller.</p></div>
+        <div class="step"><h3>Use it like a TV box</h3><p>The TV shows Phone TV. The phone's own screen can turn off or show a cooling-loop animation, made for 3D-printed cases.</p></div>
+      </div>
+
+      <div class="split" style="margin-top:44px;align-items:center">
+        <figure style="margin:0">
+          <button class="video" type="button" data-video="g8TwMsssHoI" style="background-image:url('https://i.ytimg.com/vi/g8TwMsssHoI/hqdefault.jpg')" aria-label="Play ETA PRIME's video: I Built a Tiny Android Powered Steam Machine">
+            <span class="play" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></span>
+            <span class="label">I Built a Tiny Android Powered Steam Machine… And It Actually Works!</span>
+          </button>
+          <figcaption class="caption">Video by <a href="https://www.youtube.com/watch?v=g8TwMsssHoI" rel="noopener">ETA PRIME</a> on YouTube. Not made by or about Phone TV.</figcaption>
+        </figure>
+        <div>
+          <h3 style="margin:0">Seen it done? This is the same idea.</h3>
+          <p class="lead" style="margin-top:14px">ETA PRIME put a phone in a 3D-printed case and ran PC games on a big screen. That's the gaming end of it. Phone TV is the everyday end: the same kind of phone, plugged in behind your TV, giving you a proper TV home screen for streaming, Plex and your apps.</p>
+          <p class="lead" style="margin-top:14px">Building a case of your own? Phone TV's <b>case screen</b> turns the phone's display into an animated PC cooling loop, or off, while the TV does the work.</p>
+          <div class="actions" style="margin-top:24px">
+            <a class="btn btn-primary" href="downloads/PhoneTV.apk" download>Get Phone TV</a>
+            <a class="btn btn-ghost" href="guide.html#screen">How to connect a phone to a TV</a>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -646,6 +689,20 @@ footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);fo
       });
     });
   });
+</script>
+<script>
+// The video loads only when someone asks for it: no YouTube requests or cookies until then.
+document.querySelectorAll('.video[data-video]').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var f = document.createElement('iframe');
+    f.src = 'https://www.youtube-nocookie.com/embed/' + b.dataset.video + '?autoplay=1&rel=0';
+    f.title = b.getAttribute('aria-label');
+    f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+    f.allowFullscreen = true;
+    b.replaceWith(Object.assign(document.createElement('div'), {className: 'video'}));
+    document.querySelector('#see .video:not([data-video])').appendChild(f);
+  }, {once: true});
+});
 </script>
 </body>
 </html>
