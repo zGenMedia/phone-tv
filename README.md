@@ -4,7 +4,7 @@
 
 **Android TV on mobile devices, finally.**
 
-A free, open-source, TV-style home screen that turns any Android phone — especially the old one in your drawer — into a streaming box. Runs on Windows PCs too, through BlueStacks, for a clean lean-back screen on the big TV.
+A free, open-source, TV-style home screen that turns any Android phone — especially the old one in your drawer — into a streaming box. Runs on Windows PCs and Apple Silicon Macs too, through BlueStacks, for a clean lean-back screen on the big TV.
 
 [**Download the latest APK**](https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk) · [Website](https://zgenmedia.github.io/phone-tv/) · [Guide: turn any device into a TV](https://zgenmedia.github.io/phone-tv/guide.html) · [Support on Ko-fi](https://ko-fi.com/zgenmedia/tiers) · [zGenMedia](https://zgenmedia.com)
 
@@ -95,6 +95,12 @@ System updates can block this, and you can turn it off the same way (set the fir
 1. Install the free [BlueStacks](https://www.bluestacks.com/) player.
 2. Drag `PhoneTV.apk` onto the BlueStacks window, or use its *Install APK* button.
 3. Open Phone TV and switch BlueStacks to fullscreen. Mouse and keyboard work out of the box; BlueStacks also supports game controllers.
+
+## On a Mac (BlueStacks Air)
+
+1. Install [BlueStacks Air](https://www.bluestacks.com/mac) on an Apple Silicon Mac (M1 to M4, 8 GB RAM or more).
+2. Drag `PhoneTV.apk` onto the BlueStacks Air window. If Air doesn't offer to install it, turn on Android Debug Bridge in Air's settings and run `adb install ~/Downloads/PhoneTV.apk` (`brew install android-platform-tools` gets you `adb`).
+3. Open Phone TV and go fullscreen. Step-by-step: [zgenmedia.github.io/phone-tv/mac.html](https://zgenmedia.github.io/phone-tv/mac.html)
 
 Plug the PC into a TV and you have a lean-back home screen without buying a streaming box.
 

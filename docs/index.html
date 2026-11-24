@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Phone TV — Ad-Free TV Launcher for Shield, Fire TV, Phones &amp; PC | Free APK</title>
-<meta name="description" content="Phone TV is a free, open-source Android TV-style launcher. Turn an old Android phone into a streaming box, or get a clean lean-back TV screen on your Windows PC with BlueStacks. TV apps, Plex, 210 KB APK.">
-<meta name="keywords" content="android tv launcher for phone, turn old phone into tv box, google tv launcher apk, android tv on phone, leanback launcher phone, plex launcher, diy streaming box, shield alternative, old android phone uses, android tv on pc, bluestacks tv launcher, lean back pc, htpc launcher windows, nvidia shield launcher, fire tv launcher no ads, firestick custom launcher, debloat fire tv, google tv launcher alternative">
+<title>Phone TV — Free Android TV Launcher for Phones, TV Boxes, Windows PC &amp; Mac | Download APK</title>
+<meta name="description" content="Turn an old Android phone into a streaming box, or give your Windows PC or Mac a lean-back TV screen with BlueStacks. Phone TV is a free, open-source Google TV-style launcher: 210 KB, no ads, no sign-up.">
+<meta name="keywords" content="android tv launcher for mac, android tv on mac, bluestacks air launcher, android tv on pc, bluestacks tv launcher, android tv launcher for phone, turn old phone into tv box, google tv launcher apk, android tv on phone, leanback launcher phone, plex launcher, diy streaming box, shield alternative, old android phone uses, android tv on pc, bluestacks tv launcher, lean back pc, htpc launcher windows, nvidia shield launcher, fire tv launcher no ads, firestick custom launcher, debloat fire tv, google tv launcher alternative">
 <meta name="author" content="zGenMedia">
 <meta name="theme-color" content="#0b0c10">
 <link rel="canonical" href="https://zgenmedia.github.io/phone-tv/">
@@ -15,14 +15,14 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Phone TV by zGenMedia">
 <meta property="og:title" content="Phone TV — Android TV on mobile devices, finally">
-<meta property="og:description" content="A lean-back TV home screen for old Android phones and Windows PCs (via BlueStacks). Free, open-source, 210 KB.">
+<meta property="og:description" content="A lean-back TV home screen for old Android phones, TV boxes, Windows PCs and Macs (via BlueStacks). Free, open-source, 210 KB.">
 <meta property="og:url" content="https://zgenmedia.github.io/phone-tv/">
 <meta property="og:image" content="https://zgenmedia.github.io/phone-tv/assets/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Phone TV — Android TV on mobile devices, finally">
-<meta name="twitter:description" content="A lean-back TV home screen for old Android phones and Windows PCs (via BlueStacks). Free, open-source, 210 KB.">
+<meta name="twitter:description" content="A lean-back TV home screen for old Android phones, TV boxes, Windows PCs and Macs (via BlueStacks). Free, open-source, 210 KB.">
 <meta name="twitter:image" content="https://zgenmedia.github.io/phone-tv/assets/og.jpg">
 
 <script type="application/ld+json">
@@ -34,10 +34,10 @@
   "description": "A free, open-source Android TV-style home screen launcher that turns Android phones into streaming boxes.",
   "applicationCategory": "MultimediaApplication",
   "applicationSubCategory": "Launcher",
-  "operatingSystem": "Android 7.1+; Android TV; Google TV; Fire OS 6+; Windows via BlueStacks",
+  "operatingSystem": "Android 7.1+; Android TV; Google TV; Fire OS 6+; Windows via BlueStacks; macOS via BlueStacks Air (Apple Silicon)",
   "screenshot": ["https://zgenmedia.github.io/phone-tv/assets/screens/pc-bluestacks-landscape.jpg", "https://zgenmedia.github.io/phone-tv/assets/screens/phone-portrait.jpg", "https://zgenmedia.github.io/phone-tv/assets/screens/details-page.jpg", "https://zgenmedia.github.io/phone-tv/assets/screens/settings-page.jpg"],
   "softwareVersion": "0.12.5",
-  "fileSize": "200KB",
+  "fileSize": "210KB",
   "downloadUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
   "url": "https://zgenmedia.github.io/phone-tv/",
   "license": "https://www.gnu.org/licenses/gpl-3.0.html",
@@ -61,6 +61,8 @@
      "acceptedAnswer": {"@type": "Answer", "text": "Use a USB-C to HDMI adapter if your phone supports DisplayPort Alt Mode, an MHL adapter on older models, or wireless Cast, Smart View or Miracast."}},
     {"@type": "Question", "name": "Does Phone TV work on a Windows PC?",
      "acceptedAnswer": {"@type": "Answer", "text": "Yes. Install the free BlueStacks Android emulator, install PhoneTV.apk into it and open Phone TV. Go fullscreen and your PC gets a clean, lean-back TV interface for your streaming apps."}},
+    {"@type": "Question", "name": "Does Phone TV work on a Mac?",
+     "acceptedAnswer": {"@type": "Answer", "text": "Yes, on Apple Silicon Macs (M1 to M4) through BlueStacks Air, BlueStacks' Android player for Mac. Install BlueStacks Air, add PhoneTV.apk and open Phone TV for a lean-back TV screen on your Mac or the TV it is connected to."}},
     {"@type": "Question", "name": "Does Phone TV work with Plex?",
      "acceptedAnswer": {"@type": "Answer", "text": "Yes. Link your account with a 4-character code at plex.tv/link to get Continue Watching and Recently Added rows from your own Plex Media Server."}},
     {"@type": "Question", "name": "Is Phone TV free?",
@@ -239,6 +241,26 @@ footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);fo
 .video:hover .play,.video:focus-visible .play{transform:translate(-50%,-50%) scale(1.08)}
 .video .label{position:absolute;left:18px;bottom:14px;right:18px;z-index:1;color:#fff;text-align:left;font-weight:600;font-size:15px}
 .video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+
+/* Conversion: trust line, device picker, sticky download bar, next-step note */
+.trust{margin:14px 0 0;color:var(--dim);font-size:14px}
+.platforms{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:16px;font-size:14px}
+.platforms span{color:var(--dim);margin-right:4px}
+.platforms a{padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--text);text-decoration:none}
+.platforms a:hover,.platforms a:focus-visible{border-color:var(--amber);color:var(--amber)}
+.getbar{position:fixed;left:50%;bottom:16px;transform:translate(-50%,140%);z-index:60;display:flex;gap:14px;align-items:center;padding:10px 10px 10px 18px;border-radius:999px;background:rgba(18,19,24,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--line);box-shadow:0 20px 50px -20px rgba(0,0,0,.8);transition:transform .35s cubic-bezier(.2,.8,.2,1);max-width:calc(100% - 24px)}
+.getbar.show{transform:translate(-50%,0)}
+.getbar p{margin:0;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.getbar p b{color:var(--text)}
+.getbar p span{color:var(--dim)}
+.getbar .btn{padding:10px 18px;white-space:nowrap}
+@media(max-width:560px){.getbar p span{display:none}}
+@media(prefers-reduced-motion:reduce){.getbar{transition:none}}
+.nextstep{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);z-index:61;width:min(520px,calc(100% - 24px));padding:18px 20px;border-radius:16px;background:var(--card);border:1px solid var(--amber);box-shadow:0 30px 70px -20px rgba(0,0,0,.9);display:none}
+.nextstep.show{display:block}
+.nextstep h3{margin:0 0 6px;font-size:17px}
+.nextstep p{margin:0;color:var(--dim);font-size:14px;line-height:1.5}
+.nextstep button{position:absolute;top:10px;right:12px;background:none;border:0;color:var(--dim);font-size:20px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -253,11 +275,10 @@ footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);fo
       <a href="#see">See it</a>
       <a href="#features">Features</a>
       <a href="#tv">Shield &amp; Fire TV</a>
-      <a href="#pc">PC &amp; Phone</a>
+      <a href="#pc">PC &amp; Mac</a>
       <a href="#setup">Setup</a>
       <a href="guide.html">Guide</a>
       <a href="#plex">Plex</a>
-      <a href="#nerds">Under the hood</a>
       <a href="#faq">FAQ</a>
       <a href="https://github.com/zGenMedia/phone-tv">GitHub</a>
     </nav>
@@ -273,7 +294,7 @@ footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);fo
         <div>
           <p class="eyebrow">Free · Open source · by zGenMedia</p>
           <h1 style="margin-top:18px">Android TV on mobile devices, <em>finally.</em></h1>
-          <p class="lead">Phone TV turns the old phone in your drawer into a living-room streaming box, and gives your Windows PC a clean lean-back TV screen through BlueStacks. A TV-style home screen, your Android TV apps, Plex, and the movies and shows people are watching — in a 150&nbsp;KB APK built to run cool on older hardware.</p>
+          <p class="lead">Phone TV turns the old phone in your drawer into a living-room streaming box, and gives your Windows PC or Mac a clean lean-back TV screen through BlueStacks. A TV-style home screen, your Android TV apps, Plex, and the movies and shows people are watching — in a 210&nbsp;KB APK built to run cool on older hardware.</p>
           <div class="actions">
             <a class="btn btn-primary" href="downloads/PhoneTV.apk" download>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 21h16"/></svg>
@@ -284,7 +305,14 @@ footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);fo
               View source
             </a>
           </div>
-          <div class="meta"><span><b>●</b> Android 7.1+</span><span>Shield · Google TV · Fire TV</span><span>Windows via BlueStacks</span><span>210 KB</span><span>0 dependencies</span><span>No ads · No tracking</span><span>GPL-3.0</span></div>
+          <p class="trust">Free forever · No sign-up · No ads · Installs in under a minute</p>
+          <nav class="platforms" aria-label="Pick your device">
+            <span>Setting it up on</span>
+            <a href="#setup">Android phone or TV box</a>
+            <a href="pc.html">Windows PC</a>
+            <a href="mac.html">Mac</a>
+          </nav>
+          <div class="meta"><span><b>●</b> Android 7.1+</span><span>Shield · Google TV · Fire TV</span><span>Windows &amp; Mac via BlueStacks</span><span>210 KB</span><span>0 dependencies</span><span>No ads · No tracking</span><span>GPL-3.0</span></div>
         </div>
 
         <figure style="margin:0">
@@ -405,9 +433,9 @@ footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);fo
   <!-- PC & Phone -->
   <section id="pc">
     <div class="wrap">
-      <p class="eyebrow">PC &amp; Phone</p>
-      <h2 style="margin-top:14px">The PC finally gets a lean-back screen.</h2>
-      <p class="lead" style="margin-top:18px">Phone TV runs in BlueStacks, the free Android emulator for Windows. Hook a PC up to the TV, go fullscreen and you get the same clean couch interface you'd get from a streaming box: big artwork, your apps on one shelf, no desktop clutter. On a phone it adapts to portrait or landscape automatically.</p>
+      <p class="eyebrow">Windows PC, Mac &amp; Phone</p>
+      <h2 style="margin-top:14px">Your PC or Mac finally gets a lean-back screen.</h2>
+      <p class="lead" style="margin-top:18px">Phone TV runs in BlueStacks, the free Android emulator for Windows, and in BlueStacks Air on Apple Silicon Macs. Hook a PC up to the TV, go fullscreen and you get the same clean couch interface you'd get from a streaming box: big artwork, your apps on one shelf, no desktop clutter. On a phone it adapts to portrait or landscape automatically.</p>
       <div class="pc-grid">
         <figure style="margin:0">
           <div class="shot shot-pc"><img src="assets/screens/pc-bluestacks-landscape.jpg" width="1600" height="900" loading="lazy" alt="Phone TV running fullscreen on a Windows PC in BlueStacks"></div>
@@ -433,7 +461,12 @@ footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);fo
         <div class="step"><h3>Add Phone TV</h3><p>Drag <span class="mono">PhoneTV.apk</span> onto the BlueStacks window, or use its <em>Install APK</em> button.</p></div>
         <div class="step"><h3>Go fullscreen</h3><p>Open Phone TV and switch BlueStacks to fullscreen. Mouse and keyboard work out of the box, and BlueStacks supports game controllers too.</p></div>
       </div>
-      <div class="badge-row"><span>Windows 10 / 11</span><span>BlueStacks</span><span>Landscape layout</span><span>Mouse &amp; keyboard</span><span>Arrow keys page the hero</span></div>
+      <div class="steps" style="margin-top:16px">
+        <div class="step"><h3>On a Mac</h3><p>Install <a href="https://www.bluestacks.com/mac" rel="noopener">BlueStacks Air</a> (M1 to M4 Macs), add <span class="mono">PhoneTV.apk</span> and open it. <a href="mac.html">Mac setup, step by step</a>.</p></div>
+        <div class="step"><h3>Plug into the TV</h3><p>An HDMI or USB-C cable from the Mac or PC to the TV, fullscreen, and the couch is the desk.</p></div>
+        <div class="step"><h3>Same app everywhere</h3><p>One 210 KB download for phones, TV boxes, Windows and Mac. <a href="pc.html">Windows setup, step by step</a>.</p></div>
+      </div>
+      <div class="badge-row"><span>Windows 10 / 11</span><span>macOS · Apple Silicon</span><span>BlueStacks</span><span>Landscape layout</span><span>Mouse &amp; keyboard</span><span>Arrow keys page the hero</span></div>
     </div>
   </section>
 
@@ -638,7 +671,8 @@ footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);fo
       <h2 style="margin-top:14px;margin-bottom:12px">Questions, answered.</h2>
       <details><summary>Is this the real Android TV or Google TV?</summary><p>No. Google's TV software only runs on certified TV hardware. Phone TV is an independent launcher that recreates the TV experience on a phone and runs the Android TV editions of apps you install.</p></details>
       <details><summary>Does it work on NVIDIA Shield or a Fire TV Stick?</summary><p>Yes, from v0.9.0. Sideload the APK and open Phone TV from your apps row; it's built for the remote. TV platforms don't let you pick a different Home app, so by default it runs as an app. An optional, experimental setting can put it in front of the stock home screen (Fire TV needs ADB for that step).</p></details>
-      <details><summary>Does it work on a Windows PC?</summary><p>Yes. Install the free BlueStacks emulator, install PhoneTV.apk into it and open Phone TV. In fullscreen your PC gets a clean, lean-back TV interface for the apps you install in BlueStacks.</p></details>
+      <details><summary>Does it work on a Windows PC?</summary><p>Yes (<a href="pc.html">Windows guide</a>). Install the free BlueStacks emulator, install PhoneTV.apk into it and open Phone TV. In fullscreen your PC gets a clean, lean-back TV interface for the apps you install in BlueStacks.</p></details>
+      <details><summary>Does it work on a Mac?</summary><p>Yes, on Apple Silicon Macs (M1 to M4) through BlueStacks Air, BlueStacks' Android player for Mac. Install BlueStacks Air, add PhoneTV.apk and open Phone TV. <a href="mac.html">Full Mac guide</a>.</p></details>
       <details><summary>Which phones work?</summary><p>Any Android phone, tablet or TV box on Android 7.1 or newer (Fire OS 6+). It was built to run cool on older, low-memory hardware.</p></details>
       <details><summary>Will my Android TV apps work?</summary><p>Most TV (leanback) editions install on phones, and Phone TV launches them correctly. Some expect a remote or lock to landscape — a Bluetooth controller or air mouse fixes both.</p></details>
       <details><summary>How do I connect the phone to my TV?</summary><p>A USB-C to HDMI adapter if your phone supports DisplayPort Alt Mode, an MHL adapter on older models, or wireless Cast, Smart View or Miracast.</p></details>
@@ -709,6 +743,41 @@ document.querySelectorAll('.video[data-video]').forEach(function (b) {
     document.querySelector('#see .video:not([data-video])').appendChild(f);
   }, {once: true});
 });
+</script>
+
+<div class="getbar" id="getbar" aria-hidden="true">
+  <p><b>Phone TV</b> <span>· free · 210 KB · Android, Windows &amp; Mac</span></p>
+  <a class="btn btn-primary" href="downloads/PhoneTV.apk" download tabindex="-1">Download</a>
+</div>
+<div class="nextstep" id="nextstep" role="status" aria-live="polite">
+  <button type="button" aria-label="Close">×</button>
+  <h3>Downloading PhoneTV.apk</h3>
+  <p id="nextstep-text"></p>
+</div>
+<script>
+// Download bar: appears once the hero's own button has scrolled away.
+(function () {
+  var bar = document.getElementById('getbar'), hero = document.querySelector('.hero .actions');
+  if (bar && hero && 'IntersectionObserver' in window) {
+    new IntersectionObserver(function (e) {
+      var show = !e[0].isIntersecting;
+      bar.classList.toggle('show', show);
+      bar.setAttribute('aria-hidden', show ? 'false' : 'true');
+      bar.querySelector('a').tabIndex = show ? 0 : -1;
+    }).observe(hero);
+  }
+  // After a download starts, say what to do next on this kind of device.
+  var ua = navigator.userAgent, next = document.getElementById('nextstep'), text = document.getElementById('nextstep-text');
+  var steps = /Android/i.test(ua)
+    ? 'Open it from your notifications or Downloads and tap Install. If Android asks, allow installs from your browser. Then press Home and choose Phone TV.'
+    : /Mac/i.test(ua)
+    ? 'Next: open BlueStacks Air (or <a href="https://www.bluestacks.com/mac" rel="noopener">get it for Apple Silicon Macs</a>) and drag PhoneTV.apk onto its window. <a href="mac.html#steps">Mac steps</a>.'
+    : 'Next: open BlueStacks (or <a href="https://www.bluestacks.com/" rel="noopener">get it for Windows</a>) and drag PhoneTV.apk onto its window. <a href="pc.html#steps">Windows steps</a>.';
+  document.querySelectorAll('a[href$="PhoneTV.apk"]').forEach(function (a) {
+    a.addEventListener('click', function () { text.innerHTML = steps; next.classList.add('show'); });
+  });
+  next.querySelector('button').addEventListener('click', function () { next.classList.remove('show'); });
+})();
 </script>
 </body>
 </html>
