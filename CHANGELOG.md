@@ -3,6 +3,15 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.13.2 — 2026-11-25
+
+### Fixed
+- **Import from Stremio now brings the add-ons over.** After the code was
+  approved, Phone TV skipped the sign-in step Stremio requires, so the account
+  read as empty. It also no longer gets stuck on "…" when tried again.
+- The import shows what it's doing, lists what was added, and names anything
+  that failed with the reason instead of closing silently.
+
 ## 0.13.1 — 2026-11-25
 
 ### Fixed

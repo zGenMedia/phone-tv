@@ -37,13 +37,31 @@ final class StremioLink {
         return c;
     }
 
-    /** The session key once the code has been approved, or null while it's still waiting. */
+    /**
+     * The one-time token once the code has been approved, or null while it's still waiting.
+     * The token is not a session yet: {@link #session} trades it for one.
+     */
     static String read(String code) throws IOException, JSONException {
         JSONObject o = new JSONObject(get(LINK + "/read?type=Read&code=" + code));
         JSONObject r = o.optJSONObject("result");
         if (r == null) return null; // "invalid or expired" doubles as "not approved yet"
         String key = r.optString("authKey", "");
         return key.isEmpty() ? null : key;
+    }
+
+    /**
+     * Trades the approved token for a session key, as Stremio's own apps do after a link
+     * sign-in. Reading the account with the bare token is answered "Session does not exist".
+     */
+    static String session(String token) throws IOException, JSONException {
+        JSONObject o = new JSONObject(post("/loginWithToken", new JSONObject().put("type", "LoginWithToken").put("token", token)));
+        JSONObject r = o.optJSONObject("result");
+        String key = r == null ? "" : r.optString("authKey", "");
+        if (key.isEmpty()) {
+            JSONObject err = o.optJSONObject("error");
+            throw new IOException(err != null ? err.optString("message", "Stremio refused the sign-in") : "Stremio refused the sign-in");
+        }
+        return key;
     }
 
     /** Every add-on's manifest link on the account, in the account's order, minus Stremio's built-ins. */
@@ -70,7 +88,10 @@ final class StremioLink {
     }
 
     private static String get(String url) throws IOException {
-        return new String(Http.get(url, new HashMap<String, String>(), 15_000), StandardCharsets.UTF_8);
+        // The same address is asked again every few seconds; a stored "not yet" must never answer for it.
+        Map<String, String> h = new HashMap<>();
+        h.put("Cache-Control", "no-cache");
+        return new String(Http.get(url, h, 15_000), StandardCharsets.UTF_8);
     }
 
     private static String post(String path, JSONObject body) throws IOException {

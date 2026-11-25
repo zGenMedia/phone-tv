@@ -472,6 +472,16 @@
     <string name="addon_installed">Add-ons installed: %1$d</string>
     <string name="addon_some_failed">Installed %1$d. Couldn\'t install %2$d (check the links).</string>
     <string name="stremio_link_help">On a phone or computer signed in to Stremio, open link.stremio.com and enter this code. Phone TV only reads your add-on list.</string>
+    <string name="stremio_connected">Connected to Stremio. Reading your add-ons…</string>
+    <string name="stremio_no_addons">Connected, but this Stremio account has no add-ons beyond the ones Stremio includes itself. Add some in Stremio, or paste their links here.</string>
+    <string name="stremio_failed">Couldn\'t import from Stremio.\n\nStep: %1$s\nReason: %2$s\n\nNothing was changed. Close this and try again for a new code.</string>
+    <string name="stremio_stage_code">getting a code</string>
+    <string name="stremio_stage_wait">waiting for the code to be entered</string>
+    <string name="stremio_stage_signin">signing in with the approved code</string>
+    <string name="stremio_stage_list">reading the add-on list</string>
+    <string name="addon_progress">Adding add-on %1$d of %2$d…</string>
+    <string name="addon_added_list">Added %1$d: %2$s</string>
+    <string name="addon_failed_list">Couldn\'t add %1$d:\n%2$s</string>
     <string name="stremio_open_link">Open link.stremio.com</string>
     <string name="stremio_no_browser">No browser here. Open link.stremio.com on your phone or computer.</string>
     <string name="stremio_link_expired">The Stremio code ran out. Try again.</string>

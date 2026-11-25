@@ -3864,22 +3864,40 @@ public class HomeActivity extends Activity {
         d.show();
     }
 
+    /**
+     * Installs a list of add-on links, reporting as it goes. Anything that didn't install is
+     * named with the reason, so nothing fails silently.
+     */
     void installAddons(List<String> links) {
-        toast(getString(R.string.addon_installing, links.size()));
-        io.execute(() -> {
-            int ok = 0;
-            List<String> failed = new ArrayList<>();
-            for (String link : links) {
-                try { Addons.of(this).install(link); ok++; }
-                catch (IOException | org.json.JSONException | RuntimeException e) { failed.add(link); }
+        final TextView body = dialogText(getString(R.string.addon_installing, links.size()));
+        final AlertDialog d = new AlertDialog.Builder(this, R.style.PhoneTvDialog)
+                .setTitle(R.string.set_addons).setView(dialogForm(body))
+                .setPositiveButton(R.string.close, null).create();
+        d.show();
+        new Thread(() -> {
+            final List<String> added = new ArrayList<>(), failed = new ArrayList<>();
+            for (int i = 0; i < links.size(); i++) {
+                String link = links.get(i);
+                final int n = i + 1;
+                main.post(() -> body.setText(getString(R.string.addon_progress, n, links.size())));
+                try { added.add(Addons.of(this).install(link).name); }
+                catch (IOException | org.json.JSONException | RuntimeException e) {
+                    String host = Uri.parse(link.replace("stremio://", "https://")).getHost();
+                    failed.add((host == null ? link : host) + ": " + CatalogRepository.describe(e instanceof Exception ? (Exception) e : new IOException()));
+                }
             }
-            final int done = ok;
             main.post(() -> {
-                toast(failed.isEmpty() ? getString(R.string.addon_installed, done) : getString(R.string.addon_some_failed, done, failed.size()));
+                StringBuilder report = new StringBuilder();
+                if (!added.isEmpty()) report.append(getString(R.string.addon_added_list, added.size(), TextUtils.join(", ", added)));
+                if (!failed.isEmpty()) {
+                    if (report.length() > 0) report.append("\n\n");
+                    report.append(getString(R.string.addon_failed_list, failed.size(), TextUtils.join("\n", failed)));
+                }
+                body.setText(report);
                 if (overlay instanceof SettingsScreen) overlay.rebuild();
                 refreshAddonRows();
             });
-        });
+        }, "phonetv-addons").start();
     }
 
     void manageAddon(Addons.Addon addon, Runnable changed) {
@@ -3899,9 +3917,9 @@ public class HomeActivity extends Activity {
      * sees the Stremio password. Only the add-on list is read.
      */
     void importStremioAddons() {
-        TextView body = dialogText(getString(R.string.stremio_link_help));
-        TextView code = dialogCode("…");
-        AlertDialog d = new AlertDialog.Builder(this, R.style.PhoneTvDialog)
+        final TextView body = dialogText(getString(R.string.stremio_link_help));
+        final TextView code = dialogCode("…");
+        final AlertDialog d = new AlertDialog.Builder(this, R.style.PhoneTvDialog)
                 .setTitle(R.string.set_addon_stremio).setView(dialogForm(body, code))
                 .setPositiveButton(R.string.stremio_open_link, null)
                 .setNegativeButton(R.string.cancel, null).create();
@@ -3912,31 +3930,57 @@ public class HomeActivity extends Activity {
             if (link[0] != null && !openUrl(link[0], null)) toast(getString(R.string.stremio_no_browser));
         }));
         d.show();
-        io.execute(() -> {
+        // Its own thread: the wait can last minutes and must not hold up anything else the app loads.
+        new Thread(() -> {
+            String stage = getString(R.string.stremio_stage_code);
             try {
                 StremioLink.Code c = StremioLink.create();
                 link[0] = c.link;
                 main.post(() -> code.setText(c.code));
-                String authKey = null;
-                long until = System.currentTimeMillis() + 5 * 60_000L;
-                while (open[0] && System.currentTimeMillis() < until && authKey == null) {
-                    Thread.sleep(3_000);
-                    authKey = StremioLink.read(c.code);
+                stage = getString(R.string.stremio_stage_wait);
+                String token = null;
+                long until = System.currentTimeMillis() + 10 * 60_000L;
+                while (open[0] && System.currentTimeMillis() < until && token == null) {
+                    Thread.sleep(2_500);
+                    try { token = StremioLink.read(c.code); }
+                    catch (IOException | org.json.JSONException hiccup) { /* a dropped request: ask again */ }
                 }
-                if (authKey == null) {
-                    if (open[0]) main.post(() -> { d.dismiss(); toast(getString(R.string.stremio_link_expired)); });
-                    return;
-                }
-                List<String> links = StremioLink.addonLinks(authKey);
-                StremioLink.logout(authKey);
-                main.post(() -> { d.dismiss(); installAddons(links); });
+                if (!open[0]) return;
+                if (token == null) throw new IOException(getString(R.string.stremio_link_expired));
+                main.post(() -> { code.setText("✓"); body.setText(R.string.stremio_connected); });
+                stage = getString(R.string.stremio_stage_signin);
+                String session;
+                try { session = StremioLink.session(token); }
+                catch (IOException | org.json.JSONException refused) { session = token; } // some accounts hand back a ready session
+                stage = getString(R.string.stremio_stage_list);
+                final List<String> links;
+                try { links = StremioLink.addonLinks(session); }
+                finally { StremioLink.logout(session); }
+                main.post(() -> {
+                    if (links.isEmpty()) {
+                        code.setVisibility(View.GONE);
+                        body.setText(R.string.stremio_no_addons);
+                        d.getButton(AlertDialog.BUTTON_POSITIVE).setVisibility(View.GONE);
+                        d.getButton(AlertDialog.BUTTON_NEGATIVE).setText(R.string.close);
+                    } else {
+                        d.dismiss();
+                        installAddons(links);
+                    }
+                });
             } catch (IOException | org.json.JSONException e) {
-                final String why = String.valueOf(e.getMessage());
-                main.post(() -> { d.dismiss(); toast(getString(R.string.setup_failed, why)); });
+                // Stay on screen and say which step failed and why, so it can be reported or retried.
+                final String at = stage, why = String.valueOf(e.getMessage());
+                main.post(() -> {
+                    if (!open[0]) return;
+                    code.setVisibility(View.GONE);
+                    body.setText(getString(R.string.stremio_failed, at, why));
+                    d.getButton(AlertDialog.BUTTON_POSITIVE).setVisibility(View.GONE);
+                    d.getButton(AlertDialog.BUTTON_NEGATIVE).setText(R.string.close);
+                });
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-        });
+        }, "phonetv-stremio").start();
     }
 
     /** Add-on catalogs appear as rows; changing add-ons redraws the screen once the rows are fetched again. */
