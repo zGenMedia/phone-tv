@@ -3,6 +3,39 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.13.0 — 2026-11-25
+
+### Added — TV and film
+- **Built-in player.** Pick *Phone TV* as the player (Settings › Playback) and
+  titles play right here from your Stremio add-ons: a sources page per movie or
+  episode, audio and subtitle choice, resume, and *Next episode*. Torrent
+  sources still hand off to Stremio; long-press any source to open it in
+  another video app. Hand-off to Stremio, Nuvio and Plex is unchanged.
+- **Add-ons.** Settings › Add-ons: paste one or more add-on links, or bring
+  over every add-on from a Stremio account with a sign-in code. Add-on
+  catalogs appear as rows on the Movies and Shows tabs.
+- **Continue watching** on For you, with time left, progress, and the next
+  episode once one is finished. Trakt's paused items are included.
+- **Discover.** Search movies, shows and actors, or browse by Popular, Top
+  rated, Year or Streaming service, by genre, as far back as the catalog goes.
+- **Richer title pages.** IMDb, TMDB and Trakt ratings together; the film
+  series a movie belongs to; *More like this*; Trakt comments with spoilers
+  hidden; episode ratings and watched marks.
+- **Profiles.** Each person gets their own saved titles, actors, history and
+  Continue watching. Optional *Who's watching?* at start.
+- **Movie art screen saver.** Settings › Look › Screen saver shows: Movie art.
+- **Optional TMDB key** (Settings › Sources) for TMDB ratings, extra
+  suggestions and browsing by streaming service. Everything works without it.
+
+### Improved
+- **Smoother movement.** Scrolling follows a spring that re-aims instead of
+  restarting, so holding a direction on the remote flows instead of lurching;
+  artwork arriving mid-scroll no longer forces a full screen layout; images
+  are uploaded to the GPU before they're drawn.
+
+### Fixed
+- Opening an actor who is only listed on TVmaze no longer closes the app.
+
 ## 0.12.5 — 2026-11-23
 
 ### Fixed

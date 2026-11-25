@@ -116,5 +116,14 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/home_keeper" />
         </service>
+            <!-- Phone TV's own player, for streams from the user's add-ons. -->
+        <activity
+            android:name=".PlayerActivity"
+            android:exported="false"
+            android:theme="@style/PlayerTheme"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density"
+            android:launchMode="singleTop"
+            android:supportsPictureInPicture="false" />
     </application>
 </manifest>

@@ -1,7 +1,7 @@
 {
-  "versionCode": 25,
-  "versionName": "0.12.5",
+  "versionCode": 26,
+  "versionName": "0.13.0",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "575f882bc4b676824a26c30c13b39f5b375cba02dcf8691de1fb7cf0c1263ef2",
-  "notes": "The button under the remote now lights up white everywhere. Full casts for TV shows. Nuvio opens the exact episode."
+  "sha256": "25659f11fbad18818506e624df05d82afe586990e7b1d20253c8acf7e0fedddb",
+  "notes": "New TV and film features: built-in player with add-ons, Continue watching, Discover, profiles, richer title pages and a movie art screen saver. Smoother scrolling."
 }

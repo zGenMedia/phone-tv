@@ -35,9 +35,9 @@ import java.util.function.IntConsumer;
  * page refreshes itself when one of them closes.
  */
 final class SettingsScreen implements Overlay {
-    private static final int LOOK = 0, HOME = 1, PLAYBACK = 2, SOURCES = 3, SYSTEM = 4;
-    private static final int[] SECTION_NAMES = {R.string.set_look, R.string.set_home, R.string.set_playback, R.string.set_sources, R.string.set_system};
-    private static final int[] SECTION_HINTS = {R.string.set_look_hint, R.string.set_home_hint, R.string.set_playback_hint, R.string.set_sources_hint, R.string.set_system_hint};
+    static final int LOOK = 0, HOME = 1, PLAYBACK = 2, ADDONS = 3, SOURCES = 4, SYSTEM = 5;
+    private static final int[] SECTION_NAMES = {R.string.set_look, R.string.set_home, R.string.set_playback, R.string.set_addons, R.string.set_sources, R.string.set_system};
+    private static final int[] SECTION_HINTS = {R.string.set_look_hint, R.string.set_home_hint, R.string.set_playback_hint, R.string.set_addons_hint, R.string.set_sources_hint, R.string.set_system_hint};
 
     /** How much has to be redrawn after a change. */
     private static final int PANE = 0, HOME_SCREEN = 1, EVERYTHING = 2;
@@ -59,7 +59,10 @@ final class SettingsScreen implements Overlay {
     private ScrollView paneScroll;
     private LinearLayout pane;
 
-    SettingsScreen(HomeActivity activity) {
+    SettingsScreen(HomeActivity activity) { this(activity, LOOK); }
+
+    SettingsScreen(HomeActivity activity, int startAt) {
+        section = Math.max(0, Math.min(SYSTEM, startAt));
         a = activity;
         ui = activity.ui;
         prefs = activity.prefs;
@@ -275,6 +278,7 @@ final class SettingsScreen implements Overlay {
             case LOOK: look(); break;
             case HOME: home(); break;
             case PLAYBACK: playback(); break;
+            case ADDONS: addons(); break;
             case SOURCES: sources(); break;
             default: system();
         }
@@ -320,10 +324,25 @@ final class SettingsScreen implements Overlay {
         }
         choice(phone, "saver", R.string.set_saver, R.string.set_saver_hint, waits, wait,
                 i -> { prefs.setSaverMinutes(Prefs.SAVER_MINUTES[i]); apply(PANE); });
+        choice(phone, "saverStyle", R.string.set_saver_style, R.string.set_saver_style_hint, names(R.string.saver_loop, R.string.saver_art),
+                prefs.saverStyle(), i -> { prefs.setSaverStyle(i); apply(PANE); });
         action(phone, "saverPreview", a.getString(R.string.set_saver_preview), a.getString(R.string.set_saver_preview_hint), null, a::previewScreenSaver);
     }
 
     private void home() {
+        LinearLayout people = group(R.string.set_group_profiles);
+        String watching = Profiles.currentId(a);
+        for (Profiles.Profile p : Profiles.all(a)) {
+            boolean me = p.id.equals(watching);
+            action(people, "profile:" + p.id, p.name, null, me ? a.getString(R.string.profile_watching) : a.getString(R.string.profile_switch),
+                    () -> { if (me) a.manageProfile(p, () -> apply(PANE)); else { a.switchProfile(p.id); apply(PANE); } });
+        }
+        action(people, "profileAdd", a.getString(R.string.profile_add), a.getString(R.string.profile_add_hint), null, () -> a.addProfile(() -> apply(PANE)));
+        if (Profiles.several(a)) {
+            toggle(people, "profileAsk", R.string.profile_ask, R.string.profile_ask_hint, Profiles.askOnStart(a),
+                    () -> { Profiles.setAskOnStart(a, !Profiles.askOnStart(a)); apply(PANE); });
+        }
+
         LinearLayout banner = group(R.string.set_group_banner);
         toggle(banner, "hero", R.string.set_hero, R.string.set_hero_hint, prefs.showHero(),
                 () -> { prefs.setShowHero(!prefs.showHero()); apply(HOME_SCREEN); });
@@ -358,6 +377,7 @@ final class SettingsScreen implements Overlay {
             rowToggle(rows, HomeActivity.ROW_PLEX_CONTINUE, R.string.row_plex_continue);
             rowToggle(rows, HomeActivity.ROW_PLEX_RECENT, R.string.row_plex_recent);
         }
+        rowToggle(rows, HomeActivity.ROW_CONTINUE, R.string.row_continue);
         rowToggle(rows, HomeActivity.ROW_LIBRARY, R.string.row_library);
         rowToggle(rows, HomeActivity.ROW_TOP_PICKS, R.string.row_top_picks);
         rowToggle(rows, HomeActivity.ROW_SHOWS, R.string.row_popular_shows);
@@ -378,7 +398,7 @@ final class SettingsScreen implements Overlay {
 
     private void playback() {
         LinearLayout open = group(R.string.set_group_open);
-        final String[] values = {Prefs.PLAY_ASK, Prefs.PLAY_STREMIO, Prefs.PLAY_NUVIO, Prefs.PLAY_PLEX};
+        final String[] values = {Prefs.PLAY_ASK, Prefs.PLAY_HERE, Prefs.PLAY_STREMIO, Prefs.PLAY_NUVIO, Prefs.PLAY_PLEX};
         String[] labels = new String[values.length];
         int current = 0;
         for (int i = 0; i < values.length; i++) {
@@ -398,6 +418,43 @@ final class SettingsScreen implements Overlay {
             status.append(a.getString(R.string.set_players_missing, TextUtils.join(", ", missing)));
         }
         info(open, status.toString());
+
+        LinearLayout here = group(R.string.set_group_player);
+        toggle(here, "autoPlay", R.string.set_autoplay, R.string.set_autoplay_hint, prefs.autoPlayFirst(),
+                () -> { prefs.setAutoPlayFirst(!prefs.autoPlayFirst()); apply(PANE); });
+        final String[] langs = {"en", "es", "fr", "de", "it", "pt", "nl", "pl", "tr", "ru", "ar", "hi", "ja", "ko", "zh"};
+        String[] langNames = new String[langs.length];
+        int sub = 0, audio = 0;
+        for (int i = 0; i < langs.length; i++) {
+            langNames[i] = new java.util.Locale(langs[i]).getDisplayLanguage();
+            if (langs[i].equals(prefs.subtitleLanguage())) sub = i;
+            if (langs[i].equals(prefs.audioLanguage())) audio = i;
+        }
+        choice(here, "subLang", R.string.set_sub_lang, R.string.set_sub_lang_hint, langNames, sub, i -> { prefs.setSubtitleLanguage(langs[i]); apply(PANE); });
+        choice(here, "audioLang", R.string.set_audio_lang, R.string.set_audio_lang_hint, langNames, audio, i -> { prefs.setAudioLanguage(langs[i]); apply(PANE); });
+        choice(here, "subSize", R.string.set_sub_size, R.string.set_sub_size_hint, names(R.string.size_compact, R.string.size_standard, R.string.size_large),
+                prefs.subtitleSizeIndex(), i -> { prefs.setSubtitleSizeIndex(i); apply(PANE); });
+    }
+
+    /** Stremio add-ons: what's installed, adding one by link, and bringing over a Stremio account's list. */
+    private void addons() {
+        LinearLayout add = group(R.string.set_group_add_addons);
+        action(add, "addonAdd", a.getString(R.string.set_addon_add), a.getString(R.string.set_addon_add_hint), null, a::askAddonLinks);
+        action(add, "addonStremio", a.getString(R.string.set_addon_stremio), a.getString(R.string.set_addon_stremio_hint), null, a::importStremioAddons);
+        info(add, a.getString(R.string.set_addon_note));
+
+        List<Addons.Addon> list = Addons.of(a).all();
+        LinearLayout installed = group(R.string.set_group_installed_addons);
+        if (list.isEmpty()) { info(installed, a.getString(R.string.set_addon_none)); return; }
+        for (Addons.Addon addon : list) {
+            List<String> what = new ArrayList<>();
+            if (addon.resources.contains("stream")) what.add(a.getString(R.string.addon_streams));
+            if (addon.resources.contains("subtitles")) what.add(a.getString(R.string.addon_subtitles));
+            if (!addon.catalogs.isEmpty()) what.add(a.getString(R.string.addon_catalogs, addon.catalogs.size()));
+            String hint = TextUtils.join(" · ", what) + (addon.version.isEmpty() ? "" : "  ·  v" + addon.version);
+            action(installed, "addon:" + addon.base, addon.name, hint,
+                    a.getString(addon.enabled ? R.string.addon_on : R.string.addon_off), () -> a.manageAddon(addon, () -> apply(PANE)));
+        }
     }
 
     private void sources() {
@@ -420,6 +477,8 @@ final class SettingsScreen implements Overlay {
         }
         action(lists, "trakt", a.getString(R.string.set_trakt), a.getString(R.string.set_trakt_hint),
                 a.trakt.isConfigured() ? a.getString(R.string.set_trakt_on, a.trakt.refs().size()) : a.getString(R.string.off), a::editTrakt);
+        action(lists, "tmdb", a.getString(R.string.set_tmdb), a.getString(R.string.set_tmdb_hint),
+                prefs.tmdbKey().isEmpty() ? a.getString(R.string.off) : a.getString(R.string.on), () -> a.editTmdb(() -> apply(PANE)));
         action(lists, "refresh", a.getString(R.string.settings_refresh), a.getString(R.string.set_refresh_hint), null,
                 () -> { a.toast(a.getString(R.string.refreshing)); a.refreshContent(); });
     }

@@ -41,11 +41,15 @@ Plenty of us have a 2–6 year old phone that still has a great screen, Wi-Fi, H
 | **Keyboard & remote friendly** | Arrow keys page the hero carousel; D-pad focus everywhere; on-screen arrows for mouse users |
 | **Title pages** | Every movie and show opens full screen: artwork, cast, seasons and episodes |
 | **Library** | Save movies and shows, save actors with everything they've been in, and keep a watch history that folds in Plex and Trakt. All of it sortable |
-| **Your choice of player** | Open titles in Stremio or Nuvio, search them in Plex, or watch the trailer. A missing app says so instead of doing nothing |
+| **Your choice of player** | Play here with the built-in player, or open titles in Stremio or Nuvio, search them in Plex, or watch the trailer. A missing app says so instead of doing nothing |
+| **Add-ons** | Paste Stremio add-on links or import them from a Stremio account with a code. Sources, subtitles and add-on catalog rows |
+| **Continue watching** | Resume where you stopped, next episode when one ends, plus Trakt's paused items |
+| **Discover** | Search titles and actors; browse popular, top rated, by year or by streaming service (with a TMDB key), by genre |
+| **Profiles** | Separate saved titles, actors, history and Continue watching for each person in the house |
 | **Make it yours** | Accent colors, pure black, card size and corners, banner layout, and a switch for each row |
-| **Made for old hardware** | No dependencies, ~150 KB APK, lazy image loading, downsized disk cache, background-priority threads |
+| **Made for old hardware** | One dependency (the video player), under 1 MB APK, lazy image loading, downsized disk cache, background-priority threads, spring scrolling |
 | **Fullscreen** | Hides status and navigation bars; portrait and landscape layouts |
-| **Private** | No accounts, analytics or ads. Network calls: the public catalog and image CDN, Wikidata, Wikimedia Commons, Wikipedia and TVmaze (banner tuning, actors, casts), and your Plex server or Trakt if you set them up |
+| **Private** | No accounts, analytics or ads. Network calls: the public catalog and image CDN, Wikidata, Wikimedia Commons, Wikipedia and TVmaze (banner tuning, actors, casts), and your Plex server, Trakt, TMDB or add-ons if you set them up |
 
 ## Install
 

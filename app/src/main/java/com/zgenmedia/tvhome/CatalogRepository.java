@@ -193,12 +193,24 @@ final class CatalogRepository {
         }
     }
 
+    /**
+     * One page of a catalog for browsing: "top" (popular), "imdbRating" (top rated) or "year",
+     * narrowed by a genre (or, for "year", the year). {@code skip} pages through it.
+     */
+    static List<MediaItem> browse(String type, String catalogId, String genre, int skip) throws IOException, JSONException {
+        StringBuilder extra = new StringBuilder();
+        if (genre != null && !genre.isEmpty()) extra.append("genre=").append(Uri.encode(genre));
+        if (skip > 0) extra.append(extra.length() > 0 ? "&" : "").append("skip=").append(skip);
+        String path = BASE + type + "/" + catalogId + (extra.length() > 0 ? "/" + extra : "") + ".json";
+        return parse(new String(Http.get(path), StandardCharsets.UTF_8));
+    }
+
     /** Titles whose name or cast match what was typed; "movie" or "series". At most 20. */
     static List<MediaItem> search(String type, String typed) throws IOException, JSONException {
         return parse(new String(Http.get(BASE + type + "/top/search=" + Uri.encode(typed.trim()) + ".json"), StandardCharsets.UTF_8));
     }
 
-    private static List<MediaItem> parse(String json) throws JSONException {
+    static List<MediaItem> parse(String json) throws JSONException {
         JSONArray metas = new JSONObject(json).optJSONArray("metas");
         List<MediaItem> out = new ArrayList<>();
         if (metas == null) return out;

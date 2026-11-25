@@ -42,6 +42,7 @@ import android.widget.ScrollView;
 import android.widget.TextClock;
 import android.widget.TextView;
 import android.widget.Toast;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import java.io.File;
@@ -88,17 +89,17 @@ public class HomeActivity extends Activity {
     private static final float HERO_ART_WIDTH = 0.72f;
     private static final String TVMATE_HINT = "tvmate";
 
-    private static final int TAB_FOR_YOU = 0, TAB_MOVIES = 1, TAB_SHOWS = 2, TAB_LIBRARY = 3, TAB_APPS = 4;
-    private static final int[] TAB_LABELS = {R.string.tab_for_you, R.string.tab_movies, R.string.tab_shows, R.string.tab_library, R.string.tab_apps};
+    private static final int TAB_FOR_YOU = 0, TAB_MOVIES = 1, TAB_SHOWS = 2, TAB_LIBRARY = 3, TAB_APPS = 4, TAB_DISCOVER = 5;
+    private static final int[] TAB_LABELS = {R.string.tab_for_you, R.string.tab_movies, R.string.tab_shows, R.string.tab_library, R.string.tab_apps, R.string.tab_discover};
 
     private static final long HERO_INTERVAL_MS = 9_000;
     private static final long CONTENT_TTL_MS = 3 * 60 * 60 * 1000L;
     private static final long PLEX_POLL_MS = 2_000;
-    private static final int REQUEST_TILE_IMAGE = 41, REQUEST_BACKUP_SAVE = 42, REQUEST_BACKUP_OPEN = 43, REQUEST_VOICE = 44;
+    private static final int REQUEST_TILE_IMAGE = 41, REQUEST_BACKUP_SAVE = 42, REQUEST_BACKUP_OPEN = 43, REQUEST_VOICE = 44, REQUEST_PLAYER = 45;
 
     // Rows on "For you" that can be switched off in Settings. Keys are stored; don't rename.
     static final String ROW_PLEX_CONTINUE = "plexContinue", ROW_PLEX_RECENT = "plexRecent",
-            ROW_LIBRARY = "library", ROW_TOP_PICKS = "topPicks", ROW_SHOWS = "popularShows", ROW_MOVIES = "popularMovies", ROW_TOP_RATED = "topRated";
+            ROW_LIBRARY = "library", ROW_CONTINUE = "continue", ROW_TOP_PICKS = "topPicks", ROW_SHOWS = "popularShows", ROW_MOVIES = "popularMovies", ROW_TOP_RATED = "topRated";
 
     final Handler main = new Handler(Looper.getMainLooper());
     final ExecutorService io = Executors.newSingleThreadExecutor(r -> {
@@ -155,6 +156,7 @@ public class HomeActivity extends Activity {
     Library library;
     People people;
     private List<MediaItem> plexHistory = Collections.emptyList();
+    private List<MediaItem> traktPaused = Collections.emptyList();
     private List<Library.Watch> traktHistory = Collections.emptyList();
     private List<MediaItem> traktWatchlist = Collections.emptyList();
     private TraktClient.DeviceCode traktCode; // a Trakt sign-in waiting for the user, if any
@@ -173,7 +175,7 @@ public class HomeActivity extends Activity {
                 @Override public void onDisplayChanged(int id) { }
             };
     private final Runnable screenSaver = () -> {
-        if (overlay == null && resumed && hasWindowFocus()) openOverlay(new CaseScreen(this, false));
+        if (overlay == null && resumed && hasWindowFocus()) openOverlay(saverPage());
     };
     private ScrollView scroll;
     private View topBar;
@@ -232,6 +234,7 @@ public class HomeActivity extends Activity {
         apps.seedFavorites(STREMIO_PACKAGE, TVMATE_HINT, PlexClient.PACKAGE, "netflix", "youtube", "primevideo", "disney", "kodi");
         catalog.loadCached();
         render();
+        if (state == null && Profiles.several(this) && Profiles.askOnStart(this)) showProfiles();
         refreshContent();
         checkForUpdate(false);
         if (!tvDevice) {
@@ -342,6 +345,17 @@ public class HomeActivity extends Activity {
         if (overlay instanceof CaseScreen && !e.isSystem()) {
             // Volume, Back and Home pass through; anything else is for the case screen to answer.
             if (e.getAction() == android.view.KeyEvent.ACTION_DOWN) ((CaseScreen) overlay).onInput(false);
+            return true;
+        }
+        if (overlay instanceof ArtSaverScreen && !e.isSystem()) {
+            // Any key wakes the screen; OK also opens the title that was showing.
+            if (e.getAction() == android.view.KeyEvent.ACTION_DOWN) {
+                MediaItem showing = ((ArtSaverScreen) overlay).current();
+                closeOverlay();
+                int k = e.getKeyCode();
+                if (showing != null && (k == android.view.KeyEvent.KEYCODE_DPAD_CENTER || k == android.view.KeyEvent.KEYCODE_ENTER)) showDetails(showing);
+            }
+            restartScreenSaver();
             return true;
         }
         restartScreenSaver();
@@ -580,10 +594,22 @@ public class HomeActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_PLAYER) {
+            renderPreservingScroll(); // Continue watching changed
+            if (data == null || (resultCode != PlayerActivity.RESULT_NEXT && resultCode != PlayerActivity.RESULT_OTHER_SOURCE)) return;
+            MediaItem m = MediaItem.catalog(data.getStringExtra(PlayerActivity.X_ID), data.getStringExtra(PlayerActivity.X_TYPE),
+                    data.getStringExtra(PlayerActivity.X_TITLE), "");
+            showStreams(m, data.getStringExtra(PlayerActivity.X_EPISODE));
+            return;
+        }
         if (requestCode == REQUEST_VOICE) {
             java.util.ArrayList<String> heard = resultCode == RESULT_OK && data != null
                     ? data.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS) : null;
-            if (heard != null && !heard.isEmpty()) { appFilter = heard.get(0); tab = TAB_APPS; render(); }
+            if (heard != null && !heard.isEmpty()) {
+                // Said in Discover: a title or an actor. Said anywhere else: an app, a title or an actor.
+                if (tab == TAB_DISCOVER) discoverQuery = heard.get(0); else { appFilter = heard.get(0); tab = TAB_APPS; }
+                render();
+            }
             return;
         }
         if (requestCode == REQUEST_BACKUP_SAVE || requestCode == REQUEST_BACKUP_OPEN) {
@@ -629,7 +655,8 @@ public class HomeActivity extends Activity {
     /** The whole setup as one JSON text: settings (no sign-ins) and the Library. */
     private String setupJson() throws JSONException {
         return new JSONObject().put("phoneTvSetup", 1).put("version", BuildConfig.VERSION_NAME)
-                .put("settings", prefs.exportSettings()).put("library", new JSONObject(library.export())).toString();
+                .put("settings", prefs.exportSettings()).put("library", new JSONObject(library.export()))
+                .put("addons", Addons.of(this).exportList()).toString();
     }
 
     private void writeSetup(Uri to) {
@@ -681,6 +708,12 @@ public class HomeActivity extends Activity {
             if (o.optInt("phoneTvSetup") != 1) { toast(getString(R.string.setup_not_ours)); return; }
             prefs.importSettings(o.getJSONObject("settings"));
             added = library.merge(o.getJSONObject("library").toString());
+            JSONArray links = o.optJSONArray("addons");
+            if (links != null && links.length() > 0) {
+                List<String> list = new ArrayList<>();
+                for (int i = 0; i < links.length(); i++) list.add(links.optString(i));
+                installAddons(list);
+            }
         } catch (JSONException | RuntimeException e) {
             toast(getString(R.string.setup_not_ours));
             return;
@@ -963,6 +996,8 @@ public class HomeActivity extends Activity {
         refreshPlex();
         refreshTrakt();
         refreshMood();
+        loadAddonRows();
+        refreshTraktPaused();
         if (tab == TAB_LIBRARY) refreshHistory();
     }
 
@@ -1166,6 +1201,9 @@ public class HomeActivity extends Activity {
         } else if (tab == TAB_LIBRARY) {
             column.setPadding(0, insetTop + ui.dp(54), 0, insetBottom + ui.dp(24));
             buildLibraryTab(column);
+        } else if (tab == TAB_DISCOVER) {
+            column.setPadding(0, insetTop + ui.dp(62), 0, insetBottom + ui.dp(24));
+            buildDiscoverTab(column);
         } else {
             buildMediaTab(column);
         }
@@ -1204,6 +1242,7 @@ public class HomeActivity extends Activity {
             if (readyUpdate != null) column.addView(updateCard());
             column.addView(rowTitle(getString(R.string.row_your_apps)));
             column.addView(buildFavoritesRow());
+            if (prefs.rowShown(ROW_CONTINUE)) continueRow(column);
             if (prefs.rowShown(ROW_LIBRARY)) posterRow(column, getString(R.string.row_library), library.titles(Library.SORT_RECENT, Library.ONLY_ALL));
             if (moodItems.size() > 8) posterRow(column, getString(R.string.row_more_mood, prefs.heroMood()), moodItems.subList(8, moodItems.size()));
             if (plex.isLinked()) {
@@ -1230,10 +1269,12 @@ public class HomeActivity extends Activity {
             backdropRow(column, getString(R.string.row_trending_movies), slice(movies, 7, 20));
             posterRow(column, getString(R.string.row_popular_movies), slice(movies, 20, 48));
             posterRow(column, getString(R.string.row_top_rated), rated);
+            addonRowsFor(column, "movie");
         } else {
             backdropRow(column, getString(R.string.row_trending_shows), slice(shows, 7, 20));
             posterRow(column, getString(R.string.row_popular_shows), slice(shows, 20, 50));
             posterRow(column, getString(R.string.row_top_rated_shows), catalog.get(CatalogRepository.TOP_RATED_SHOWS));
+            addonRowsFor(column, "series");
         }
         column.addView(footer());
 
@@ -1242,6 +1283,145 @@ public class HomeActivity extends Activity {
 
     private static List<MediaItem> slice(List<MediaItem> l, int from, int to) {
         return from >= l.size() ? l : l.subList(from, Math.min(to, l.size()));
+    }
+
+    // ============================================================ continue watching
+
+    /**
+     * What was being watched in Phone TV's player: an unfinished movie or episode resumes where
+     * it stopped; a finished episode offers the next one. Trakt's paused items (from any app
+     * that reports to Trakt) join in when the user is signed in to Trakt.
+     */
+    private void continueRow(LinearLayout column) {
+        List<MediaItem> items = new ArrayList<>();
+        Map<String, Runnable> actions = new HashMap<>();
+        for (Progress.Entry e : Progress.of(this).recent()) {
+            MediaItem m = e.item();
+            if (e.finished()) {
+                if (e.episodeId.isEmpty()) continue;
+                CatalogRepository.Details d = catalog.cachedDetails(m);
+                CatalogRepository.Episode next = d == null ? null : nextEpisode(d, e.episodeId);
+                if (d != null && next == null) continue; // the show is done
+                m.subtitle = next == null ? getString(R.string.continue_next) : getString(R.string.continue_next_episode, next.season, next.number);
+                m.progressPercent = 0;
+                actions.put(m.id, () -> openNextEpisode(m, e.episodeId));
+            } else {
+                m.subtitle = (e.episodeLabel.isEmpty() ? "" : e.episodeLabel + "  ·  ") + getString(R.string.continue_left, PlayerActivity.clock(e.durationMs - e.positionMs));
+                m.progressPercent = Math.max(1, Math.round(e.fraction() * 100));
+                actions.put(m.id, () -> resume(e));
+            }
+            items.add(m);
+        }
+        for (MediaItem m : traktPaused) {
+            if (actions.containsKey(m.id)) continue;
+            items.add(m);
+            actions.put(m.id, () -> showDetails(m));
+        }
+        if (items.isEmpty()) return;
+        column.addView(rowTitle(getString(R.string.row_continue)));
+        LinearLayout row = rowContainer(column);
+        int w = cardWidth(land() ? 280 : 236), h = w * 9 / 16;
+        for (MediaItem m : items) {
+            FrameLayout card = card();
+            wideArt(card, m, w, true);
+            if (m.progressPercent > 0) addProgressBar(card, w, m.progressPercent);
+            if (m.subtitle != null && !m.subtitle.isEmpty()) {
+                // "S2 E4 · 42:10 left" or "Next: S2 E5", in a small tag on the artwork.
+                TextView tag = ui.label(m.subtitle, 11, Ui.TEXT, Ui.MEDIUM);
+                tag.setMaxLines(1);
+                tag.setEllipsize(TextUtils.TruncateAt.END);
+                tag.setPadding(ui.dp(7), ui.dp(3), ui.dp(7), ui.dp(3));
+                tag.setBackground(ui.round(0xB3000000, 8));
+                FrameLayout.LayoutParams tlp = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.START);
+                tlp.setMargins(ui.dp(8), ui.dp(8), ui.dp(8), 0);
+                card.addView(tag, tlp);
+            }
+            focusKey(card, "row" + rowSeq + ":" + m.id);
+            Runnable go = actions.get(m.id);
+            card.setOnClickListener(x -> go.run());
+            card.setOnLongClickListener(x -> { continueOptions(m); return true; });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(w, h);
+            lp.rightMargin = ui.dp(10);
+            row.addView(card, lp);
+        }
+    }
+
+    /** Resume straight into the player when the saved link still works; otherwise pick a source again. */
+    private void resume(Progress.Entry e) {
+        MediaItem m = e.item();
+        String episode = e.episodeId.isEmpty() ? null : e.episodeId;
+        if (e.url.isEmpty()) { showStreams(m, episode); return; }
+        String next = null, nextLabel = null;
+        CatalogRepository.Details d = catalog.cachedDetails(m);
+        if (episode != null && d != null) {
+            CatalogRepository.Episode after = nextEpisode(d, episode);
+            if (after != null) { next = after.id; nextLabel = Library.episodeLabel(after.season, after.number); }
+        }
+        startPlayer(m, episode, e.episodeLabel, e.url, e.headers, e.addon, e.positionMs, next, nextLabel);
+    }
+
+    private void openNextEpisode(MediaItem m, String lastEpisode) {
+        io.execute(() -> {
+            CatalogRepository.Details d;
+            try { d = catalog.details(m); } catch (IOException | JSONException | RuntimeException ex) { d = null; }
+            final CatalogRepository.Details found = d;
+            main.post(() -> {
+                CatalogRepository.Episode next = found == null ? null : nextEpisode(found, lastEpisode);
+                if (next == null) { showDetails(m); return; }
+                if (Prefs.PLAY_HERE.equals(prefs.playWith()) || Prefs.PLAY_ASK.equals(prefs.playWith())) showStreams(m, next.id);
+                else openWith(prefs.playWith(), m, next.id);
+            });
+        });
+    }
+
+    private void refreshTraktPaused() {
+        if (!trakt.signedIn()) { traktPaused = Collections.emptyList(); return; }
+        io.execute(() -> {
+            List<MediaItem> found;
+            try { found = trakt.paused(); } catch (IOException | JSONException | RuntimeException e) { return; }
+            main.post(() -> { traktPaused = found; if (tab == TAB_FOR_YOU) renderPreservingScroll(); });
+        });
+    }
+
+    private void continueOptions(MediaItem m) {
+        showNotice(m.title, m.subtitle, new String[]{getString(R.string.continue_details), getString(R.string.continue_remove)},
+                new Runnable[]{() -> showDetails(m), () -> { Progress.of(this).remove(m.id); renderPreservingScroll(); }});
+    }
+
+    // ================================================================ add-on catalogs
+
+    private final Map<String, List<MediaItem>> addonRows = new java.util.LinkedHashMap<>(); // "type|Add-on · Catalog" → titles
+    private boolean addonRowsLoading;
+
+    private void loadAddonRows() {
+        if (addonRowsLoading) return;
+        addonRowsLoading = true;
+        io.execute(() -> {
+            Map<String, List<MediaItem>> found = new java.util.LinkedHashMap<>();
+            for (Addons.Addon a : Addons.of(this).all()) {
+                if (!a.enabled || !a.resources.contains("catalog")) continue;
+                for (Addons.Catalog c : a.catalogs) {
+                    if (c.needsInput || !("movie".equals(c.type) || "series".equals(c.type))) continue;
+                    try {
+                        List<MediaItem> items = Addons.of(this).catalog(a, c);
+                        if (!items.isEmpty()) found.put(c.type + "|" + c.name + " · " + a.name, items);
+                    } catch (IOException | JSONException ignored) { /* skip this catalog */ }
+                }
+            }
+            main.post(() -> {
+                addonRowsLoading = false;
+                addonRows.clear();
+                addonRows.putAll(found);
+                if (tab == TAB_MOVIES || tab == TAB_SHOWS) renderPreservingScroll();
+            });
+        });
+    }
+
+    private void addonRowsFor(LinearLayout column, String type) {
+        for (Map.Entry<String, List<MediaItem>> e : addonRows.entrySet()) {
+            if (!e.getKey().startsWith(type + "|")) continue;
+            posterRow(column, e.getKey().substring(type.length() + 1), e.getValue());
+        }
     }
 
     private void restartHeroTimer() {
@@ -1264,7 +1444,7 @@ public class HomeActivity extends Activity {
         bar.setPadding(gutter() - ui.dp(4), insetTop + ui.dp(10), insetRight + ui.dp(land() ? 36 : 16), ui.dp(12));
         bar.setBackground(Ui.gradient(GradientDrawable.Orientation.TOP_BOTTOM, 0xCC000000, 0x00000000));
 
-        bar.addView(focusKey(roundIcon(android.R.drawable.ic_menu_search, v -> { tab = TAB_APPS; render(); }), "top:search"),
+        bar.addView(focusKey(roundIcon(android.R.drawable.ic_menu_search, v -> { tab = TAB_DISCOVER; render(); }), "top:search"),
                 new LinearLayout.LayoutParams(ui.dp(34), ui.dp(34)));
 
         HorizontalScrollView tabsScroller = new HorizontalScrollView(this);
@@ -1313,13 +1493,22 @@ public class HomeActivity extends Activity {
         clock.setPadding(ui.dp(8), 0, ui.dp(10), 0);
         bar.addView(clock);
 
+        if (Profiles.several(this)) {
+            TextView me = ProfileScreen.avatar(this, Profiles.current(this), 30, 13);
+            me.setOnClickListener(v -> showProfiles());
+            me.setOnFocusChangeListener((v, has) -> { Motion.scale(v, has ? 1.12f : 1f); if (has) { setTopBarVisible(true); setHeroCollapsed(true); } });
+            if (heroWatchId != 0) me.setNextFocusDownId(heroWatchId);
+            LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(ui.dp(30), ui.dp(30));
+            mlp.rightMargin = ui.dp(8);
+            bar.addView(focusKey(me, "top:profile"), mlp);
+        }
         bar.addView(focusKey(roundIcon(android.R.drawable.ic_menu_preferences, v -> showSettings()), "top:settings"),
                 new LinearLayout.LayoutParams(ui.dp(34), ui.dp(34)));
         return bar;
     }
 
     private ImageView roundIcon(int res, View.OnClickListener onClick) {
-        ImageView iv = new ImageView(this);
+        ImageView iv = new Art(this);
         iv.setImageResource(res);
         iv.setImageTintList(ColorStateList.valueOf(Ui.TEXT));
         iv.setPadding(ui.dp(7), ui.dp(7), ui.dp(7), ui.dp(7));
@@ -1633,6 +1822,206 @@ public class HomeActivity extends Activity {
         return b;
     }
 
+    // ===================================================================== discover
+
+    private static final String[] GENRES = {"Action", "Adventure", "Animation", "Biography", "Comedy", "Crime", "Documentary",
+            "Drama", "Family", "Fantasy", "History", "Horror", "Mystery", "Romance", "Sci-Fi", "Sport", "Thriller", "War", "Western"};
+    private static final int BY_POPULAR = 0, BY_RATING = 1, BY_YEAR = 2, BY_SERVICE = 3;
+    /** Streaming services for TMDB's "where to watch" (needs the user's TMDB key). TMDB provider ids. */
+    private static final String[] SERVICES = {"Netflix", "Prime Video", "Disney+", "Max", "Apple TV+", "Hulu", "Paramount+", "Peacock"};
+    private static final int[] SERVICE_IDS = {8, 9, 337, 1899, 350, 15, 531, 386};
+    private String discoverQuery = "";
+    private boolean discoverShows;
+    private int discoverBy = BY_POPULAR, discoverPick = -1; // genre, year or service index; -1 = all
+    private final List<MediaItem> discovered = new ArrayList<>();
+    private String discoverKey = "", discoverError;
+    private String discoverLoadingKey; // the choice a page is being fetched for, if any
+    private boolean discoverEnd;
+
+    /**
+     * Search and browse, Nuvio-style: a search box for titles and actors on top; under it,
+     * chips to pick movies or shows, how to sort, and a genre, year or streaming service,
+     * and a grid of what matches that keeps going as far as the catalog does.
+     */
+    private void buildDiscoverTab(LinearLayout column) {
+        int g = gutter();
+        EditText box = new EditText(this);
+        box.setSingleLine(true);
+        box.setTextColor(Ui.TEXT);
+        box.setHintTextColor(Ui.MUTED);
+        box.setHint(R.string.discover_search_hint);
+        ui.text(box, 14);
+        box.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
+        box.setPadding(ui.dp(16), 0, ui.dp(16), 0);
+        box.setBackground(ui.round(Ui.SURFACE, 22));
+        box.setText(discoverQuery);
+        keyboardOnSelect(box);
+        LinearLayout searchRow = new LinearLayout(this);
+        searchRow.setGravity(Gravity.CENTER_VERTICAL);
+        searchRow.addView(box, new LinearLayout.LayoutParams(0, ui.dp(44), 1));
+        ImageView mic = roundIcon(android.R.drawable.ic_btn_speak_now, v -> startVoiceSearch());
+        mic.setContentDescription(getString(R.string.voice_search));
+        LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(ui.dp(44), ui.dp(44));
+        mlp.leftMargin = ui.dp(10);
+        searchRow.addView(mic, mlp);
+        LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(-1, -2);
+        slp.setMargins(g, ui.dp(6), insetRight + ui.dp(20), ui.dp(4));
+        column.addView(searchRow, slp);
+
+        searchResults = new LinearLayout(this);
+        searchResults.setOrientation(LinearLayout.VERTICAL);
+        column.addView(searchResults);
+        final LinearLayout browse = new LinearLayout(this);
+        browse.setOrientation(LinearLayout.VERTICAL);
+        column.addView(browse);
+        appGrid = null;
+        searchElsewhere(discoverQuery);
+        browse.setVisibility(discoverQuery.trim().length() >= 3 ? View.GONE : View.VISIBLE);
+        box.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence t, int a, int b, int c) {}
+            @Override public void onTextChanged(CharSequence t, int a, int b, int c) {
+                discoverQuery = t.toString();
+                browse.setVisibility(discoverQuery.trim().length() >= 3 ? View.GONE : View.VISIBLE);
+                searchElsewhere(discoverQuery);
+            }
+            @Override public void afterTextChanged(Editable e) {}
+        });
+
+        // What to browse
+        LinearLayout typeBar = chipBar(browse);
+        addChoice(typeBar, "disc:type:0", getString(R.string.tab_movies), !discoverShows, () -> { discoverShows = false; discoverPick = discoverBy == BY_SERVICE ? discoverPick : -1; restartDiscover(); });
+        addChoice(typeBar, "disc:type:1", getString(R.string.tab_shows), discoverShows, () -> { discoverShows = true; discoverPick = discoverBy == BY_SERVICE ? discoverPick : -1; restartDiscover(); });
+        LinearLayout sortBar = chipBar(browse);
+        String[] sorts = {getString(R.string.discover_popular), getString(R.string.discover_rated), getString(R.string.discover_year), getString(R.string.discover_service)};
+        for (int i = 0; i < sorts.length; i++) {
+            final int by = i;
+            addChoice(sortBar, "disc:by:" + i, sorts[i], discoverBy == i, () -> { discoverBy = by; discoverPick = -1; restartDiscover(); });
+        }
+        LinearLayout pickBar = chipBar(browse);
+        String[] picks;
+        if (discoverBy == BY_YEAR) {
+            int now = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR);
+            picks = new String[30];
+            for (int i = 0; i < picks.length; i++) picks[i] = String.valueOf(now - i);
+        } else if (discoverBy == BY_SERVICE) {
+            picks = SERVICES;
+        } else {
+            picks = GENRES;
+        }
+        if (discoverBy != BY_YEAR && discoverBy != BY_SERVICE) {
+            addChoice(pickBar, "disc:pick:-1", getString(R.string.discover_all_genres), discoverPick < 0, () -> { discoverPick = -1; restartDiscover(); });
+        }
+        if ((discoverBy == BY_YEAR || discoverBy == BY_SERVICE) && discoverPick < 0) discoverPick = 0;
+        for (int i = 0; i < picks.length; i++) {
+            final int pick = i;
+            addChoice(pickBar, "disc:pick:" + i, picks[i], discoverPick == i, () -> { discoverPick = pick; restartDiscover(); });
+        }
+
+        if (discoverBy == BY_SERVICE && prefs.tmdbKey().isEmpty()) {
+            browse.addView(emptyNote(getString(R.string.discover_needs_tmdb)));
+            return;
+        }
+        String key = discoverShows + "|" + discoverBy + "|" + discoverPick;
+        if (!key.equals(discoverKey)) { discoverKey = key; discovered.clear(); discoverEnd = false; discoverError = null; loadDiscover(); }
+        boolean discoverLoading = discoverKey.equals(discoverLoadingKey);
+        if (discovered.isEmpty()) {
+            browse.addView(emptyNote(discoverLoading ? getString(R.string.discover_loading) : discoverError != null ? discoverError : getString(R.string.library_none_match)));
+            return;
+        }
+        int[] plan = gridPlan(cardWidth(land() ? 116 : 104));
+        List<View> cells = new ArrayList<>();
+        for (MediaItem m : discovered) cells.add(posterCell(m, "disc:t:" + m.id, m.year, plan[1], () -> showDetails(m), null));
+        addGrid(browse, cells, plan);
+        if (!discoverEnd) {
+            TextView more = chip(getString(discoverLoading ? R.string.discover_loading : R.string.discover_more), false);
+            focusKey(more, "disc:more");
+            more.setOnClickListener(v -> loadDiscover());
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
+            lp.setMargins(g, ui.dp(12), 0, ui.dp(12));
+            browse.addView(more, lp);
+        }
+    }
+
+    private LinearLayout chipBar(LinearLayout parent) {
+        HorizontalScrollView strip = new HorizontalScrollView(this);
+        strip.setHorizontalScrollBarEnabled(false);
+        strip.setClipToPadding(false);
+        strip.setPadding(gutter(), ui.dp(8), insetRight + ui.dp(20), ui.dp(2));
+        LinearLayout row = new LinearLayout(this);
+        strip.addView(row);
+        parent.addView(strip);
+        return row;
+    }
+
+    private void addChoice(LinearLayout row, String key, String label, boolean chosen, Runnable pick) {
+        TextView chip = chip(label, chosen);
+        focusKey(chip, key);
+        chip.setOnClickListener(v -> { restoreFocusKey = key; pick.run(); });
+        row.addView(chip, chipSpacing(6));
+        if (chosen) row.setTag(R.id.selected_chip, chip);
+    }
+
+    private void restartDiscover() { renderPreservingScroll(); }
+
+    private void loadDiscover() {
+        final String key = discoverKey;
+        if (key.equals(discoverLoadingKey)) return;
+        discoverLoadingKey = key;
+        final boolean shows = discoverShows;
+        final int by = discoverBy, pick = discoverPick, skip = discovered.size();
+        final String tmdb = prefs.tmdbKey();
+        io.execute(() -> {
+            List<MediaItem> page;
+            String problem = null;
+            try {
+                String type = shows ? "series" : "movie";
+                if (by == BY_SERVICE) page = tmdbByService(tmdb, shows, SERVICE_IDS[Math.max(0, pick)], skip / 20 + 1);
+                else if (by == BY_YEAR) page = CatalogRepository.browse(type, "year", String.valueOf(java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) - Math.max(0, pick)), skip);
+                else page = CatalogRepository.browse(type, by == BY_RATING ? "imdbRating" : "top", pick < 0 ? null : GENRES[pick], skip);
+            } catch (IOException | JSONException | RuntimeException e) {
+                page = new ArrayList<>();
+                problem = getString(R.string.discover_failed, CatalogRepository.describe(e instanceof IOException || e instanceof JSONException ? (Exception) e : new IOException(e.getMessage())));
+            }
+            final List<MediaItem> got = page;
+            final String err = problem;
+            main.post(() -> {
+                if (key.equals(discoverLoadingKey)) discoverLoadingKey = null;
+                if (!key.equals(discoverKey)) return; // the choice changed meanwhile
+                java.util.Set<String> have = new java.util.HashSet<>();
+                for (MediaItem m : discovered) have.add(m.id);
+                int before = discovered.size();
+                for (MediaItem m : got) if (have.add(m.id)) discovered.add(m);
+                if (discovered.size() == before) discoverEnd = true;
+                discoverError = err;
+                if (tab == TAB_DISCOVER) renderPreservingScroll();
+            });
+        });
+    }
+
+    /** One page of what a streaming service carries (TMDB "where to watch"), as IMDb-numbered titles. */
+    private static List<MediaItem> tmdbByService(String key, boolean shows, int provider, int page) throws IOException, JSONException {
+        String kind = shows ? "tv" : "movie";
+        String region = java.util.Locale.getDefault().getCountry().isEmpty() ? "US" : java.util.Locale.getDefault().getCountry();
+        JSONObject o = new JSONObject(new String(Http.get("https://api.themoviedb.org/3/discover/" + kind + "?api_key=" + key
+                + "&with_watch_providers=" + provider + "&watch_region=" + region + "&sort_by=popularity.desc&page=" + page), java.nio.charset.StandardCharsets.UTF_8));
+        JSONArray results = o.optJSONArray("results");
+        List<MediaItem> out = new ArrayList<>();
+        if (results == null) return out;
+        for (int i = 0; i < results.length(); i++) {
+            JSONObject r = results.getJSONObject(i);
+            try {
+                JSONObject ext = new JSONObject(new String(Http.get("https://api.themoviedb.org/3/" + kind + "/" + r.getInt("id") + "/external_ids?api_key=" + key), java.nio.charset.StandardCharsets.UTF_8));
+                String imdb = ext.optString("imdb_id", "");
+                if (!imdb.startsWith("tt")) continue;
+                String date = r.optString(shows ? "first_air_date" : "release_date", "");
+                MediaItem m = MediaItem.catalog(imdb, shows ? "series" : "movie", r.optString(shows ? "name" : "title"), date.length() >= 4 ? date.substring(0, 4) : "");
+                m.summary = r.optString("overview", "");
+                out.add(m);
+            } catch (IOException | JSONException skip) { /* one title fewer */ }
+        }
+        return out;
+    }
+
     private void buildAppsTab(LinearLayout column) {
         int g = gutter();
         EditText search = new EditText(this);
@@ -1911,7 +2300,7 @@ public class HomeActivity extends Activity {
     }
 
     /** History reported by Plex and Trakt, in the library's own shape. */
-    private List<Library.Watch> remoteHistory() {
+    List<Library.Watch> remoteHistory() {
         List<Library.Watch> out = new ArrayList<>(traktHistory);
         for (MediaItem m : plexHistory) {
             Library.Watch w = new Library.Watch();
@@ -1960,7 +2349,7 @@ public class HomeActivity extends Activity {
 
     // ----------------------------------------------------------- grids and cells
 
-    private TextView chip(CharSequence text, boolean chosen) {
+    TextView chip(CharSequence text, boolean chosen) {
         TextView chip = ui.label(text, 13, Ui.TEXT, Ui.MEDIUM);
         chip.setPadding(ui.dp(14), ui.dp(7), ui.dp(14), ui.dp(7));
         chip.setFocusable(true);
@@ -1969,7 +2358,7 @@ public class HomeActivity extends Activity {
         return chip;
     }
 
-    private LinearLayout.LayoutParams chipSpacing(float rightDp) {
+    LinearLayout.LayoutParams chipSpacing(float rightDp) {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
         lp.rightMargin = ui.dp(rightDp);
         return lp;
@@ -2032,7 +2421,7 @@ public class HomeActivity extends Activity {
         fallback.setGravity(Gravity.CENTER);
         fallback.setPadding(ui.dp(8), 0, ui.dp(8), 0);
         card.addView(fallback, new FrameLayout.LayoutParams(-1, -1));
-        ImageView art = new ImageView(this);
+        ImageView art = new Art(this);
         art.setScaleType(ImageView.ScaleType.CENTER_CROP);
         card.addView(art, new FrameLayout.LayoutParams(-1, -1));
         images.defer(card, () -> images.load(art, m.poster(width), width, false, null));
@@ -2177,7 +2566,7 @@ public class HomeActivity extends Activity {
      */
     private View wideArt(FrameLayout card, MediaItem m, int w, boolean lazy) {
         FrameLayout layer = new FrameLayout(this);
-        ImageView art = new ImageView(this);
+        ImageView art = new Art(this);
         art.setScaleType(ImageView.ScaleType.CENTER_CROP);
         layer.addView(art, new FrameLayout.LayoutParams(-1, -1));
         View scrim = new View(this);
@@ -2220,7 +2609,7 @@ public class HomeActivity extends Activity {
             fallback.setGravity(Gravity.CENTER);
             fallback.setPadding(ui.dp(8), 0, ui.dp(8), 0);
             card.addView(fallback, new FrameLayout.LayoutParams(-1, -1));
-            ImageView art = new ImageView(this);
+            ImageView art = new Art(this);
             art.setScaleType(ImageView.ScaleType.CENTER_CROP);
             card.addView(art, new FrameLayout.LayoutParams(-1, -1));
             images.defer(card, () -> images.load(art, m.poster(w), w, false, null));
@@ -2526,7 +2915,23 @@ public class HomeActivity extends Activity {
     }
 
     /** Shows the cooling loop right now, as the screen saver would. */
-    void previewScreenSaver() { openOverlay(new CaseScreen(this, false)); }
+    void previewScreenSaver() { openOverlay(saverPage()); }
+
+    /** The chosen screen saver; artwork falls back to the loop until there are titles to show. */
+    private Overlay saverPage() {
+        if (prefs.saverStyle() == Prefs.SAVER_ART) {
+            List<MediaItem> pool = new ArrayList<>(heroItems);
+            pool.addAll(moodItems);
+            for (String key : new String[]{CatalogRepository.MOVIES, CatalogRepository.SHOWS, CatalogRepository.TOP_RATED}) {
+                List<MediaItem> got = catalog.get(key);
+                if (got != null) pool.addAll(got);
+            }
+            for (List<MediaItem> row : addonRows.values()) pool.addAll(row);
+            ArtSaverScreen art = new ArtSaverScreen(this, pool);
+            if (art.hasArt()) return art;
+        }
+        return new CaseScreen(this, false);
+    }
 
     // ============================================================ pages above home
 
@@ -2534,6 +2939,81 @@ public class HomeActivity extends Activity {
     void showDetails(MediaItem m) { openOverlay(new DetailsScreen(this, m)); }
 
     void showSettings() { openOverlay(new SettingsScreen(this)); }
+
+    // ============================================================ profiles
+
+    void showProfiles() { openOverlay(new ProfileScreen(this)); }
+
+    /** Moves the household over to another person's saved titles, history and Continue watching. */
+    void switchProfile(String id) {
+        boolean changed = !id.equals(Profiles.currentId(this));
+        Profiles.switchTo(this, id);
+        if (overlay instanceof ProfileScreen) closeOverlay();
+        if (!changed) return;
+        library = Library.of(this);
+        toast(getString(R.string.profile_switched, Profiles.current(this).name));
+        render();
+        refreshHistory();
+    }
+
+    void addProfile(Runnable done) {
+        EditText name = new EditText(this);
+        name.setSingleLine(true);
+        name.setHint(R.string.profile_name_hint);
+        keyboardOnSelect(name);
+        FrameLayout box = new FrameLayout(this);
+        box.setPadding(ui.dp(24), ui.dp(8), ui.dp(24), 0);
+        box.addView(name);
+        new AlertDialog.Builder(this, R.style.PhoneTvDialog)
+                .setTitle(R.string.profile_add)
+                .setView(box)
+                .setPositiveButton(R.string.save, (d, w) -> {
+                    Profiles.add(this, name.getText().toString());
+                    render(); // the top bar gains its profile button
+                    if (done != null) done.run();
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    void manageProfile(Profiles.Profile p, Runnable done) {
+        List<String> options = new ArrayList<>();
+        options.add(getString(R.string.profile_rename));
+        if (!p.id.isEmpty()) options.add(getString(R.string.profile_remove));
+        new AlertDialog.Builder(this, R.style.PhoneTvDialog)
+                .setTitle(p.name)
+                .setItems(options.toArray(new String[0]), (d, which) -> {
+                    if (which == 0) {
+                        EditText name = new EditText(this);
+                        name.setSingleLine(true);
+                        name.setText(p.name);
+                        keyboardOnSelect(name);
+                        FrameLayout box = new FrameLayout(this);
+                        box.setPadding(ui.dp(24), ui.dp(8), ui.dp(24), 0);
+                        box.addView(name);
+                        new AlertDialog.Builder(this, R.style.PhoneTvDialog)
+                                .setTitle(R.string.profile_rename)
+                                .setView(box)
+                                .setPositiveButton(R.string.save, (d2, w) -> { Profiles.rename(this, p.id, name.getText().toString()); render(); if (done != null) done.run(); })
+                                .setNegativeButton(R.string.cancel, null)
+                                .show();
+                    } else {
+                        new AlertDialog.Builder(this, R.style.PhoneTvDialog)
+                                .setTitle(getString(R.string.profile_remove_title, p.name))
+                                .setMessage(R.string.profile_remove_message)
+                                .setPositiveButton(R.string.profile_remove, (d2, w) -> {
+                                    boolean wasCurrent = p.id.equals(Profiles.currentId(this));
+                                    Profiles.remove(this, p.id);
+                                    if (wasCurrent) { library = Library.of(this); refreshHistory(); }
+                                    render();
+                                    if (done != null) done.run();
+                                })
+                                .setNegativeButton(R.string.cancel, null)
+                                .show();
+                    }
+                })
+                .show();
+    }
 
     /**
      * Shows a page above the home screen. Home stays built underneath with its
@@ -2809,6 +3289,47 @@ public class HomeActivity extends Activity {
     }
 
     /** Advanced: Trakt Client ID + public list URLs. Casual users never need this. */
+    /** The optional TMDB key: checked against TMDB before it's kept, so a typo shows up straight away. */
+    void editTmdb(Runnable done) {
+        float d = getResources().getDisplayMetrics().density;
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding((int) (24 * d), (int) (8 * d), (int) (24 * d), 0);
+        TextView help = new TextView(this);
+        help.setText(R.string.tmdb_help);
+        help.setTextColor(Ui.MUTED);
+        help.setTextSize(13);
+        form.addView(help);
+        EditText key = new EditText(this);
+        key.setHint(R.string.tmdb_key_hint);
+        key.setSingleLine(true);
+        key.setText(prefs.tmdbKey());
+        keyboardOnSelect(key);
+        form.addView(key);
+        new AlertDialog.Builder(this, R.style.PhoneTvDialog)
+                .setTitle(R.string.tmdb_title)
+                .setView(form)
+                .setPositiveButton(R.string.save, (dlg, w) -> {
+                    final String typed = key.getText().toString().trim();
+                    if (typed.isEmpty()) { prefs.setTmdbKey(""); if (done != null) done.run(); return; }
+                    toast(getString(R.string.tmdb_checking));
+                    io.execute(() -> {
+                        boolean ok;
+                        try { Http.get("https://api.themoviedb.org/3/configuration?api_key=" + Uri.encode(typed)); ok = true; }
+                        catch (IOException e) { ok = false; }
+                        final boolean good = ok;
+                        main.post(() -> {
+                            if (good) { prefs.setTmdbKey(typed); toast(getString(R.string.tmdb_saved)); }
+                            else toast(getString(R.string.tmdb_rejected));
+                            if (done != null) done.run();
+                        });
+                    });
+                })
+                .setNeutralButton(R.string.trakt_turn_off, (dlg, w) -> { prefs.setTmdbKey(""); if (done != null) done.run(); })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
     void editTrakt() {
         float d = getResources().getDisplayMetrics().density;
         LinearLayout form = new LinearLayout(this);
@@ -3072,13 +3593,14 @@ public class HomeActivity extends Activity {
 
     // ==================================================================== actions
 
-    static final String[] PLAYERS = {Prefs.PLAY_STREMIO, Prefs.PLAY_NUVIO, Prefs.PLAY_PLEX};
+    static final String[] PLAYERS = {Prefs.PLAY_HERE, Prefs.PLAY_STREMIO, Prefs.PLAY_NUVIO, Prefs.PLAY_PLEX};
 
     /** Brand name of a player app; these aren't translated. */
     static String playerName(String player) {
         switch (player) {
             case Prefs.PLAY_NUVIO: return "Nuvio";
             case Prefs.PLAY_PLEX: return "Plex";
+            case Prefs.PLAY_HERE: return "Phone TV";
             default: return "Stremio";
         }
     }
@@ -3087,6 +3609,8 @@ public class HomeActivity extends Activity {
     String playerPackage(String player) {
         switch (player) {
             case Prefs.PLAY_PLEX: return isInstalled(PlexClient.PACKAGE) ? PlexClient.PACKAGE : null;
+            // Phone TV's own player counts as "installed" once an add-on that finds streams is.
+            case Prefs.PLAY_HERE: return hasStreamAddon() ? getPackageName() : null;
             case Prefs.PLAY_NUVIO: return handlerOf("nuvio://meta", "nuvio", NUVIO_PACKAGES);
             default: return handlerOf("stremio:///detail", "stremio", STREMIO_PACKAGE);
         }
@@ -3123,7 +3647,13 @@ public class HomeActivity extends Activity {
      * Hands a title (or one episode of a show) to an app. If the app isn't on the
      * device this says so instead of doing nothing.
      */
+    boolean hasStreamAddon() {
+        for (Addons.Addon a : Addons.of(this).all()) if (a.enabled && a.resources.contains("stream")) return true;
+        return false;
+    }
+
     void openWith(String player, MediaItem m, String episodeId) {
+        if (Prefs.PLAY_HERE.equals(player)) { showStreams(m, episodeId); return; }
         String pkg = playerPackage(player);
         if (pkg == null) { showMissingApp(player, m); return; }
         String type = m.isShow() ? "series" : "movie";
@@ -3247,4 +3777,171 @@ public class HomeActivity extends Activity {
     }
 
     void toast(String s) { Toast.makeText(this, s, Toast.LENGTH_SHORT).show(); }
+
+    // ================================================================ built-in player
+
+    /**
+     * The sources for a movie or episode from the user's add-ons. With none installed,
+     * says so and offers the add-on settings instead of an empty list.
+     */
+    void showStreams(MediaItem m, String episodeId) {
+        if (!hasStreamAddon()) {
+            showNotice(getString(R.string.sources_no_addons_title), getString(R.string.sources_no_addons_body),
+                    new String[]{getString(R.string.sources_open_addons), getString(R.string.cancel)},
+                    new Runnable[]{() -> showSettingsAt(SettingsScreen.ADDONS), null});
+            return;
+        }
+        String label = Library.episodeLabel(episodeId);
+        String next = null, nextLabel = null;
+        CatalogRepository.Details d = catalog.cachedDetails(m);
+        if (episodeId != null && d != null) {
+            CatalogRepository.Episode after = nextEpisode(d, episodeId);
+            if (after != null) { next = after.id; nextLabel = Library.episodeLabel(after.season, after.number); }
+            for (CatalogRepository.Episode e : d.episodes) if (e.id.equals(episodeId) && !e.title.isEmpty()) label += "  ·  " + e.title;
+        }
+        openOverlay(new StreamScreen(this, m, episodeId, label, next, nextLabel));
+    }
+
+    /** The episode after this one, in viewing order, skipping specials; null at the end. */
+    static CatalogRepository.Episode nextEpisode(CatalogRepository.Details d, String episodeId) {
+        List<CatalogRepository.Episode> order = new ArrayList<>();
+        for (int season : d.seasons()) if (season != 0) order.addAll(d.season(season));
+        for (int i = 0; i < order.size() - 1; i++) if (order.get(i).id.equals(episodeId)) return order.get(i + 1);
+        return null;
+    }
+
+    void startPlayer(MediaItem m, String episodeId, String label, String url, Map<String, String> headers, String addon,
+                     long resumeMs, String nextEpisodeId, String nextLabel) {
+        Bundle h = new Bundle();
+        for (Map.Entry<String, String> e : headers.entrySet()) h.putString(e.getKey(), e.getValue());
+        Intent i = new Intent(this, PlayerActivity.class)
+                .putExtra(PlayerActivity.X_URL, url).putExtra(PlayerActivity.X_HEADERS, h)
+                .putExtra(PlayerActivity.X_ID, m.id).putExtra(PlayerActivity.X_TYPE, m.isShow() ? "series" : "movie")
+                .putExtra(PlayerActivity.X_EPISODE, episodeId).putExtra(PlayerActivity.X_TITLE, m.title)
+                .putExtra(PlayerActivity.X_LABEL, label).putExtra(PlayerActivity.X_ADDON, addon)
+                .putExtra(PlayerActivity.X_POSTER, m.posterRef).putExtra(PlayerActivity.X_BACKDROP, m.backdropRef)
+                .putExtra(PlayerActivity.X_LOGO, m.logoRef).putExtra(PlayerActivity.X_RESUME, resumeMs)
+                .putExtra(PlayerActivity.X_NEXT_EPISODE, nextEpisodeId).putExtra(PlayerActivity.X_NEXT_LABEL, nextLabel);
+        try {
+            Bundle onThisScreen = launchOptions();
+            if (onThisScreen != null) startActivityForResult(i, REQUEST_PLAYER, onThisScreen);
+            else startActivityForResult(i, REQUEST_PLAYER);
+        } catch (RuntimeException e) {
+            toast(getString(R.string.player_failed));
+        }
+    }
+
+    /** A stream link handed to another video app (VLC, MX Player, Just Player…). */
+    void playElsewhere(String url, String title) {
+        Intent view = new Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse(url), "video/*").putExtra("title", title);
+        if (!startSafely(Intent.createChooser(view, getString(R.string.player_open_elsewhere)))) toast(getString(R.string.player_no_other));
+    }
+
+    /** Settings, opened on one section. */
+    void showSettingsAt(int section) { openOverlay(new SettingsScreen(this, section)); }
+
+    // ===================================================================== add-ons
+
+    /** One link, or many at once (one per line, or separated by spaces): handy for a list copied from Nuvio. */
+    void askAddonLinks() {
+        EditText box = new EditText(this);
+        box.setHint(R.string.addon_link_hint);
+        box.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        box.setMinLines(2);
+        keyboardOnSelect(box);
+        AlertDialog d = new AlertDialog.Builder(this, R.style.PhoneTvDialog)
+                .setTitle(R.string.set_addon_add)
+                .setView(dialogForm(dialogText(getString(R.string.addon_link_help)), box))
+                .setPositiveButton(R.string.addon_install, null)
+                .setNegativeButton(R.string.cancel, null).create();
+        d.setOnShowListener(x -> d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            List<String> links = new ArrayList<>();
+            for (String part : box.getText().toString().split("[\\s,]+")) if (part.contains(".") || part.startsWith("stremio://")) links.add(part);
+            if (links.isEmpty()) { box.setError(getString(R.string.addon_link_hint)); return; }
+            d.dismiss();
+            installAddons(links);
+        }));
+        d.show();
+    }
+
+    void installAddons(List<String> links) {
+        toast(getString(R.string.addon_installing, links.size()));
+        io.execute(() -> {
+            int ok = 0;
+            List<String> failed = new ArrayList<>();
+            for (String link : links) {
+                try { Addons.of(this).install(link); ok++; }
+                catch (IOException | org.json.JSONException | RuntimeException e) { failed.add(link); }
+            }
+            final int done = ok;
+            main.post(() -> {
+                toast(failed.isEmpty() ? getString(R.string.addon_installed, done) : getString(R.string.addon_some_failed, done, failed.size()));
+                if (overlay instanceof SettingsScreen) overlay.rebuild();
+                refreshAddonRows();
+            });
+        });
+    }
+
+    void manageAddon(Addons.Addon addon, Runnable changed) {
+        String[] labels = {getString(addon.enabled ? R.string.addon_turn_off : R.string.addon_turn_on), getString(R.string.addon_move_up),
+                getString(R.string.addon_move_down), getString(R.string.addon_remove)};
+        Runnable[] acts = {
+                () -> { Addons.of(this).setEnabled(addon, !addon.enabled); changed.run(); refreshAddonRows(); },
+                () -> { Addons.of(this).move(addon, -1); changed.run(); },
+                () -> { Addons.of(this).move(addon, 1); changed.run(); },
+                () -> { Addons.of(this).remove(addon); changed.run(); refreshAddonRows(); }};
+        showNotice(addon.name, addon.description.isEmpty() ? addon.base : addon.description, labels, acts);
+    }
+
+    /**
+     * Brings over every add-on on a Stremio account. Stremio's own link sign-in: a code to
+     * enter at link.stremio.com on a phone or computer that's signed in, so Phone TV never
+     * sees the Stremio password. Only the add-on list is read.
+     */
+    void importStremioAddons() {
+        TextView body = dialogText(getString(R.string.stremio_link_help));
+        TextView code = dialogCode("…");
+        AlertDialog d = new AlertDialog.Builder(this, R.style.PhoneTvDialog)
+                .setTitle(R.string.set_addon_stremio).setView(dialogForm(body, code))
+                .setPositiveButton(R.string.plex_open_link, null)
+                .setNegativeButton(R.string.cancel, null).create();
+        final String[] link = {null};
+        final boolean[] open = {true};
+        d.setOnDismissListener(x -> open[0] = false);
+        d.setOnShowListener(x -> d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            if (link[0] != null && !openUrl(link[0], null)) toast(getString(R.string.plex_no_browser));
+        }));
+        d.show();
+        io.execute(() -> {
+            try {
+                StremioLink.Code c = StremioLink.create();
+                link[0] = c.link;
+                main.post(() -> code.setText(c.code));
+                String authKey = null;
+                long until = System.currentTimeMillis() + 5 * 60_000L;
+                while (open[0] && System.currentTimeMillis() < until && authKey == null) {
+                    Thread.sleep(3_000);
+                    authKey = StremioLink.read(c.code);
+                }
+                if (authKey == null) {
+                    if (open[0]) main.post(() -> { d.dismiss(); toast(getString(R.string.stremio_link_expired)); });
+                    return;
+                }
+                List<String> links = StremioLink.addonLinks(authKey);
+                StremioLink.logout(authKey);
+                main.post(() -> { d.dismiss(); installAddons(links); });
+            } catch (IOException | org.json.JSONException e) {
+                final String why = String.valueOf(e.getMessage());
+                main.post(() -> { d.dismiss(); toast(getString(R.string.setup_failed, why)); });
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+    }
+
+    /** Add-on catalogs appear as rows; changing add-ons redraws the screen once the rows are fetched again. */
+    void refreshAddonRows() {
+        addonRows.clear();
+        loadAddonRows();
+    }
 }

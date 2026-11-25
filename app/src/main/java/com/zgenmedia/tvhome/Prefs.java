@@ -203,6 +203,29 @@ final class Prefs {
     }
 
     /** Trakt username whose public watch history is shown in the Library; empty when unused. */
+    // Built-in player
+    static final String PLAY_HERE = "here";
+    String subtitleLanguage() { return sp.getString("subLang", java.util.Locale.getDefault().getLanguage()); }
+    void setSubtitleLanguage(String code) { sp.edit().putString("subLang", code).apply(); }
+    String audioLanguage() { return sp.getString("audioLang", java.util.Locale.getDefault().getLanguage()); }
+    void setAudioLanguage(String code) { sp.edit().putString("audioLang", code).apply(); }
+    static final int[] SUBTITLE_SIZES = {18, 22, 28};
+    int subtitleSizeIndex() { return sp.getInt("subSize", 1); }
+    void setSubtitleSizeIndex(int i) { sp.edit().putInt("subSize", i).apply(); }
+    float subtitleSize() { return SUBTITLE_SIZES[Math.max(0, Math.min(2, subtitleSizeIndex()))]; }
+    /** Skip the source list and play the first source, as Nuvio's auto-play does. */
+    boolean autoPlayFirst() { return sp.getBoolean("autoPlayFirst", false); }
+    void setAutoPlayFirst(boolean on) { sp.edit().putBoolean("autoPlayFirst", on).apply(); }
+
+    // Optional TMDB key (Settings › Sources). Empty: Phone TV works without TMDB.
+    String tmdbKey() { return sp.getString("tmdbKey", "").trim(); }
+    void setTmdbKey(String key) { sp.edit().putString("tmdbKey", key.trim()).apply(); }
+
+    // What the idle screen saver shows: the cooling loop (as before) or movie and show artwork.
+    static final int SAVER_LOOP = 0, SAVER_ART = 1;
+    int saverStyle() { return sp.getInt("saverStyle", SAVER_LOOP); }
+    void setSaverStyle(int v) { sp.edit().putInt("saverStyle", v).apply(); }
+
     String traktUser() { return sp.getString("traktUser", "").trim(); }
     void setTraktUser(String user) { sp.edit().putString("traktUser", user.trim()).apply(); }
 
@@ -221,7 +244,7 @@ final class Prefs {
     /** Settings that never go into a setup backup: sign-ins, tokens and this device's Plex link. */
     private static boolean privateKey(String key) {
         return key.startsWith("plex") || key.startsWith("traktAccess") || key.startsWith("traktRefresh")
-                || key.startsWith("traktExpires") || key.startsWith("traktAccount");
+                || key.startsWith("traktExpires") || key.startsWith("traktAccount") || key.equals("tmdbKey");
     }
 
     /** Every other setting, with its type, so a restore puts back exactly what was there. */

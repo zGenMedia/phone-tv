@@ -465,9 +465,16 @@ final class People {
         return out;
     }
 
-    private File cache(Library.Person p) { return new File(dir, p.id.replaceAll("[^A-Za-z0-9]", "") + ".json"); }
+    /** Keyed by Wikidata id; people known only by name (TVmaze-only cast) are keyed by their name. */
+    private File cache(Library.Person p) {
+        String key = p.id != null && !p.id.isEmpty() ? p.id : "name-" + String.valueOf(p.name).toLowerCase(java.util.Locale.ROOT);
+        return new File(dir, key.replaceAll("[^A-Za-z0-9-]", "") + ".json");
+    }
 
     private File castCache(String imdbId) { return new File(dir, "cast3-" + imdbId.replaceAll("[^A-Za-z0-9]", "") + ".json"); }
+
+    /** For other parts of the app that ask Wikidata something (film series). */
+    static JSONArray sparql(String query) throws IOException, JSONException { return query(query); }
 
     private static JSONArray query(String sparql) throws IOException, JSONException {
         Map<String, String> headers = new HashMap<>();
@@ -485,7 +492,7 @@ final class People {
         return new JSONObject(new String(body, StandardCharsets.UTF_8)).getJSONObject("results").getJSONArray("bindings");
     }
 
-    private static String value(JSONObject row, String name) {
+    static String value(JSONObject row, String name) {
         JSONObject cell = row.optJSONObject(name);
         return cell == null ? "" : cell.optString("value", "");
     }

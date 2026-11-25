@@ -45,6 +45,7 @@ final class DetailsScreen implements Overlay {
     private LinearLayout extras, episodeRow;
     private TextView metaLine, summary, credits, saveButton, watchedButton;
     private List<Library.Person> knownCast; // the cast as Wikidata lists it; null until fetched
+    private TitleExtras more;               // ratings, More like this, series, comments; null until fetched
     private View castHeading;
     private LinearLayout castShelf;
     private View primaryAction;
@@ -65,6 +66,7 @@ final class DetailsScreen implements Overlay {
             if (details == null) fetch();
             knownCast = a.people.cachedCast(item.id);
             if (knownCast == null || a.people.castStale(item.id)) fetchCast();
+            fetchMore();
         }
         build();
     }
@@ -103,6 +105,19 @@ final class DetailsScreen implements Overlay {
                 if (extras != null) { fillHeader(); fillExtras(); }
             });
         }, "phonetv-details").start();
+    }
+
+    private void fetchMore() {
+        new Thread(() -> {
+            TitleExtras found = TitleExtras.load(a, a.prefs, item);
+            a.main.post(() -> {
+                more = found;
+                fillHeader();
+                // The extra rows go under the cast; the remote stays wherever it was.
+                if (details != null) addMore();
+                if (details != null && episodeRow != null) { int s = season; season = Integer.MIN_VALUE; showSeason(s); }
+            });
+        }, "phonetv-extras").start();
     }
 
     /** Photos and parts for the cast. The names alone come with the details, so this only ever adds. */
@@ -310,7 +325,9 @@ final class DetailsScreen implements Overlay {
         String runtime = details == null ? "" : runtime(details.runtime);
         if (!runtime.isEmpty()) parts.add(runtime);
         String rating = details != null && !details.rating.isEmpty() ? details.rating : item.rating;
-        if (!rating.isEmpty()) parts.add("★ " + rating);
+        if (!rating.isEmpty()) parts.add("IMDb " + rating);
+        if (more != null && !more.tmdbRating.isEmpty()) parts.add("TMDB " + more.tmdbRating);
+        if (more != null && !more.traktRating.isEmpty()) parts.add("Trakt " + more.traktRating);
         String genres = details != null && !details.genres.isEmpty()
                 ? TextUtils.join(", ", details.genres.subList(0, Math.min(3, details.genres.size()))) : item.genres;
         if (!genres.isEmpty()) parts.add(genres);
@@ -344,7 +361,7 @@ final class DetailsScreen implements Overlay {
             }
             return;
         }
-        if (details.episodes.isEmpty()) { addCast(); return; }
+        if (details.episodes.isEmpty()) { addCast(); addMore(); return; }
 
         List<Integer> seasons = details.seasons();
         if (!seasons.contains(season)) season = seasons.get(0);
@@ -375,6 +392,91 @@ final class DetailsScreen implements Overlay {
         season = Integer.MIN_VALUE; // force the first fill
         showSeason(shown);
         addCast();
+        addMore();
+    }
+
+    private View moreSection;
+
+    /**
+     * Under the cast: the film series in order, More like this, and what people on Trakt said.
+     * Each row only when there is something in it.
+     */
+    private void addMore() {
+        if (more == null) return;
+        if (moreSection != null && moreSection.getParent() == extras) extras.removeView(moreSection);
+        LinearLayout box = new LinearLayout(a);
+        box.setOrientation(LinearLayout.VERTICAL);
+        moreSection = box;
+        int w = (int) (ui.dp(a.land() ? 116 : 100) * Prefs.CARD_SCALES[a.prefs.cardSize()]);
+        if (!more.series.isEmpty()) {
+            box.addView(heading(more.seriesName.isEmpty() ? a.getString(R.string.details_series) : more.seriesName));
+            LinearLayout row = shelfIn(box);
+            for (MediaItem m : more.series) {
+                boolean here = m.id.equals(item.id);
+                View cell = a.posterCell(m, null, here ? a.getString(R.string.details_this_one) : m.year, w, () -> { if (!here) a.showDetails(m); }, null);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(w, -2);
+                lp.rightMargin = ui.dp(12);
+                row.addView(cell, lp);
+            }
+        }
+        if (!more.related.isEmpty()) {
+            box.addView(heading(a.getString(R.string.details_more_like)));
+            LinearLayout row = shelfIn(box);
+            for (MediaItem m : more.related) {
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(w, -2);
+                lp.rightMargin = ui.dp(12);
+                row.addView(a.posterCell(m, null, m.year, w, () -> a.showDetails(m), null), lp);
+            }
+        }
+        if (!more.comments.isEmpty()) {
+            box.addView(heading(a.getString(R.string.details_comments)));
+            LinearLayout row = shelfIn(box);
+            int cw = ui.dp(a.land() ? 320 : 260);
+            for (TitleExtras.Comment c : more.comments) {
+                LinearLayout card = new LinearLayout(a);
+                card.setOrientation(LinearLayout.VERTICAL);
+                card.setPadding(ui.dp(14), ui.dp(12), ui.dp(14), ui.dp(12));
+                ui.focusable(card);
+                card.setBackground(ui.ripple(ui.round(0x1AFFFFFF, 14)));
+                TextView who = ui.label(c.user + (c.likes > 0 ? "  ·  ♥ " + c.likes : ""), 12, Ui.ACCENT, Ui.BOLD);
+                card.addView(who);
+                final boolean[] shown = {!c.spoiler};
+                TextView text = ui.label(c.spoiler ? a.getString(R.string.details_spoiler) : c.text, 13, Ui.TEXT, null);
+                text.setMaxLines(5);
+                text.setEllipsize(TextUtils.TruncateAt.END);
+                text.setLineSpacing(0, 1.15f);
+                text.setPadding(0, ui.dp(6), 0, 0);
+                card.addView(text);
+                card.setOnClickListener(v -> {
+                    if (!shown[0]) { shown[0] = true; text.setText(c.text); return; }
+                    a.showNotice(c.user, c.text, new String[]{a.getString(R.string.close)}, new Runnable[]{null});
+                });
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(cw, ui.dp(150));
+                lp.rightMargin = ui.dp(12);
+                row.addView(card, lp);
+            }
+        }
+        if (box.getChildCount() > 0) { extras.addView(box); box.post(a.images::flush); }
+    }
+
+    private TextView heading(String text) {
+        TextView h = ui.label(text, 15, Ui.TEXT, Ui.MEDIUM);
+        h.setPadding(a.gutter(), ui.dp(16), ui.dp(20), 0);
+        return h;
+    }
+
+    private LinearLayout shelfIn(LinearLayout parent) {
+        HorizontalScrollView shelf = new HorizontalScrollView(a);
+        shelf.setHorizontalScrollBarEnabled(false);
+        shelf.setClipToPadding(false);
+        shelf.setClipChildren(false);
+        shelf.setPadding(a.gutter(), ui.dp(10), a.insetRight + ui.dp(12), ui.dp(12));
+        shelf.setOnScrollChangeListener((v, x, y, ox, oy) -> a.images.flush());
+        LinearLayout row = new LinearLayout(a);
+        row.setClipChildren(false);
+        shelf.addView(row);
+        parent.addView(shelf);
+        return row;
     }
 
     /** The cast as a shelf of round photos. Each opens that actor's page. */
@@ -438,7 +540,7 @@ final class DetailsScreen implements Overlay {
             card.setBackground(ui.round(Ui.SURFACE, ui.cardRadius));
             card.setClipToOutline(true);
             ui.focusable(card);
-            ImageView thumb = new ImageView(a);
+            ImageView thumb = new Art(a);
             thumb.setScaleType(ImageView.ScaleType.CENTER_CROP);
             card.addView(thumb, new FrameLayout.LayoutParams(-1, -1));
             TextView badge = ui.label(String.valueOf(e.number), 11, Ui.TEXT, Ui.BOLD);
@@ -447,6 +549,33 @@ final class DetailsScreen implements Overlay {
             FrameLayout.LayoutParams blp = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.START);
             blp.setMargins(ui.dp(8), ui.dp(8), 0, 0);
             card.addView(badge, blp);
+            String stars = more == null ? null : more.episodeRatings.get(e.season + ":" + e.number);
+            if (stars != null) {
+                TextView score = ui.label("★ " + stars, 11, Ui.TEXT, Ui.BOLD);
+                score.setPadding(ui.dp(7), ui.dp(2), ui.dp(7), ui.dp(2));
+                score.setBackground(ui.round(0xB3000000, 6));
+                FrameLayout.LayoutParams slp = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
+                slp.setMargins(0, ui.dp(8), ui.dp(8), 0);
+                card.addView(score, slp);
+            }
+            if (watchedEpisode(e)) {
+                TextView tick = ui.label("✓", 13, Ui.ON_ACCENT, Ui.BOLD);
+                tick.setGravity(Gravity.CENTER);
+                tick.setBackground(ui.round(Ui.ACCENT, 11));
+                FrameLayout.LayoutParams tlp = new FrameLayout.LayoutParams(ui.dp(22), ui.dp(22), Gravity.BOTTOM | Gravity.END);
+                tlp.setMargins(0, 0, ui.dp(8), ui.dp(8));
+                card.addView(tick, tlp);
+            }
+            long at = Progress.of(a).resumeAt(item.id, e.id);
+            Progress.Entry entry = at > 0 ? Progress.of(a).get(item.id) : null;
+            if (entry != null && entry.durationMs > 0) {
+                View track = new View(a);
+                track.setBackgroundColor(0x66000000);
+                card.addView(track, new FrameLayout.LayoutParams(-1, ui.dp(4), Gravity.BOTTOM));
+                View done = new View(a);
+                done.setBackgroundColor(Ui.ACCENT);
+                card.addView(done, new FrameLayout.LayoutParams((int) (w * entry.fraction()), ui.dp(4), Gravity.BOTTOM));
+            }
             card.setOnClickListener(v -> openEpisode(e));
             cell.addView(card, new LinearLayout.LayoutParams(w, h));
             if (!e.thumbnail.isEmpty()) {
@@ -472,6 +601,19 @@ final class DetailsScreen implements Overlay {
             episodeRow.addView(cell, lp);
         }
         episodeRow.post(this::flushThumbnails);
+    }
+
+    private java.util.Set<String> watchedLabels;
+
+    /** Watched here, in Phone TV's player, or as Plex or Trakt report it (any source the Library merges). */
+    private boolean watchedEpisode(CatalogRepository.Episode e) {
+        if (watchedLabels == null) {
+            watchedLabels = new java.util.HashSet<>();
+            for (Library.Watch w : a.library.history(a.remoteHistory(), Library.HISTORY_RECENT)) {
+                if (w.item.id.equals(item.id) && !w.episode.isEmpty()) watchedLabels.add(w.episode);
+            }
+        }
+        return watchedLabels.contains(Library.episodeLabel(e.season, e.number));
     }
 
     /** Starts thumbnail downloads for episode cards within about a screen of the visible part of the row. */

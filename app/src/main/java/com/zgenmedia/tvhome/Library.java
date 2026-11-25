@@ -77,12 +77,19 @@ final class Library {
      * silently undo the other.
      */
     static synchronized Library of(Context context) {
-        if (shared == null) shared = new Library(context.getApplicationContext());
+        String profile = Profiles.currentId(context);
+        if (shared == null || !profile.equals(sharedProfile)) {
+            shared = new Library(context.getApplicationContext());
+            sharedProfile = profile;
+        }
         return shared;
     }
 
+    private static String sharedProfile;
+
+    /** The current profile's library. */
     Library(Context context) {
-        file = new File(context.getFilesDir(), "library.json");
+        file = new File(context.getFilesDir(), Profiles.fileName("library", Profiles.currentId(context)));
         prefs = new Prefs(context);
         load();
     }

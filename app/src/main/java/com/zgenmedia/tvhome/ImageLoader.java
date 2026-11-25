@@ -74,6 +74,8 @@ final class ImageLoader {
         }
         pool.execute(() -> {
             Bitmap bmp = fetch(url, key, width, keepAlpha);
+            // Upload to the GPU now, on this thread, rather than on the first frame that draws it.
+            if (bmp != null) bmp.prepareToDraw();
             main.post(() -> {
                 if (bmp == null) return;
                 memory.put(key, bmp);

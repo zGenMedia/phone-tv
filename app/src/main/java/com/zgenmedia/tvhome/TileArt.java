@@ -62,7 +62,7 @@ final class TileArt {
             if (Build.VERSION.SDK_INT >= 26 && icon instanceof AdaptiveIconDrawable) {
                 AdaptiveIconDrawable adaptive = (AdaptiveIconDrawable) icon;
                 if (adaptive.getBackground() != null) {
-                    ImageView bg = new ImageView(ctx);
+                    ImageView bg = new Art(ctx);
                     bg.setScaleType(ImageView.ScaleType.FIT_XY);
                     bg.setImageDrawable(adaptive.getBackground());
                     tile.addView(bg, new FrameLayout.LayoutParams(-1, -1));
@@ -71,7 +71,7 @@ final class TileArt {
                     // Foreground art is drawn on a 108dp canvas with a 72dp safe zone;
                     // sizing the canvas at ~1.25x tile height makes the logo fill ~80%.
                     int size = (int) (heightPx * 1.25f);
-                    ImageView fg = new ImageView(ctx);
+                    ImageView fg = new Art(ctx);
                     fg.setImageDrawable(adaptive.getForeground());
                     tile.addView(fg, new FrameLayout.LayoutParams(size, size, Gravity.CENTER));
                 }
@@ -88,7 +88,7 @@ final class TileArt {
         LinearLayout col = new LinearLayout(ctx);
         col.setOrientation(LinearLayout.VERTICAL);
         col.setGravity(Gravity.CENTER);
-        ImageView iv = new ImageView(ctx);
+        ImageView iv = new Art(ctx);
         iv.setImageDrawable(icon(app));
         int s = (int) (heightPx * 0.42f);
         col.addView(iv, new LinearLayout.LayoutParams(s, s));
@@ -157,7 +157,7 @@ final class TileArt {
     }
 
     private ImageView cover(Object art) {
-        ImageView iv = new ImageView(ctx);
+        ImageView iv = new Art(ctx);
         iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
         if (art instanceof Bitmap) iv.setImageBitmap((Bitmap) art); else iv.setImageDrawable((Drawable) art);
         iv.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));

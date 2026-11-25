@@ -256,7 +256,8 @@ section{padding:72px 0}
       <h2>What stays on your device</h2>
       <ul class="lead" style="margin-top:18px">
         <li>Your settings, your Library (saved titles, saved actors, watch history) and cached artwork and catalog pages.</li>
-        <li>Sign-in tokens for Plex and Trakt, if you connect them. They are kept out of Android's cloud backup and device-to-device transfer.</li>
+        <li>Profiles, Continue watching positions and your add-on list.</li>
+        <li>Sign-in tokens for Plex and Trakt, and your TMDB key, if you add them. They are kept out of Android's cloud backup and device-to-device transfer.</li>
         <li>Nothing is collected, sold or shared by zGenMedia. We never see any of it.</li>
       </ul>
 
@@ -268,7 +269,10 @@ section{padding:72px 0}
         <li><b>GitHub Pages</b> (this site) to check for updates and download them.</li>
         <li><b>Plex</b>, only if you link it: plex.tv to sign in, then your own Plex server for your libraries, Continue watching and watch history.</li>
         <li><b>Trakt</b>, only if you sign in or add a username or lists: to read your watch history, watchlist and public lists. Phone TV only reads from Trakt; it never changes your Trakt data. Signing out removes the token from the device and asks Trakt to cancel it.</li>
-        <li>When you choose to watch something, the app you pick (Stremio, Nuvio, Plex, YouTube) opens and its own privacy policy applies.</li>
+        <li><b>TMDB</b>, only if you add your own TMDB key: for ratings, suggestions and browsing by streaming service. These requests contain the title's IMDb id and your key.</li>
+        <li><b>Add-ons you install</b>, only if you add them: Phone TV asks each one for catalogs, sources and subtitles for the title you open. Each add-on is run by its own author and its own privacy policy applies. Phone TV doesn't host or provide any content.</li>
+        <li><b>Stremio</b>, only if you use <i>Import from Stremio</i>: a one-time sign-in code reads your add-on list, then the session is signed out. Phone TV never sees your Stremio password.</li>
+        <li>When you choose to watch something, the app you pick (Stremio, Nuvio, Plex, YouTube) opens and its own privacy policy applies. Playback in Phone TV's own player stays on your device; what you watched and where you stopped is kept only on the device.</li>
       </ul>
 
       <h2 style="margin-top:40px">Moving to another device</h2>

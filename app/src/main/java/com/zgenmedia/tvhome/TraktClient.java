@@ -216,6 +216,30 @@ final class TraktClient {
         return parseHistory(get("/users/" + android.net.Uri.encode(prefs.traktUser()) + "/history?limit=80&extended=full"));
     }
 
+    /**
+     * Things paused part-way in any app that reports to Trakt (Stremio, Nuvio, Kodi…), newest
+     * first, with how far along they are. Reading only: Phone TV doesn't write progress back.
+     */
+    List<MediaItem> paused() throws IOException, JSONException {
+        JSONArray arr = new JSONArray(authorized("/sync/playback?extended=full&limit=30"));
+        List<MediaItem> out = new ArrayList<>();
+        for (int i = 0; i < arr.length(); i++) {
+            JSONObject o = arr.getJSONObject(i);
+            boolean movie = "movie".equals(o.optString("type"));
+            JSONObject about = o.optJSONObject(movie ? "movie" : "show");
+            JSONObject ids = about == null ? null : about.optJSONObject("ids");
+            String imdb = ids == null ? "" : ids.optString("imdb", "");
+            if (!imdb.startsWith("tt")) continue;
+            MediaItem m = MediaItem.catalog(imdb, movie ? "movie" : "series", about.optString("title"),
+                    about.isNull("year") ? "" : String.valueOf(about.optInt("year")));
+            m.progressPercent = (int) Math.round(o.optDouble("progress", 0));
+            JSONObject ep = o.optJSONObject("episode");
+            m.subtitle = (ep == null ? "" : Library.episodeLabel(ep.optInt("season"), ep.optInt("number")) + "  ·  ") + "Trakt";
+            out.add(m);
+        }
+        return out;
+    }
+
     /** Movies and shows on the user's Trakt watchlist, most recently added first. */
     List<MediaItem> watchlist() throws IOException, JSONException {
         String path = "/watchlist?extended=full&sort_by=added&sort_how=desc&limit=100";
