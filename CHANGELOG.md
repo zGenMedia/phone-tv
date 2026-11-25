@@ -3,6 +3,39 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.15.0 — 2026-11-25
+
+### Added
+- **Channels.** A TV guide of always-on line-ups to tune in to instead of
+  choosing: HBO, Cinemax, Showtime, Starz, AMC, FX, Netflix and more, movie
+  studios (A24, Pixar, Marvel, Ghibli…), and genre channels. Each row shows
+  what's on now, how far in it is, and what's next. OK tunes in at the live
+  point (in Phone TV's player) or hands the title to your player; a long press
+  offers the start of the title, its page, or everything from that network.
+  Movies and series only: no news, sport or local stations. The line-ups are
+  Phone TV's own, built from each network's catalog on a shared clock, so
+  everyone on a channel is at the same point. They are not the networks' live
+  broadcasts, and the guide says so. Saved networks and studios become
+  "My channels".
+- **Pick for me** (Discover). One suggestion at a time, drawn from what you've
+  watched (Trakt, Plex and Phone TV history), with the reason shown. "Another
+  pick" never repeats in one sitting; Movies / Shows narrows it.
+- **Networks & production.** Title pages list the network and the production
+  companies. OK opens everything else they've made, sortable by best known,
+  newest, oldest or name; a long press saves them. The Library has a new
+  *Networks & studios* section, and it travels with setup transfer.
+
+### Improved
+- **Setup transfer carries everything and only adds.** Every profile with its
+  library, Continue watching positions, saved networks and studios, add-ons
+  and all settings move across. Nothing already on the receiving device is
+  removed; where both have a position for a title, the newer one is kept.
+  Sign-ins stay behind on purpose.
+- **Artwork loads much faster.** Pictures already on the device no longer wait
+  behind downloads; downloads run eight at a time, newest request first; two
+  cards wanting the same picture share one download; the next banner is
+  fetched ahead; and image threads are no longer throttled as background work.
+
 ## 0.14.0 — 2026-11-25
 
 ### Added

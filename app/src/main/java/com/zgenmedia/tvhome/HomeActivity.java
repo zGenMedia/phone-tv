@@ -89,8 +89,9 @@ public class HomeActivity extends Activity {
     private static final float HERO_ART_WIDTH = 0.72f;
     private static final String TVMATE_HINT = "tvmate";
 
-    private static final int TAB_FOR_YOU = 0, TAB_MOVIES = 1, TAB_SHOWS = 2, TAB_LIBRARY = 3, TAB_APPS = 4, TAB_DISCOVER = 5;
-    private static final int[] TAB_LABELS = {R.string.tab_for_you, R.string.tab_movies, R.string.tab_shows, R.string.tab_library, R.string.tab_apps, R.string.tab_discover};
+    private static final int TAB_FOR_YOU = 0, TAB_MOVIES = 1, TAB_SHOWS = 2, TAB_LIBRARY = 3, TAB_APPS = 4, TAB_DISCOVER = 5, TAB_CHANNELS = 6;
+    private static final int[] TAB_ORDER = {TAB_FOR_YOU, TAB_CHANNELS, TAB_MOVIES, TAB_SHOWS, TAB_LIBRARY, TAB_DISCOVER, TAB_APPS};
+    private static final int[] TAB_LABELS = {R.string.tab_for_you, R.string.tab_movies, R.string.tab_shows, R.string.tab_library, R.string.tab_apps, R.string.tab_discover, R.string.tab_channels};
 
     private static final long HERO_INTERVAL_MS = 9_000;
     private static final long CONTENT_TTL_MS = 3 * 60 * 60 * 1000L;
@@ -189,6 +190,7 @@ public class HomeActivity extends Activity {
     // The user's shelf, and watch history reported by services other than this app.
     Library library;
     People people;
+    Studios studios;
     private List<MediaItem> plexHistory = Collections.emptyList();
     private List<MediaItem> traktPaused = Collections.emptyList();
     private List<Library.Watch> traktHistory = Collections.emptyList();
@@ -257,6 +259,7 @@ public class HomeActivity extends Activity {
         trakt = new TraktClient(this, prefs);
         library = Library.of(this);
         people = new People(this);
+        studios = new Studios(this);
         heroMood = new HeroMood(this, new HeroMood.WikidataSource());
         updater = new Updater(this);
 
@@ -565,7 +568,7 @@ public class HomeActivity extends Activity {
     }
 
     /** Names a focusable view so {@link #render} can return focus to it after rebuilding. */
-    private <T extends View> T focusKey(T v, String key) {
+    <T extends View> T focusKey(T v, String key) {
         v.setTag(R.id.focus_key, key);
         focusTargets.put(key, v);
         return v;
@@ -718,9 +721,24 @@ public class HomeActivity extends Activity {
     }
 
     /** The whole setup as one JSON text: settings (no sign-ins) and the Library. */
-    private String setupJson() throws JSONException {
+    /**
+     * Everything that makes this install the user's own: every setting, the add-on list, and
+     * for each profile its library and where it stopped watching. Sign-ins are left out on
+     * purpose (see Prefs): the other device signs in for itself.
+     */
+    String setupJson() throws JSONException {
+        String current = Profiles.currentId(this);
+        JSONArray others = new JSONArray();
+        for (Profiles.Profile p : Profiles.all(this)) {
+            if (p.id.equals(current)) continue;
+            others.put(new JSONObject().put("id", p.id).put("name", p.name).put("color", p.color)
+                    .put("library", new JSONObject(new Library(this, p.id).export()))
+                    .put("progress", new JSONArray(Progress.forProfile(this, p.id).export())));
+        }
         return new JSONObject().put("phoneTvSetup", 1).put("version", BuildConfig.VERSION_NAME)
                 .put("settings", prefs.exportSettings()).put("library", new JSONObject(library.export()))
+                .put("progress", new JSONArray(Progress.of(this).export()))
+                .put("profiles", others)
                 .put("addons", Addons.of(this).exportList()).toString();
     }
 
@@ -772,7 +790,26 @@ public class HomeActivity extends Activity {
             JSONObject o = new JSONObject(text);
             if (o.optInt("phoneTvSetup") != 1) { toast(getString(R.string.setup_not_ours)); return; }
             prefs.importSettings(o.getJSONObject("settings"));
+            // Restoring only ever adds: nothing already on this device is taken away.
             added = library.merge(o.getJSONObject("library").toString());
+            JSONArray positions = o.optJSONArray("progress");
+            if (positions != null) Progress.of(this).merge(positions.toString());
+            JSONArray others = o.optJSONArray("profiles");
+            String current = Profiles.currentId(this);
+            for (int i = 0; others != null && i < others.length(); i++) {
+                JSONObject p = others.getJSONObject(i);
+                String id = p.optString("id");
+                Profiles.adopt(this, id, p.optString("name"), p.optInt("color", Profiles.COLORS[i % Profiles.COLORS.length]));
+                JSONObject theirLibrary = p.optJSONObject("library");
+                JSONArray theirProgress = p.optJSONArray("progress");
+                if (id.equals(current)) {
+                    if (theirLibrary != null) added += library.merge(theirLibrary.toString());
+                    if (theirProgress != null) Progress.of(this).merge(theirProgress.toString());
+                } else {
+                    if (theirLibrary != null) added += new Library(this, id).merge(theirLibrary.toString());
+                    if (theirProgress != null) Progress.forProfile(this, id).merge(theirProgress.toString());
+                }
+            }
             JSONArray links = o.optJSONArray("addons");
             if (links != null && links.length() > 0) {
                 List<String> list = new ArrayList<>();
@@ -1285,6 +1322,10 @@ public class HomeActivity extends Activity {
         } else if (tab == TAB_DISCOVER) {
             column.setPadding(0, insetTop + ui.dp(62), 0, insetBottom + ui.dp(24));
             buildDiscoverTab(column);
+        } else if (tab == TAB_CHANNELS) {
+            column.setPadding(0, insetTop + ui.dp(62), 0, insetBottom + ui.dp(24));
+            if (channelGuide == null) channelGuide = new ChannelGuide(this);
+            channelGuide.build(column);
         } else {
             buildMediaTab(column);
         }
@@ -1540,7 +1581,9 @@ public class HomeActivity extends Activity {
         tabsScroller.setHorizontalScrollBarEnabled(false);
         LinearLayout tabs = new LinearLayout(this);
         tabs.setPadding(ui.dp(8), 0, 0, 0);
-        for (int i = 0; i < TAB_LABELS.length; i++) {
+        // Tabs keep the numbers they were given as they were added; this is the order they're shown in.
+        // Channels sits second: it's the tab for someone who doesn't want to choose.
+        for (final int i : TAB_ORDER) {
             final int index = i;
             boolean selected = i == tab;
             // Google TV style: tabs are plain text (current one brighter); only the tab under
@@ -1825,6 +1868,12 @@ public class HomeActivity extends Activity {
         // Portrait crops a 16:9 backdrop into a tall frame, so it needs ~1.75x screen width.
         int backdropW = heroBackdropWidthPx > 0 ? heroBackdropWidthPx : land() ? screenW : screenW * 7 / 4;
         showHeroArt(m.backdrop(backdropW), backdropW);
+        // The banner after this one: fetched now, so the change is a clean cross-fade with no wait.
+        if (heroItems.size() > 1) {
+            MediaItem next = heroItems.get((index + 1) % heroItems.size());
+            images.prefetch(next.backdrop(backdropW), backdropW, false);
+            images.prefetch(next.logo(), screenW / 2, true);
+        }
         final ImageView logo = heroLogo;
         final TextView title = heroTitle;
         images.load(heroLogo, m.logo(), screenW / 2, true, () -> { logo.setVisibility(View.VISIBLE); title.setVisibility(View.GONE); });
@@ -2026,6 +2075,15 @@ public class HomeActivity extends Activity {
             @Override public void afterTextChanged(Editable e) {}
         });
 
+        // One tap to stop choosing: a suggestion drawn from what they've watched.
+        TextView pickForMe = ui.primary("🎲  " + getString(R.string.pick_title));
+        focusKey(pickForMe, "disc:pick-for-me");
+        pickForMe.setOnClickListener(v -> pickForMe());
+        LinearLayout pickRow = new LinearLayout(this);
+        pickRow.setPadding(g, ui.dp(10), 0, ui.dp(2));
+        pickRow.addView(pickForMe);
+        browse.addView(pickRow);
+
         // What to browse
         LinearLayout typeBar = chipBar(browse);
         addChoice(typeBar, "disc:type:0", getString(R.string.tab_movies), !discoverShows, () -> { discoverShows = false; discoverPick = discoverBy == BY_SERVICE ? discoverPick : -1; restartDiscover(); });
@@ -2081,7 +2139,7 @@ public class HomeActivity extends Activity {
         }
     }
 
-    private LinearLayout chipBar(LinearLayout parent) {
+    LinearLayout chipBar(LinearLayout parent) {
         HorizontalScrollView strip = new HorizontalScrollView(this);
         strip.setHorizontalScrollBarEnabled(false);
         strip.setClipToPadding(false);
@@ -2092,7 +2150,7 @@ public class HomeActivity extends Activity {
         return row;
     }
 
-    private void addChoice(LinearLayout row, String key, String label, boolean chosen, Runnable pick) {
+    void addChoice(LinearLayout row, String key, String label, boolean chosen, Runnable pick) {
         TextView chip = chip(label, chosen);
         focusKey(chip, key);
         chip.setOnClickListener(v -> { restoreFocusKey = key; pick.run(); });
@@ -2331,7 +2389,8 @@ public class HomeActivity extends Activity {
 
     // ============================================================== library tab
 
-    private static final String PART_SAVED = "saved", PART_ACTORS = "actors", PART_HISTORY = "history";
+    private static final String PART_SAVED = "saved", PART_ACTORS = "actors", PART_HISTORY = "history", PART_COMPANIES = "companies";
+    private static final int PART_COMPANIES_INDEX = 3;
     private static final int[] TITLE_SORTS = {R.string.sort_recent, R.string.sort_title, R.string.sort_newest, R.string.sort_rating};
     private static final int[] TITLE_SORT_VALUES = {Library.SORT_RECENT, Library.SORT_TITLE, Library.SORT_NEWEST, Library.SORT_RATING};
     private static final int[] ONLY_LABELS = {R.string.only_all, R.string.only_movies, R.string.only_shows};
@@ -2350,14 +2409,38 @@ public class HomeActivity extends Activity {
         LinearLayout bar = rowContainer(column);
         rowSeq--; // a row of controls, not a shelf of titles
         String[] parts = {getString(R.string.library_saved, library.titleCount()),
-                getString(R.string.library_actors, library.peopleCount()), getString(R.string.library_history)};
-        for (int i = 0; i < parts.length; i++) {
-            final int index = i;
-            TextView chip = chip(parts[i], i == part);
+                getString(R.string.library_actors, library.peopleCount()), getString(R.string.library_history),
+                getString(R.string.library_companies, library.companyCount())};
+        // Networks & studios joined later as part 3; it sits before History, which reads better last.
+        int[] shownOrder = {0, 1, PART_COMPANIES_INDEX, 2};
+        for (int n = 0; n < shownOrder.length; n++) {
+            final int index = shownOrder[n];
+            TextView chip = chip(parts[index], index == part);
             chip.setOnClickListener(v -> { prefs.setLibrarySection(index); renderPreservingScroll(); });
-            focusKey(chip, "lib:part:" + i);
-            bar.addView(chip, chipSpacing(i == parts.length - 1 ? 18 : 6));
-            if (i == part) bar.setTag(R.id.selected_chip, chip);
+            focusKey(chip, "lib:part:" + index);
+            bar.addView(chip, chipSpacing(n == shownOrder.length - 1 ? 18 : 6));
+            if (index == part) bar.setTag(R.id.selected_chip, chip);
+        }
+
+        if (part == PART_COMPANIES_INDEX) {
+            boolean byName = prefs.librarySort(PART_COMPANIES) % 2 == 1;
+            bar.addView(cycleChip("lib:sort", new int[]{R.string.sort_recent, R.string.sort_name}, byName ? 1 : 0, PART_COMPANIES), chipSpacing(6));
+            if (library.companyCount() > 0) {
+                TextView clear = chip(getString(R.string.library_clear_companies), false);
+                clear.setOnClickListener(v -> showNotice(getString(R.string.library_clear_companies_title),
+                        getString(R.string.library_clear_companies_body),
+                        new String[]{getString(R.string.library_clear_companies), getString(R.string.cancel)},
+                        new Runnable[]{() -> { library.clearCompanies(); renderPreservingScroll(); }, null}));
+                focusKey(clear, "lib:clearCompanies");
+                bar.addView(clear, chipSpacing(6));
+            }
+            List<Library.Company> saved = library.companies(byName);
+            if (saved.isEmpty()) { column.addView(emptyNote(getString(R.string.library_companies_empty))); return; }
+            int[] plan = gridPlan(cardWidth(land() ? 168 : 150));
+            List<View> cells = new ArrayList<>();
+            for (Library.Company c : saved) cells.add(companyCell(c, "lib:c:" + c.id, plan[1]));
+            addGrid(column, cells, plan);
+            return;
         }
 
         if (part == 0) {
@@ -2676,6 +2759,60 @@ public class HomeActivity extends Activity {
 
     /** Opens an actor's page from a saved entry. */
     void showPerson(Library.Person p) { openOverlay(new PersonScreen(this, p, null)); }
+
+    // ------------------------------------------------------ networks and studios
+
+    void showCompany(Library.Company c) { openOverlay(new CompanyScreen(this, c)); }
+
+    /** Saves a network or studio to the Library, or takes it out if it's there. */
+    void toggleSaved(Library.Company c) {
+        if (library.has(c)) { library.remove(c); toast(getString(R.string.company_removed, c.name)); }
+        else { library.add(c); toast(getString(R.string.company_added, c.name)); }
+        libraryChanged(false);
+    }
+
+    /**
+     * A company's logo on a light tile. Logos are drawn for white paper, most of them dark
+     * and see-through, so a light tile is the one background they all read on. A company
+     * with no logo shows its name set in the same tile.
+     */
+    FrameLayout companyTile(Library.Company c, int width) {
+        FrameLayout tile = new FrameLayout(this);
+        tile.setBackground(ui.round(0xFFECEDF1, ui.cardRadius));
+        tile.setClipToOutline(true);
+        TextView name = ui.label(c.name, width > ui.dp(140) ? 15 : 13, 0xFF1B1D24, Ui.BOLD);
+        name.setGravity(Gravity.CENTER);
+        name.setMaxLines(2);
+        name.setEllipsize(TextUtils.TruncateAt.END);
+        name.setPadding(ui.dp(10), 0, ui.dp(10), 0);
+        tile.addView(name, new FrameLayout.LayoutParams(-1, -1));
+        if (!c.logo.isEmpty()) {
+            ImageView logo = new Art(this);
+            logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            int pad = width / 7;
+            logo.setPadding(pad, pad / 2, pad, pad / 2);
+            tile.addView(logo, new FrameLayout.LayoutParams(-1, -1));
+            images.defer(tile, () -> images.load(logo, c.logo, width, true, () -> name.setVisibility(View.GONE)));
+        }
+        return tile;
+    }
+
+    /** A network or studio as a card: OK opens its page, a long press saves or removes it. */
+    View companyCell(Library.Company c, String key, int width) {
+        LinearLayout cell = new LinearLayout(this);
+        cell.setOrientation(LinearLayout.VERTICAL);
+        cell.setClipChildren(false);
+        FrameLayout card = card();
+        card.addView(companyTile(c, width), new FrameLayout.LayoutParams(-1, -1));
+        card.setContentDescription(c.name);
+        card.setOnClickListener(v -> showCompany(c));
+        card.setOnLongClickListener(v -> { toggleSaved(c); return true; });
+        if (key != null) focusKey(card, key);
+        cell.addView(card, new LinearLayout.LayoutParams(width, width * 9 / 16));
+        cell.addView(caption(c.name, 12, Ui.TEXT, 8));
+        cell.addView(caption(getString(Studios.NETWORK.equals(c.kind) ? R.string.company_network : R.string.company_studio), 11, Ui.MUTED, 1));
+        return cell;
+    }
 
     /** Opens an actor's page from just a name, e.g. one tapped in a title's cast. */
     void showPerson(String name) { openOverlay(new PersonScreen(this, null, name)); }
@@ -3098,9 +3235,74 @@ public class HomeActivity extends Activity {
     // ============================================================ pages above home
 
     /** Opens the full-screen details page for a title. Back returns to where the user was. */
-    void showDetails(MediaItem m) { openOverlay(new DetailsScreen(this, m)); }
+    void showDetails(MediaItem m) {
+        liveKey = null; // browsing to a title is not tuning in to it
+        openOverlay(new DetailsScreen(this, m));
+    }
 
     void showSettings() { openOverlay(new SettingsScreen(this)); }
+
+    // ============================================================ channels
+
+    private ChannelGuide channelGuide;
+    /** The channel showing being tuned to: its title (and episode) and when its slot runs. */
+    private String liveKey;
+    private long liveStart, liveEnd;
+
+    /**
+     * Tunes in to a channel. {@code live} joins at the point the channel has reached;
+     * otherwise the title starts from the top. A show first needs its episode worked out.
+     */
+    void tuneIn(Channels.Channel c, final Channels.Slot s, final boolean live) {
+        final MediaItem m = s.item;
+        if (!m.isShow()) { startTuned(m, null, s, live); return; }
+        toast(getString(R.string.channels_finding_episode, m.title));
+        new Thread(() -> {
+            CatalogRepository.Episode ep = null;
+            try { ep = Channels.episodeFor(s, catalog.details(m).episodes); }
+            catch (IOException | JSONException e) { /* falls through to the title's page */ }
+            final String episodeId = ep == null ? null : ep.id;
+            main.post(() -> { if (episodeId == null) showDetails(m); else startTuned(m, episodeId, s, live); });
+        }, "phonetv-tune").start();
+    }
+
+    private void startTuned(MediaItem m, String episodeId, Channels.Slot s, boolean live) {
+        String with = prefs.playWith();
+        // Phone TV's own player can join part-way through. Other apps can only be handed the title.
+        boolean here = Prefs.PLAY_HERE.equals(with) || (Prefs.PLAY_ASK.equals(with) && hasStreamAddon());
+        liveKey = null;
+        if (here) {
+            if (live) { liveKey = m.id + "|" + episodeId; liveStart = s.start; liveEnd = s.end; }
+            showStreams(m, episodeId);
+            return;
+        }
+        if (Prefs.PLAY_ASK.equals(with)) { showDetails(m); return; }
+        if (live) toast(getString(R.string.channels_handoff, playerName(with)));
+        openWith(with, m, episodeId);
+    }
+
+    /** How far into its slot a tuned-in title is right now, or 0 when this isn't one (or it has ended). */
+    long liveOffset(String id, String episodeId) {
+        if (liveKey == null || !liveKey.equals(id + "|" + episodeId)) return 0;
+        long now = System.currentTimeMillis();
+        if (now >= liveEnd) { liveKey = null; return 0; }
+        long into = now - liveStart;
+        return into < 20_000 ? 0 : into; // just started: simply start
+    }
+
+    // ========================================================== pick for me
+
+    void pickForMe() { openOverlay(new PickScreen(this)); }
+
+    /** What's popular now, movies and shows mixed: the fallback pool for a pick. */
+    List<MediaItem> popular() {
+        List<MediaItem> out = new ArrayList<>();
+        for (String key : new String[]{CatalogRepository.MOVIES, CatalogRepository.SHOWS, CatalogRepository.TOP_RATED}) {
+            List<MediaItem> got = catalog.get(key);
+            if (got != null) out.addAll(got);
+        }
+        return out;
+    }
 
     // ============================================================ profiles
 

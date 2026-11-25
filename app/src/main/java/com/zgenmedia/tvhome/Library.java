@@ -51,6 +51,15 @@ final class Library {
         long savedAt;
     }
 
+    /** A network or production company the user follows. */
+    static final class Company {
+        String id;          // Wikidata id, e.g. Q907311
+        String name;
+        String kind = Studios.STUDIO; // Studios.NETWORK or Studios.STUDIO
+        String logo = "";   // small PNG of the logo, may be empty
+        long savedAt;
+    }
+
     /** One line of watch history. */
     static final class Watch {
         MediaItem item;
@@ -67,6 +76,7 @@ final class Library {
     private final Prefs prefs; // for the Plex server address, which is never written into the library
     private final Map<String, MediaItem> titles = new LinkedHashMap<>();
     private final Map<String, Person> people = new LinkedHashMap<>();
+    private final Map<String, Company> companies = new LinkedHashMap<>();
     private final List<Watch> watched = new ArrayList<>();
 
     private static Library shared;
@@ -88,8 +98,11 @@ final class Library {
     private static String sharedProfile;
 
     /** The current profile's library. */
-    Library(Context context) {
-        file = new File(context.getFilesDir(), Profiles.fileName("library", Profiles.currentId(context)));
+    Library(Context context) { this(context, Profiles.currentId(context)); }
+
+    /** One profile's library by id; the home screen uses the current profile's through {@link #of}. */
+    Library(Context context, String profileId) {
+        file = new File(context.getFilesDir(), Profiles.fileName("library", profileId));
         prefs = new Prefs(context);
         load();
     }
@@ -158,6 +171,31 @@ final class Library {
     /** @param byName true for A to Z, false for most recently saved first. */
     List<Person> people(boolean byName) {
         List<Person> out = new ArrayList<>(people.values());
+        if (byName) Collections.sort(out, (a, b) -> sortName(a.name).compareTo(sortName(b.name)));
+        else Collections.sort(out, (a, b) -> Long.compare(b.savedAt, a.savedAt));
+        return out;
+    }
+
+    // ------------------------------------------------------ networks and studios
+
+    boolean has(Company c) { return c.id != null && companies.containsKey(c.id); }
+
+    void add(Company c) {
+        if (c.id == null || has(c)) return;
+        c.savedAt = System.currentTimeMillis();
+        companies.put(c.id, c);
+        save();
+    }
+
+    void remove(Company c) { if (companies.remove(c.id) != null) save(); }
+
+    void clearCompanies() { if (!companies.isEmpty()) { companies.clear(); save(); } }
+
+    int companyCount() { return companies.size(); }
+
+    /** @param byName true for A to Z, false for most recently saved first. */
+    List<Company> companies(boolean byName) {
+        List<Company> out = new ArrayList<>(companies.values());
         if (byName) Collections.sort(out, (a, b) -> sortName(a.name).compareTo(sortName(b.name)));
         else Collections.sort(out, (a, b) -> Long.compare(b.savedAt, a.savedAt));
         return out;
@@ -315,6 +353,17 @@ final class Library {
                 person.savedAt = j.optLong("savedAt");
                 people.put(person.id, person);
             }
+            JSONArray c = o.optJSONArray("companies");
+            for (int i = 0; c != null && i < c.length(); i++) {
+                JSONObject j = c.getJSONObject(i);
+                Company company = new Company();
+                company.id = j.getString("id");
+                company.name = j.optString("name");
+                company.kind = j.optString("kind", Studios.STUDIO);
+                company.logo = j.optString("logo");
+                company.savedAt = j.optLong("savedAt");
+                companies.put(company.id, company);
+            }
             JSONArray w = o.optJSONArray("watched");
             for (int i = 0; w != null && i < w.length(); i++) {
                 JSONObject j = w.getJSONObject(i);
@@ -377,6 +426,7 @@ final class Library {
         int added = 0;
         for (Map.Entry<String, MediaItem> e : incoming.titles.entrySet()) if (titles.put(e.getKey(), keepOlder(titles.get(e.getKey()), e.getValue())) == null) added++;
         for (Person p : incoming.people.values()) if (!people.containsKey(p.id)) { people.put(p.id, p); added++; }
+        for (Company c : incoming.companies.values()) if (!companies.containsKey(c.id)) { companies.put(c.id, c); added++; }
         for (Watch w : incoming.watched) {
             Watch mine = null;
             for (Watch m : watched) if (m.key().equals(w.key())) mine = m;
@@ -406,7 +456,12 @@ final class Library {
         for (Watch entry : watched) {
             w.put(json(entry.item).put("episode", entry.episode).put("via", entry.via).put("at", entry.at).put("times", entry.times));
         }
-        return new JSONObject().put("titles", t).put("people", p).put("watched", w).toString();
+        JSONArray c = new JSONArray();
+        for (Company company : companies.values()) {
+            c.put(new JSONObject().put("id", company.id).put("name", company.name).put("kind", company.kind)
+                    .put("logo", company.logo).put("savedAt", company.savedAt));
+        }
+        return new JSONObject().put("titles", t).put("people", p).put("companies", c).put("watched", w).toString();
     }
 
     /** Snapshots on the calling thread, writes on the disk thread; the temp file makes the swap all-or-nothing. */

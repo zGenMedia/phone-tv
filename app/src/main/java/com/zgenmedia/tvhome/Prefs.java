@@ -251,7 +251,7 @@ final class Prefs {
     void setTraktUser(String user) { sp.edit().putString("traktUser", user.trim()).apply(); }
 
     // --- library: which part is open and how each part is ordered ---
-    int librarySection() { return clamp(sp.getInt("libSection", 0), 3); }
+    int librarySection() { return clamp(sp.getInt("libSection", 0), 4); }
     void setLibrarySection(int v) { sp.edit().putInt("libSection", v).apply(); }
     int librarySort(String part) { return sp.getInt("libSort_" + part, 0); }
     void setLibrarySort(String part, int v) { sp.edit().putInt("libSort_" + part, v).apply(); }

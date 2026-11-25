@@ -242,8 +242,10 @@ final class StreamScreen implements Overlay {
     }
 
     private void play(Addons.Stream s) {
+        // Tuned in from a channel: join where the channel is. Otherwise pick up where the viewer left off.
+        long live = a.liveOffset(item.id, episodeId);
         a.startPlayer(item, episodeId, episodeLabel, s.url, s.headers, s.addon,
-                Progress.of(a).resumeAt(item.id, episodeId), nextEpisodeId, nextLabel);
+                live > 0 ? live : Progress.of(a).resumeAt(item.id, episodeId), nextEpisodeId, nextLabel);
     }
 
     private TextView note(String text) {

@@ -81,6 +81,11 @@ final class Progress {
         load();
     }
 
+    /** Another profile's positions, for a setup transfer. The current profile's come from {@link #of}. */
+    static Progress forProfile(Context c, String profileId) {
+        return new Progress(new File(c.getApplicationContext().getFilesDir(), Profiles.fileName("progress", profileId)));
+    }
+
     synchronized Entry get(String id) { return entries.get(id); }
 
     /** The saved position for exactly this movie or episode, or 0. */
@@ -110,48 +115,72 @@ final class Progress {
     private void load() {
         if (!file.exists()) return;
         try (FileInputStream in = new FileInputStream(file)) {
-            JSONArray arr = new JSONArray(new String(Http.readAll(in), StandardCharsets.UTF_8));
-            for (int i = 0; i < arr.length(); i++) {
-                JSONObject o = arr.getJSONObject(i);
-                Entry e = new Entry();
-                e.id = o.getString("id");
-                e.type = o.optString("type", "movie");
-                e.episodeId = o.optString("episodeId");
-                e.title = o.optString("title");
-                e.episodeLabel = o.optString("episodeLabel");
-                e.posterRef = o.optString("poster");
-                e.backdropRef = o.optString("backdrop");
-                e.logoRef = o.optString("logo");
-                e.url = o.optString("url");
-                e.addon = o.optString("addon");
-                JSONObject h = o.optJSONObject("headers");
-                if (h != null) for (java.util.Iterator<String> k = h.keys(); k.hasNext(); ) { String key = k.next(); e.headers.put(key, h.optString(key)); }
-                e.positionMs = o.optLong("position");
-                e.durationMs = o.optLong("duration");
-                e.updatedAt = o.optLong("updated");
-                entries.put(e.id, e);
-            }
+            for (Entry e : parse(new String(Http.readAll(in), StandardCharsets.UTF_8))) entries.put(e.id, e);
         } catch (IOException | JSONException e) {
             //noinspection ResultOfMethodCallIgnored
             file.renameTo(new File(file.getPath() + ".damaged"));
         }
     }
 
+    private static List<Entry> parse(String json) throws JSONException {
+        List<Entry> out = new ArrayList<>();
+        JSONArray arr = new JSONArray(json);
+        for (int i = 0; i < arr.length(); i++) {
+            JSONObject o = arr.getJSONObject(i);
+            Entry e = new Entry();
+            e.id = o.getString("id");
+            e.type = o.optString("type", "movie");
+            e.episodeId = o.optString("episodeId");
+            e.title = o.optString("title");
+            e.episodeLabel = o.optString("episodeLabel");
+            e.posterRef = o.optString("poster");
+            e.backdropRef = o.optString("backdrop");
+            e.logoRef = o.optString("logo");
+            e.url = o.optString("url");
+            e.addon = o.optString("addon");
+            JSONObject h = o.optJSONObject("headers");
+            if (h != null) for (java.util.Iterator<String> k = h.keys(); k.hasNext(); ) { String key = k.next(); e.headers.put(key, h.optString(key)); }
+            e.positionMs = o.optLong("position");
+            e.durationMs = o.optLong("duration");
+            e.updatedAt = o.optLong("updated");
+            out.add(e);
+        }
+        return out;
+    }
+
+    /** Everything here as text, for a setup transfer. */
+    synchronized String export() {
+        try { return snapshot(); } catch (JSONException e) { return "[]"; }
+    }
+
+    /**
+     * Adds another device's positions to this one. Nothing here is removed: a title both
+     * sides know keeps whichever position was saved more recently.
+     */
+    synchronized void merge(String json) throws JSONException {
+        for (Entry theirs : parse(json)) {
+            Entry mine = entries.get(theirs.id);
+            if (mine == null || theirs.updatedAt > mine.updatedAt) entries.put(theirs.id, theirs);
+        }
+        save();
+    }
+
+    private String snapshot() throws JSONException {
+        JSONArray arr = new JSONArray();
+        for (Entry e : entries.values()) {
+            arr.put(new JSONObject().put("id", e.id).put("type", e.type).put("episodeId", e.episodeId)
+                    .put("title", e.title).put("episodeLabel", e.episodeLabel)
+                    .put("poster", e.posterRef).put("backdrop", e.backdropRef).put("logo", e.logoRef)
+                    .put("url", e.url).put("addon", e.addon).put("headers", new JSONObject(e.headers))
+                    .put("position", e.positionMs).put("duration", e.durationMs).put("updated", e.updatedAt));
+        }
+        return arr.toString();
+    }
+
     private void save() {
         final String json;
-        try {
-            JSONArray arr = new JSONArray();
-            for (Entry e : entries.values()) {
-                arr.put(new JSONObject().put("id", e.id).put("type", e.type).put("episodeId", e.episodeId)
-                        .put("title", e.title).put("episodeLabel", e.episodeLabel)
-                        .put("poster", e.posterRef).put("backdrop", e.backdropRef).put("logo", e.logoRef)
-                        .put("url", e.url).put("addon", e.addon).put("headers", new JSONObject(e.headers))
-                        .put("position", e.positionMs).put("duration", e.durationMs).put("updated", e.updatedAt));
-            }
-            json = arr.toString();
-        } catch (JSONException e) {
-            return;
-        }
+        try { json = snapshot(); }
+        catch (JSONException e) { return; }
         DISK.execute(() -> {
             File tmp = new File(file.getPath() + ".tmp");
             try (FileOutputStream out = new FileOutputStream(tmp)) {

@@ -77,6 +77,20 @@ final class Profiles {
         return p;
     }
 
+    /** Makes sure a profile from another device exists here, under the same id. One that's here already is left as it is. */
+    static void adopt(Context c, String id, String name, int color) {
+        if (id == null || id.isEmpty()) return; // the first profile always exists
+        List<Profile> list = all(c);
+        for (Profile p : list) if (p.id.equals(id)) return;
+        Profile p = new Profile();
+        p.id = id.replaceAll("[^A-Za-z0-9]", "");
+        if (p.id.isEmpty()) return;
+        p.name = name == null || name.trim().isEmpty() ? c.getString(R.string.profile_new_name, list.size() + 1) : name.trim();
+        p.color = color;
+        list.add(p);
+        save(c, list);
+    }
+
     static void rename(Context c, String id, String name) {
         List<Profile> list = all(c);
         for (Profile p : list) if (p.id.equals(id) && !name.trim().isEmpty()) p.name = name.trim();

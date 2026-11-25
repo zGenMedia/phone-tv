@@ -408,6 +408,17 @@ final class DetailsScreen implements Overlay {
         box.setOrientation(LinearLayout.VERTICAL);
         moreSection = box;
         int w = (int) (ui.dp(a.land() ? 116 : 100) * Prefs.CARD_SCALES[a.prefs.cardSize()]);
+        if (!more.companies.isEmpty()) {
+            // Who showed it and who made it. OK opens everything else from them; a long press saves.
+            box.addView(heading(a.getString(R.string.details_companies)));
+            LinearLayout row = shelfIn(box);
+            int cw = (int) (ui.dp(a.land() ? 150 : 132) * Prefs.CARD_SCALES[a.prefs.cardSize()]);
+            for (Library.Company c : more.companies) {
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(cw, -2);
+                lp.rightMargin = ui.dp(12);
+                row.addView(a.companyCell(c, null, cw), lp);
+            }
+        }
         if (!more.series.isEmpty()) {
             box.addView(heading(more.seriesName.isEmpty() ? a.getString(R.string.details_series) : more.seriesName));
             LinearLayout row = shelfIn(box);

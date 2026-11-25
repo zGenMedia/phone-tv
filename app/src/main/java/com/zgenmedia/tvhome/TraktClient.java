@@ -248,6 +248,15 @@ final class TraktClient {
         return toItems(new JSONArray(json));
     }
 
+    /** What Trakt's users also liked, closest first. Needs no sign-in. */
+    List<MediaItem> related(MediaItem m) throws IOException, JSONException {
+        String kind = m.isShow() ? "show" : "movie";
+        JSONArray bare = new JSONArray(get("/" + kind + "s/" + m.id + "/related?extended=full&limit=30"));
+        JSONArray wrapped = new JSONArray(); // toItems reads list entries, which name their type
+        for (int i = 0; i < bare.length(); i++) wrapped.put(new JSONObject().put("type", kind).put(kind, bare.getJSONObject(i)));
+        return toItems(wrapped);
+    }
+
     /** Movies and shows in the user's Trakt collection. Needs a sign-in; a public profile has only the watchlist. */
     List<MediaItem> collection() throws IOException, JSONException {
         List<MediaItem> out = new ArrayList<>();

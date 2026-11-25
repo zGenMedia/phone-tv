@@ -1,7 +1,7 @@
 {
-  "versionCode": 29,
-  "versionName": "0.14.0",
+  "versionCode": 30,
+  "versionName": "0.15.0",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "92f42234e815495a7e77a72027f7c4b16e5cd60cfeaf63a6c07b6c9717a9b37b",
-  "notes": "Trailers in the banner, rows you can rearrange, Trakt in your Library, Plex titles playable in Phone TV, Stremio import by QR code. Fixes for update checks, Plex Continue watching and Shield instructions."
+  "sha256": "7954dda21fb88d828517908c0338bee03d8ff3966df25238888ef7c5f32d3efd",
+  "notes": "Channels: a TV guide of always-on line-ups to tune in to. Pick for me. Networks and studios you can browse and save. Faster artwork. Setup transfer now carries every profile and only adds."
 }

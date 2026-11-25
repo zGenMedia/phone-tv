@@ -27,6 +27,7 @@ final class MediaItem {
     long listedAt;        // when it was added to a Trakt list or collection, 0 if unknown
     boolean plexWatched;  // Plex counts it as played to the end, with no resume position
     long watchedAt;       // when Plex last saw it played, 0 if never
+    int minutes;          // running time when known (one episode's, for a show), 0 if not
 
     // Raw artwork references: full URLs for the catalog, server paths for Plex.
     String posterRef, backdropRef, logoRef;

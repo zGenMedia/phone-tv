@@ -31,6 +31,8 @@ final class TitleExtras {
     final List<MediaItem> related = new ArrayList<>(), series = new ArrayList<>();
     String seriesName = "";
     final List<Comment> comments = new ArrayList<>();
+    /** Networks first, then production companies. */
+    final List<Library.Company> companies = new ArrayList<>();
     /** "season:episode" → TVmaze rating out of 10. */
     final Map<String, String> episodeRatings = new HashMap<>();
 
@@ -75,6 +77,7 @@ final class TitleExtras {
                 if (!k.text.isEmpty()) x.comments.add(k);
             }
         } catch (IOException | JSONException ignored) { /* no comments */ }
+        try { x.companies.addAll(Studios.behind(id)); } catch (IOException | JSONException ignored) { /* the row is left out */ }
         if (!m.isShow()) {
             try { filmSeries(x, id); } catch (IOException | JSONException ignored) { /* not part of a series */ }
         } else {
