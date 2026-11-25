@@ -349,6 +349,9 @@ final class SettingsScreen implements Overlay {
         choice(banner, "heroLayout", R.string.set_hero_layout, R.string.set_hero_layout_hint,
                 names(R.string.hero_layout_left, R.string.hero_layout_right, R.string.hero_layout_full),
                 prefs.heroLayout() % 3, i -> { prefs.setHeroLayout(i); apply(HOME_SCREEN); });
+        choice(banner, "heroTrailer", R.string.set_trailer, R.string.set_trailer_hint,
+                names(R.string.off, R.string.trailer_muted, R.string.trailer_sound),
+                prefs.heroTrailer() % 3, i -> { prefs.setHeroTrailer(i); apply(HOME_SCREEN); });
         String mood = prefs.heroMood();
         action(banner, "tune", a.getString(R.string.set_tune), a.getString(R.string.set_tune_hint),
                 mood.isEmpty() ? a.getString(R.string.set_tune_trending) : mood, a::tuneHero);
@@ -373,16 +376,14 @@ final class SettingsScreen implements Overlay {
                 i -> { prefs.setExpandDelay(Prefs.EXPAND_DELAYS[i]); apply(HOME_SCREEN); });
 
         LinearLayout rows = group(R.string.set_group_rows);
-        if (a.plex.isLinked()) {
-            rowToggle(rows, HomeActivity.ROW_PLEX_CONTINUE, R.string.row_plex_continue);
-            rowToggle(rows, HomeActivity.ROW_PLEX_RECENT, R.string.row_plex_recent);
+        // Listed in the order they appear on For you. OK on a row: hide or show it, or move it.
+        for (String key : prefs.rowOrder(HomeActivity.ROW_ORDER)) {
+            boolean plexRow = key.equals(HomeActivity.ROW_PLEX_CONTINUE) || key.equals(HomeActivity.ROW_PLEX_RECENT);
+            if (plexRow && !a.plex.isLinked()) continue;
+            action(rows, "row:" + key, a.getString(HomeActivity.rowLabel(key)), null,
+                    a.getString(prefs.rowShown(key) ? R.string.row_state_on : R.string.row_state_off),
+                    () -> a.arrangeRow(key, () -> apply(HOME_SCREEN)));
         }
-        rowToggle(rows, HomeActivity.ROW_CONTINUE, R.string.row_continue);
-        rowToggle(rows, HomeActivity.ROW_LIBRARY, R.string.row_library);
-        rowToggle(rows, HomeActivity.ROW_TOP_PICKS, R.string.row_top_picks);
-        rowToggle(rows, HomeActivity.ROW_SHOWS, R.string.row_popular_shows);
-        rowToggle(rows, HomeActivity.ROW_MOVIES, R.string.row_popular_movies);
-        rowToggle(rows, HomeActivity.ROW_TOP_RATED, R.string.row_top_rated);
 
         int hidden = prefs.hiddenApps().size();
         if (hidden > 0) {
@@ -390,10 +391,6 @@ final class SettingsScreen implements Overlay {
             action(appsGroup, "unhide", a.getString(R.string.set_hidden_apps), a.getString(R.string.set_hidden_apps_hint),
                     String.valueOf(hidden), () -> { prefs.setHiddenApps(new ArrayList<>()); apply(HOME_SCREEN); });
         }
-    }
-
-    private void rowToggle(LinearLayout group, String key, int title) {
-        toggle(group, "row:" + key, title, 0, prefs.rowShown(key), () -> { prefs.setRowShown(key, !prefs.rowShown(key)); apply(HOME_SCREEN); });
     }
 
     private void playback() {
@@ -407,6 +404,12 @@ final class SettingsScreen implements Overlay {
         }
         choice(open, "player", R.string.set_player, R.string.set_player_hint, labels, current,
                 i -> { prefs.setPlayWith(values[i]); apply(PANE); });
+
+        if (a.plex.isLinked()) {
+            choice(open, "plexPlayer", R.string.set_plex_player, R.string.set_plex_player_hint,
+                    names(R.string.plex_player_app, R.string.plex_player_here),
+                    prefs.plexPlaysHere() ? 1 : 0, i -> { prefs.setPlexPlaysHere(i == 1); apply(PANE); });
+        }
 
         // Say plainly which of them Phone TV can actually see, so a missing app is no surprise later.
         List<String> found = new ArrayList<>(), missing = new ArrayList<>();

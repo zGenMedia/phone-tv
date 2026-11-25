@@ -24,6 +24,8 @@ final class MediaItem {
     int progressPercent;  // Plex resume position, 0 when unwatched
     long viewOffsetMs;    // same position in milliseconds, passed to Plex when resuming
     long savedAt;         // when the user added it to their library, 0 if they haven't
+    long listedAt;        // when it was added to a Trakt list or collection, 0 if unknown
+    boolean plexWatched;  // Plex counts it as played to the end, with no resume position
     long watchedAt;       // when Plex last saw it played, 0 if never
 
     // Raw artwork references: full URLs for the catalog, server paths for Plex.

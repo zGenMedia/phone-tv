@@ -3,6 +3,36 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.14.0 — 2026-11-25
+
+### Added
+- **Trailers in the banner.** Stay on a featured title for three seconds and its
+  trailer plays where the picture is, under the same fades. Titles without a
+  trailer stay as a picture. Settings › Home screen › Trailers in the banner:
+  Off, Muted or With sound. Which title has which trailer is kept on file and
+  forgotten once the title is no longer featured.
+- **Arrange the For you rows.** Settings › Home screen: press OK on a row to
+  hide it, show it, or move it up, down or to the top. *Top picks for you* now
+  starts above the Plex rows.
+- **Trakt in your Library.** With Trakt connected, your watchlist and
+  collection sit with your saved titles and sort together by date, name, year
+  or rating. A chip switches between All sources, Phone TV only and Trakt only.
+- **Play Plex titles in Phone TV.** Settings › Playback › Plex titles play in:
+  Phone TV. Plays straight from your server, falls back to the server's own
+  conversion for files the device can't decode, and reports progress back so
+  Plex's Continue Watching stays right. Use it when the Plex app opens without
+  starting the title. Without the Plex app installed, this is used by itself.
+- **Stremio import by phone.** The import screen shows a QR code: scan it with
+  the phone's camera and sign in there.
+
+### Fixed
+- **Check for updates** in Settings now answers on the spot: it says what it's
+  downloading, shows the update in Settings and starts the install.
+- **Plex Continue watching** drops titles once they're watched or marked
+  watched, and refreshes when you come back to Phone TV.
+- **Home-screen and install instructions** on Shield, Android TV and Google TV
+  no longer describe Fire TV menus.
+
 ## 0.13.2 — 2026-11-25
 
 ### Fixed

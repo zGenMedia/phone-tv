@@ -61,7 +61,8 @@ import java.util.Map;
 public final class PlayerActivity extends Activity {
     static final String X_URL = "url", X_HEADERS = "headers", X_ID = "id", X_TYPE = "type", X_EPISODE = "episode",
             X_TITLE = "title", X_LABEL = "label", X_POSTER = "poster", X_BACKDROP = "backdrop", X_LOGO = "logo",
-            X_RESUME = "resume", X_ADDON = "addon", X_NEXT_EPISODE = "nextEpisode", X_NEXT_LABEL = "nextLabel";
+            X_RESUME = "resume", X_ADDON = "addon", X_NEXT_EPISODE = "nextEpisode", X_NEXT_LABEL = "nextLabel",
+            X_PLEX = "plex";
     static final int RESULT_NEXT = 2, RESULT_OTHER_SOURCE = 3;
     private static final long SEEK_MS = 10_000, BAR_HIDE_MS = 4_000, SAVE_EVERY_MS = 10_000;
 
@@ -107,6 +108,10 @@ public final class PlayerActivity extends Activity {
         startPlayer(getIntent().getLongExtra(X_RESUME, 0));
     }
 
+    /** Set when the title comes from the user's Plex server: where to report progress, and a second link to try. */
+    private Bundle plex;
+    private boolean triedPlexFallback;
+
     private void readIntent(Intent i) {
         url = i.getStringExtra(X_URL);
         id = i.getStringExtra(X_ID);
@@ -116,6 +121,7 @@ public final class PlayerActivity extends Activity {
         label = nz(i.getStringExtra(X_LABEL));
         addon = nz(i.getStringExtra(X_ADDON));
         nextEpisode = i.getStringExtra(X_NEXT_EPISODE);
+        plex = i.getBundleExtra(X_PLEX);
         Bundle h = i.getBundleExtra(X_HEADERS);
         if (h != null) for (String k : h.keySet()) headers.put(k, h.getString(k));
     }
@@ -194,7 +200,7 @@ public final class PlayerActivity extends Activity {
         button(buttons, "+30", () -> seekBy(3 * SEEK_MS));
         button(buttons, getString(R.string.player_audio), () -> pickTrack(C.TRACK_TYPE_AUDIO));
         button(buttons, getString(R.string.player_subtitles), () -> pickTrack(C.TRACK_TYPE_TEXT));
-        button(buttons, getString(R.string.player_sources), () -> leave(RESULT_OTHER_SOURCE));
+        if (plex == null) button(buttons, getString(R.string.player_sources), () -> leave(RESULT_OTHER_SOURCE));
         if (nextEpisode != null) nextButton = button(buttons, getString(R.string.player_next), () -> leave(RESULT_NEXT));
         android.widget.HorizontalScrollView strip = new android.widget.HorizontalScrollView(this);
         strip.setHorizontalScrollBarEnabled(false);
@@ -298,12 +304,23 @@ public final class PlayerActivity extends Activity {
     }
 
     private void failed(PlaybackException e) {
+        if (plex != null && !triedPlexFallback && plex.getString("fallback") != null) {
+            // The file itself wouldn't play here (a codec this device lacks, usually): let the server convert it.
+            triedPlexFallback = true;
+            long at = player == null ? 0 : Math.max(0, player.getCurrentPosition());
+            if (at == 0) at = getIntent().getLongExtra(X_RESUME, 0);
+            url = plex.getString("fallback");
+            main.removeCallbacks(saver);
+            if (player != null) { player.release(); player = null; }
+            startPlayer(at);
+            return;
+        }
         saveProgress();
         String why = e.getErrorCodeName().replace("ERROR_CODE_", "").replace('_', ' ').toLowerCase(Locale.ROOT);
         new AlertDialog.Builder(this, R.style.PhoneTvDialog)
                 .setTitle(R.string.player_failed)
                 .setMessage(getString(R.string.player_failed_body, why))
-                .setPositiveButton(R.string.player_try_other, (d, w) -> leave(RESULT_OTHER_SOURCE))
+                .setPositiveButton(plex != null ? R.string.player_open_plex : R.string.player_try_other, (d, w) -> leave(RESULT_OTHER_SOURCE))
                 .setNeutralButton(R.string.player_open_elsewhere, (d, w) -> openElsewhere())
                 .setNegativeButton(R.string.player_close, (d, w) -> finish())
                 .setOnCancelListener(d -> finish())
@@ -393,6 +410,7 @@ public final class PlayerActivity extends Activity {
     // ================================================================== progress
 
     private void saveProgress() {
+        if (player != null && plex != null) { reportToPlex(isFinishing() ? "stopped" : player.isPlaying() ? "playing" : "paused"); return; }
         if (player == null || id == null) return;
         long duration = player.getDuration(), position = player.getCurrentPosition();
         if (duration <= 0 || duration == C.TIME_UNSET) return;
@@ -415,8 +433,24 @@ public final class PlayerActivity extends Activity {
         Progress.of(this).update(e);
     }
 
+    /** Plex keeps its own Continue Watching: tell the server where this got to. */
+    private void reportToPlex(String state) {
+        long duration = player.getDuration(), position = player.getCurrentPosition();
+        if (duration <= 0 || duration == C.TIME_UNSET) return;
+        if (position / (float) duration >= Progress.DONE) { markFinished(); return; }
+        final Bundle p = plex;
+        new Thread(() -> PlexClient.report(p.getString("base"), p.getString("token"), p.getString("client"), p.getString("key"), state, position, duration),
+                "phonetv-plex-progress").start();
+    }
+
     /** Past 90 %: watched. A movie leaves Continue watching; a show stays as "next episode". */
     private void markFinished() {
+        if (plex != null && !finishedMarked) {
+            finishedMarked = true;
+            final Bundle p = plex;
+            new Thread(() -> PlexClient.markWatched(p.getString("base"), p.getString("token"), p.getString("client"), p.getString("key")), "phonetv-plex-watched").start();
+            return;
+        }
         if (finishedMarked || id == null) return;
         finishedMarked = true;
         MediaItem m = MediaItem.catalog(id, type, title, "");

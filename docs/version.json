@@ -1,7 +1,7 @@
 {
-  "versionCode": 28,
-  "versionName": "0.13.2",
+  "versionCode": 29,
+  "versionName": "0.14.0",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "b475b1065ecb6fd13386653e288341aff2e4472bed689448698fd7313158aa39",
-  "notes": "Fixed importing add-ons from a Stremio account. New TV and film features: built-in player with add-ons, Continue watching, Discover, profiles and more."
+  "sha256": "92f42234e815495a7e77a72027f7c4b16e5cd60cfeaf63a6c07b6c9717a9b37b",
+  "notes": "Trailers in the banner, rows you can rearrange, Trakt in your Library, Plex titles playable in Phone TV, Stremio import by QR code. Fixes for update checks, Plex Continue watching and Shield instructions."
 }

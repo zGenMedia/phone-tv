@@ -132,7 +132,7 @@ final class Library {
             case SORT_NEWEST: order = (a, b) -> Integer.compare(year(b, 0), year(a, 0)); break;
             case SORT_OLDEST: order = (a, b) -> Integer.compare(year(a, 9999), year(b, 9999)); break;
             case SORT_RATING: order = (a, b) -> Float.compare(rating(b), rating(a)); break;
-            default: order = (a, b) -> Long.compare(b.savedAt, a.savedAt);
+            default: order = (a, b) -> Long.compare(Math.max(b.savedAt, b.listedAt), Math.max(a.savedAt, a.listedAt));
         }
         Collections.sort(items, order);
         return items;

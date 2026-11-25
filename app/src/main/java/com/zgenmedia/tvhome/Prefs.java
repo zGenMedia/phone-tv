@@ -89,6 +89,27 @@ final class Prefs {
 
     /** Rows the user switched off on the home screen, by row key. */
     boolean rowShown(String key) { return !sp.getBoolean("rowOff_" + key, false); }
+
+    /** The For you rows in the user's order. Rows added in a later version join at their usual place. */
+    java.util.List<String> rowOrder(String[] all) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        String saved = sp.getString("rowOrder", "");
+        if (saved.isEmpty()) { out.addAll(java.util.Arrays.asList(all)); return out; }
+        java.util.List<String> known = java.util.Arrays.asList(all);
+        for (String k : saved.split(",")) if (known.contains(k) && !out.contains(k)) out.add(k);
+        for (int i = 0; i < all.length; i++) if (!out.contains(all[i])) out.add(Math.min(i, out.size()), all[i]);
+        return out;
+    }
+    void setRowOrder(java.util.List<String> order) { sp.edit().putString("rowOrder", android.text.TextUtils.join(",", order)).apply(); }
+
+    // Banner trailers: off, playing silently, or with sound.
+    static final int TRAILER_OFF = 0, TRAILER_MUTED = 1, TRAILER_SOUND = 2;
+    int heroTrailer() { return sp.getInt("heroTrailer", TRAILER_MUTED); }
+    void setHeroTrailer(int v) { sp.edit().putInt("heroTrailer", v).apply(); }
+
+    /** Where a Plex title plays: the Plex app (as before) or Phone TV's own player. */
+    boolean plexPlaysHere() { return sp.getBoolean("plexHere", false); }
+    void setPlexPlaysHere(boolean here) { sp.edit().putBoolean("plexHere", here).apply(); }
     void setRowShown(String key, boolean shown) { sp.edit().putBoolean("rowOff_" + key, !shown).apply(); }
 
     // --- the phone's own screen ---

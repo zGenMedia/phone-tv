@@ -99,7 +99,41 @@ public class HomeActivity extends Activity {
 
     // Rows on "For you" that can be switched off in Settings. Keys are stored; don't rename.
     static final String ROW_PLEX_CONTINUE = "plexContinue", ROW_PLEX_RECENT = "plexRecent",
-            ROW_LIBRARY = "library", ROW_CONTINUE = "continue", ROW_TOP_PICKS = "topPicks", ROW_SHOWS = "popularShows", ROW_MOVIES = "popularMovies", ROW_TOP_RATED = "topRated";
+            ROW_LIBRARY = "library", ROW_CONTINUE = "continue", ROW_TOP_PICKS = "topPicks", ROW_SHOWS = "popularShows", ROW_MOVIES = "popularMovies", ROW_TOP_RATED = "topRated",
+            ROW_TRAKT = "trakt";
+    /** The For you rows in their starting order; Settings › Home screen can rearrange and hide them. */
+    static final String[] ROW_ORDER = {ROW_CONTINUE, ROW_LIBRARY, ROW_TOP_PICKS, ROW_PLEX_CONTINUE, ROW_PLEX_RECENT, ROW_TRAKT, ROW_SHOWS, ROW_MOVIES, ROW_TOP_RATED};
+
+    static int rowLabel(String key) {
+        switch (key) {
+            case ROW_CONTINUE: return R.string.row_continue;
+            case ROW_LIBRARY: return R.string.row_library;
+            case ROW_TOP_PICKS: return R.string.row_top_picks;
+            case ROW_PLEX_CONTINUE: return R.string.row_plex_continue;
+            case ROW_PLEX_RECENT: return R.string.row_plex_recent;
+            case ROW_TRAKT: return R.string.row_trakt_lists;
+            case ROW_SHOWS: return R.string.row_popular_shows;
+            case ROW_MOVIES: return R.string.row_popular_movies;
+            default: return R.string.row_top_rated;
+        }
+    }
+
+    /** Show or hide a For you row, or move it up or down the page. */
+    void arrangeRow(String key, Runnable changed) {
+        List<String> order = prefs.rowOrder(ROW_ORDER);
+        int at = order.indexOf(key);
+        boolean shown = prefs.rowShown(key);
+        List<String> labels = new ArrayList<>();
+        List<Runnable> acts = new ArrayList<>();
+        labels.add(getString(shown ? R.string.row_hide : R.string.row_show));
+        acts.add(() -> { prefs.setRowShown(key, !shown); changed.run(); });
+        if (at > 0) { labels.add(getString(R.string.row_move_up)); acts.add(() -> { java.util.Collections.swap(order, at, at - 1); prefs.setRowOrder(order); changed.run(); }); }
+        if (at >= 0 && at < order.size() - 1) { labels.add(getString(R.string.row_move_down)); acts.add(() -> { java.util.Collections.swap(order, at, at + 1); prefs.setRowOrder(order); changed.run(); }); }
+        if (at > 0) { labels.add(getString(R.string.row_move_top)); acts.add(() -> { order.remove(at); order.add(0, key); prefs.setRowOrder(order); changed.run(); }); }
+        labels.add(getString(R.string.cancel));
+        acts.add(null);
+        showNotice(getString(rowLabel(key)), getString(R.string.row_arrange_body, at + 1, order.size()), labels.toArray(new String[0]), acts.toArray(new Runnable[0]));
+    }
 
     final Handler main = new Handler(Looper.getMainLooper());
     final ExecutorService io = Executors.newSingleThreadExecutor(r -> {
@@ -158,7 +192,7 @@ public class HomeActivity extends Activity {
     private List<MediaItem> plexHistory = Collections.emptyList();
     private List<MediaItem> traktPaused = Collections.emptyList();
     private List<Library.Watch> traktHistory = Collections.emptyList();
-    private List<MediaItem> traktWatchlist = Collections.emptyList();
+    private List<MediaItem> traktWatchlist = Collections.emptyList(), traktCollection = Collections.emptyList();
     private TraktClient.DeviceCode traktCode; // a Trakt sign-in waiting for the user, if any
     private String historyError;
     private boolean historyLoading;
@@ -250,10 +284,13 @@ public class HomeActivity extends Activity {
         if (!plex.isLinked() && prefs.plexPendingPin() != 0 && !plexLinking) pollPlexPin(prefs.plexPendingPin(), null);
         boolean appsChanged = apps.reload();
         if (catalog.isOlderThan(CONTENT_TTL_MS)) refreshContent();
+        // Coming back from Plex: what was watched or marked there should be gone from the row now.
+        else if (plex.isLinked() && System.currentTimeMillis() - plexRefreshedAt > 15_000) refreshPlex();
         if (updater.due()) checkForUpdate(false);
         if (appsChanged) renderPreservingScroll();
         else restartHeroTimer();
         resumed = true;
+        scheduleTrailer();
         syncTvLink();
         restartScreenSaver();
     }
@@ -262,8 +299,23 @@ public class HomeActivity extends Activity {
     protected void onPause() {
         super.onPause();
         resumed = false;
+        stopTrailer();
+        forgetOldTrailers();
         main.removeCallbacks(heroAdvance);
         main.removeCallbacks(screenSaver);
+    }
+
+    /** Trailer records are kept only for titles the home screen still features. */
+    private void forgetOldTrailers() {
+        if (trailer == null || catalog.isEmpty()) return;
+        java.util.Set<String> featured = new java.util.HashSet<>();
+        for (String key : new String[]{CatalogRepository.MOVIES, CatalogRepository.SHOWS}) {
+            List<MediaItem> list = catalog.get(key);
+            if (list != null) for (MediaItem m : list) featured.add(m.id);
+        }
+        for (MediaItem m : moodItems) featured.add(m.id);
+        for (MediaItem m : heroItems) featured.add(m.id);
+        trailer.keepOnly(featured);
     }
 
     /** Pushes the look settings into the theme and the view helpers. Call before rebuilding views. */
@@ -580,6 +632,11 @@ public class HomeActivity extends Activity {
                 || pm.hasSystemFeature("amazon.hardware.fire_tv");
     }
 
+    /** Amazon's boxes and sticks: their Settings menus are laid out differently from Android TV and Google TV. */
+    boolean isFireTv() {
+        return getPackageManager().hasSystemFeature("amazon.hardware.fire_tv") || "Amazon".equalsIgnoreCase(Build.MANUFACTURER);
+    }
+
     boolean isDefaultHome() {
         android.content.pm.ResolveInfo home = getPackageManager().resolveActivity(
                 new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), android.content.pm.PackageManager.MATCH_DEFAULT_ONLY);
@@ -596,6 +653,14 @@ public class HomeActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_PLAYER) {
             renderPreservingScroll(); // Continue watching changed
+            MediaItem fromPlex = plexInPlayer;
+            plexInPlayer = null;
+            if (fromPlex != null) {
+                // Played from Plex: the row should show the new position; a failed play can go to the Plex app.
+                main.postDelayed(this::refreshPlex, 1_500);
+                if (resultCode == PlayerActivity.RESULT_OTHER_SOURCE) openPlexApp(fromPlex);
+                return;
+            }
             if (data == null || (resultCode != PlayerActivity.RESULT_NEXT && resultCode != PlayerActivity.RESULT_OTHER_SOURCE)) return;
             MediaItem m = MediaItem.catalog(data.getStringExtra(PlayerActivity.X_ID), data.getStringExtra(PlayerActivity.X_TYPE),
                     data.getStringExtra(PlayerActivity.X_TITLE), "");
@@ -1008,16 +1073,26 @@ public class HomeActivity extends Activity {
      * the background so the "Update ready" card installs with a single tap.
      */
     void checkForUpdate(boolean manual) {
-        io.execute(() -> {
+        Runnable work = () -> {
             try {
                 Updater.Release r = updater.check();
                 if (r == null) { if (manual) main.post(() -> toast(getString(R.string.update_current, BuildConfig.VERSION_NAME))); return; }
+                if (manual) main.post(() -> toast(getString(R.string.update_downloading, r.versionName)));
                 java.io.File apk = updater.download(r);
-                main.post(() -> { readyUpdate = r; readyApk = apk; renderPreservingScroll(); });
+                main.post(() -> {
+                    readyUpdate = r;
+                    readyApk = apk;
+                    renderPreservingScroll();
+                    // Asked for from Settings: show it there too, and go straight on to installing.
+                    if (overlay instanceof SettingsScreen) overlay.rebuild();
+                    if (manual) installUpdate();
+                });
             } catch (IOException | JSONException e) {
                 if (manual) { final String reason = CatalogRepository.describe(e); main.post(() -> toast(getString(R.string.update_failed, reason))); }
             }
-        });
+        };
+        // A check the user asked for answers now; it doesn't queue behind the home screen's loading.
+        if (manual) new Thread(work, "phonetv-update").start(); else io.execute(work);
     }
 
     void installUpdate() {
@@ -1027,7 +1102,7 @@ public class HomeActivity extends Activity {
             // Fire TV has no per-app screen for this; it lives under My Fire TV > Developer options.
             boolean opened = Build.VERSION.SDK_INT >= 26
                     && startSafely(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName())));
-            toast(getString(opened ? R.string.update_allow : R.string.update_allow_tv));
+            toast(getString(opened ? R.string.update_allow : isFireTv() ? R.string.update_allow_tv : R.string.update_allow_android_tv));
             return;
         }
         java.io.File apk = readyApk;
@@ -1105,8 +1180,11 @@ public class HomeActivity extends Activity {
         });
     }
 
+    private long plexRefreshedAt;
+
     void refreshPlex() {
         if (!plex.isLinked()) return;
+        plexRefreshedAt = System.currentTimeMillis();
         io.execute(() -> {
             List<MediaItem> cont, recent;
             try {
@@ -1191,7 +1269,10 @@ public class HomeActivity extends Activity {
         scroll.setOnScrollChangeListener((v, x, y, oldX, oldY) -> {
             if (y > oldY + 6 && y > ui.dp(48)) setTopBarVisible(false);
             else if (y < oldY - 6 || y < ui.dp(16)) setTopBarVisible(true);
+            boolean was = heroOnScreen;
             heroOnScreen = y < metrics().heightPixels / 2;
+            if (!heroOnScreen) stopTrailer();
+            else if (!was) scheduleTrailer();
             images.flush();
         });
 
@@ -1242,18 +1323,29 @@ public class HomeActivity extends Activity {
             if (readyUpdate != null) column.addView(updateCard());
             column.addView(rowTitle(getString(R.string.row_your_apps)));
             column.addView(buildFavoritesRow());
-            if (prefs.rowShown(ROW_CONTINUE)) continueRow(column);
-            if (prefs.rowShown(ROW_LIBRARY)) posterRow(column, getString(R.string.row_library), library.titles(Library.SORT_RECENT, Library.ONLY_ALL));
             if (moodItems.size() > 8) posterRow(column, getString(R.string.row_more_mood, prefs.heroMood()), moodItems.subList(8, moodItems.size()));
+            // The rows, in the order chosen in Settings › Home screen.
+            for (String key : prefs.rowOrder(ROW_ORDER)) {
+                if (!prefs.rowShown(key)) continue;
+                switch (key) {
+                    case ROW_CONTINUE: continueRow(column); break;
+                    case ROW_LIBRARY: posterRow(column, getString(R.string.row_library), library.titles(Library.SORT_RECENT, Library.ONLY_ALL)); break;
+                    case ROW_TOP_PICKS: if (!catalog.isEmpty()) backdropRow(column, getString(R.string.row_top_picks), slice(movies, 4, 20)); break;
+                    case ROW_PLEX_CONTINUE: if (plex.isLinked()) backdropRow(column, getString(R.string.row_plex_continue), plexContinue); break;
+                    case ROW_PLEX_RECENT: if (plex.isLinked()) posterRow(column, getString(R.string.row_plex_recent), plexRecent); break;
+                    case ROW_TRAKT: for (TraktClient.TraktRow row : traktRows) posterRow(column, row.title, row.items); break;
+                    case ROW_SHOWS: if (!catalog.isEmpty()) posterRow(column, getString(R.string.row_popular_shows), slice(shows, 4, 40)); break;
+                    case ROW_MOVIES: if (!catalog.isEmpty()) posterRow(column, getString(R.string.row_popular_movies), slice(movies, 20, 48)); break;
+                    case ROW_TOP_RATED: if (!catalog.isEmpty()) posterRow(column, getString(R.string.row_top_rated), rated); break;
+                    default: break;
+                }
+            }
             if (plex.isLinked()) {
-                if (prefs.rowShown(ROW_PLEX_CONTINUE)) backdropRow(column, getString(R.string.row_plex_continue), plexContinue);
-                if (prefs.rowShown(ROW_PLEX_RECENT)) posterRow(column, getString(R.string.row_plex_recent), plexRecent);
                 if (plexError != null) column.addView(noticeCard(getString(R.string.plex_status_title),
                         getString(R.string.plex_status_body, plexError), this::refreshPlex));
             } else if (apps.byPackage(PlexClient.PACKAGE) != null && !prefs.plexPromptDismissed()) {
                 column.addView(plexPrompt());
             }
-            for (TraktClient.TraktRow row : traktRows) posterRow(column, row.title, row.items);
             if (!traktErrors.isEmpty()) column.addView(noticeCard(getString(R.string.trakt_status_title),
                     TextUtils.join("\n", traktErrors), this::refreshTrakt));
         }
@@ -1261,10 +1353,7 @@ public class HomeActivity extends Activity {
         if (catalog.isEmpty()) {
             column.addView(statusCard());
         } else if (tab == TAB_FOR_YOU) {
-            if (prefs.rowShown(ROW_TOP_PICKS)) backdropRow(column, getString(R.string.row_top_picks), slice(movies, 4, 20));
-            if (prefs.rowShown(ROW_SHOWS)) posterRow(column, getString(R.string.row_popular_shows), slice(shows, 4, 40));
-            if (prefs.rowShown(ROW_MOVIES)) posterRow(column, getString(R.string.row_popular_movies), slice(movies, 20, 48));
-            if (prefs.rowShown(ROW_TOP_RATED)) posterRow(column, getString(R.string.row_top_rated), rated);
+            // rows are placed above, in the user's order
         } else if (tab == TAB_MOVIES) {
             backdropRow(column, getString(R.string.row_trending_movies), slice(movies, 7, 20));
             posterRow(column, getString(R.string.row_popular_movies), slice(movies, 20, 48));
@@ -1543,7 +1632,10 @@ public class HomeActivity extends Activity {
         // Artwork always keeps its top edge (faces, title treatments) and crops from the bottom.
         // Two layers, so a new title fades in over the old one instead of blinking.
         float keep = sideArt ? (detailsRight ? 0f : 1f) : 0.5f;
+        stopTrailer();
         FrameLayout art = new FrameLayout(this);
+        heroArtBox = art;
+        art.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
         art.setBackground(Ui.gradient(GradientDrawable.Orientation.TL_BR, 0xFF2F3D56, 0xFF1D2331, 0xFF28223B));
         heroArt = new ImageView[]{new Ui.TopCropImageView(this, keep), new Ui.TopCropImageView(this, keep)};
         heroArtFront = 0;
@@ -1684,6 +1776,8 @@ public class HomeActivity extends Activity {
     private void setHeroCollapsed(boolean collapsed) {
         if (heroFrame == null || collapsed == heroCollapsed || tab == TAB_APPS) return;
         heroCollapsed = collapsed;
+        // Moving down into the rows ends the trailer; coming back to the banner offers it again.
+        if (collapsed) stopTrailer(); else scheduleTrailer();
         int vis = collapsed ? View.GONE : View.VISIBLE;
         if (!heroItems.isEmpty()) {
             if (heroButtons != null) heroButtons.setVisibility(vis);
@@ -1743,6 +1837,51 @@ public class HomeActivity extends Activity {
             p.rightMargin = ui.dp(5);
             heroDots.addView(dot, p);
         }
+        scheduleTrailer();
+    }
+
+    // ------------------------------------------------------------ banner trailer
+
+    private static final long TRAILER_DELAY_MS = 3_000;
+    private FrameLayout heroArtBox;
+    private HeroTrailer trailer;
+    private final Runnable trailerStart = this::startTrailer;
+
+    /** Three seconds on a title, and its trailer takes over from the picture (when it has one and trailers are on). */
+    private void scheduleTrailer() {
+        stopTrailer();
+        if (prefs.heroTrailer() != Prefs.TRAILER_OFF && !heroItems.isEmpty()) main.postDelayed(trailerStart, TRAILER_DELAY_MS);
+    }
+
+    void stopTrailer() {
+        main.removeCallbacks(trailerStart);
+        if (trailer != null) trailer.stop();
+    }
+
+    private void startTrailer() {
+        if (!resumed || overlay != null || !heroOnScreen || heroCollapsed || heroArtBox == null || heroItems.isEmpty() || !hasWindowFocus()) return;
+        if (tab != TAB_FOR_YOU && tab != TAB_MOVIES && tab != TAB_SHOWS) return;
+        final MediaItem m = heroItems.get(Math.min(heroIndex, heroItems.size() - 1));
+        final FrameLayout box = heroArtBox;
+        if (trailer == null) trailer = new HeroTrailer(this);
+        final HeroTrailer t = trailer;
+        new Thread(() -> {
+            final String yt = t.lookup(m);
+            if (yt.isEmpty()) return; // no trailer: the picture stays
+            main.post(() -> {
+                // Still on the same title, same banner, and nothing has covered it meanwhile?
+                if (box != heroArtBox || heroItems.isEmpty() || heroItems.get(Math.min(heroIndex, heroItems.size() - 1)) != m) return;
+                if (!resumed || overlay != null || !heroOnScreen || heroCollapsed) return;
+                main.removeCallbacks(heroAdvance); // hold this title while its trailer loads and plays
+                t.play(box, m.id, yt, prefs.heroTrailer() == Prefs.TRAILER_MUTED, new HeroTrailer.Listener() {
+                    @Override public void onPlaying() { main.removeCallbacks(heroAdvance); }
+                    @Override public void onFinished(boolean played) {
+                        if (played && heroItems.size() > 1 && heroOnScreen && overlay == null) showHero((heroIndex + 1) % heroItems.size());
+                        restartHeroTimer();
+                    }
+                });
+            });
+        }, "phonetv-trailer").start();
     }
 
     /** Loads the next banner image into the hidden layer and cross-fades to it once it's ready. */
@@ -2196,6 +2335,8 @@ public class HomeActivity extends Activity {
     private static final int[] TITLE_SORTS = {R.string.sort_recent, R.string.sort_title, R.string.sort_newest, R.string.sort_rating};
     private static final int[] TITLE_SORT_VALUES = {Library.SORT_RECENT, Library.SORT_TITLE, Library.SORT_NEWEST, Library.SORT_RATING};
     private static final int[] ONLY_LABELS = {R.string.only_all, R.string.only_movies, R.string.only_shows};
+    private static final int FROM_ALL = 0, FROM_PHONE_TV = 1, FROM_TRAKT = 2;
+    private static final int[] FROM_LABELS = {R.string.from_all, R.string.from_phone_tv, R.string.from_trakt};
     private static final int[] HISTORY_SORTS = {R.string.sort_last_watched, R.string.sort_title, R.string.sort_most_watched};
     private static final java.util.regex.Pattern PLEX_EPISODE = java.util.regex.Pattern.compile("^S\\d+ · E\\d+");
 
@@ -2223,11 +2364,25 @@ public class HomeActivity extends Activity {
             int sort = prefs.librarySort(PART_SAVED) % TITLE_SORTS.length, only = prefs.librarySort(PART_SAVED + "Only") % ONLY_LABELS.length;
             bar.addView(cycleChip("lib:sort", TITLE_SORTS, sort, PART_SAVED), chipSpacing(6));
             bar.addView(cycleChip("lib:only", ONLY_LABELS, only, PART_SAVED + "Only"), chipSpacing(6));
-            List<MediaItem> titles = library.titles(TITLE_SORT_VALUES[sort], only);
-            if (titles.isEmpty()) { column.addView(emptyNote(getString(library.titleCount() == 0 ? R.string.library_saved_empty : R.string.library_none_match))); return; }
+            // With Trakt connected, its watchlist and collection sit on the same shelf, sorted together.
+            boolean hasTrakt = !traktWatchlist.isEmpty() || !traktCollection.isEmpty();
+            int from = hasTrakt ? prefs.librarySort(PART_SAVED + "From") % FROM_LABELS.length : FROM_PHONE_TV;
+            if (hasTrakt) bar.addView(cycleChip("lib:from", FROM_LABELS, from, PART_SAVED + "From"), chipSpacing(6));
+            List<MediaItem> titles = new ArrayList<>();
+            java.util.Set<String> mine = new java.util.HashSet<>(), seen = new java.util.HashSet<>();
+            for (MediaItem m : library.titles(Library.SORT_RECENT, Library.ONLY_ALL)) {
+                mine.add(m.id);
+                if (from != FROM_TRAKT && seen.add(m.id)) titles.add(m);
+            }
+            if (from != FROM_PHONE_TV) {
+                for (MediaItem m : traktWatchlist) if (seen.add(m.id)) titles.add(m);
+                for (MediaItem m : traktCollection) if (seen.add(m.id)) titles.add(m);
+            }
+            titles = Library.sortTitles(Library.filter(titles, only), TITLE_SORT_VALUES[sort]);
+            if (titles.isEmpty()) { column.addView(emptyNote(getString(library.titleCount() == 0 && !hasTrakt ? R.string.library_saved_empty : R.string.library_none_match))); return; }
             int[] plan = gridPlan(cardWidth(land() ? 116 : 104));
             List<View> cells = new ArrayList<>();
-            for (MediaItem m : titles) cells.add(posterCell(m, "lib:t:" + Library.key(m), m.year, plan[1], () -> showDetails(m), null));
+            for (MediaItem m : titles) cells.add(posterCell(m, "lib:t:" + Library.key(m), m.year, plan[1], () -> showDetails(m), mine.contains(m.id) ? null : "Trakt"));
             addGrid(column, cells, plan);
         } else if (part == 1) {
             boolean byName = prefs.librarySort(PART_ACTORS) % 2 == 1;
@@ -2333,6 +2488,12 @@ public class HomeActivity extends Activity {
                 try { fromTrakt = trakt.history(); toWatch = trakt.watchlist(); }
                 catch (IOException | JSONException e) { problems.add("Trakt: " + CatalogRepository.describe(e)); }
             }
+            List<MediaItem> owned = null;
+            if (trakt.hasHistory()) {
+                try { owned = trakt.collection(); }
+                catch (IOException | JSONException e) { /* the collection is a bonus; the watchlist and history still show */ }
+            } else owned = Collections.emptyList();
+            final List<MediaItem> collectionResult = owned;
             final List<MediaItem> watchlistResult = toWatch;
             final List<MediaItem> plexResult = fromPlex;
             final List<Library.Watch> traktResult = fromTrakt;
@@ -2341,6 +2502,7 @@ public class HomeActivity extends Activity {
                 if (plexResult != null) plexHistory = plexResult;
                 if (traktResult != null) traktHistory = traktResult;
                 if (watchlistResult != null) traktWatchlist = watchlistResult;
+                if (collectionResult != null) traktCollection = collectionResult;
                 historyError = problems.isEmpty() ? null : TextUtils.join("\n", problems);
                 if (tab == TAB_LIBRARY) renderPreservingScroll();
             });
@@ -3020,6 +3182,7 @@ public class HomeActivity extends Activity {
      * scroll position, so closing the page lands exactly where the user left off.
      */
     private void openOverlay(Overlay page) {
+        stopTrailer();
         if (overlay == null) {
             View focused = focused();
             Object key = focused == null ? null : focused.getTag(R.id.focus_key);
@@ -3058,6 +3221,7 @@ public class HomeActivity extends Activity {
                 if (back != null) back.requestFocus();
             }
         } else {
+            scheduleTrailer();
             home.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
             home.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
             if (usingRemote()) {
@@ -3237,7 +3401,7 @@ public class HomeActivity extends Activity {
     void explainHomeKeeper() {
         new AlertDialog.Builder(this, R.style.PhoneTvDialog)
                 .setTitle(R.string.keeper_title)
-                .setMessage(getString(R.string.keeper_body, getPackageName() + "/" + HomeKeeperService.class.getName()))
+                .setMessage(getString(isFireTv() ? R.string.keeper_body_fire : R.string.keeper_body, getPackageName() + "/" + HomeKeeperService.class.getName()))
                 .setPositiveButton(R.string.keeper_open_settings, (d, w) -> {
                     if (!startSafely(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))) toast(getString(R.string.keeper_no_settings));
                 })
@@ -3703,6 +3867,49 @@ public class HomeActivity extends Activity {
     }
 
     void openPlexItem(MediaItem m) {
+        boolean playable = "movie".equals(m.type) || "episode".equals(m.type);
+        // Without the Plex app there's still a way to watch: straight from the server.
+        if (playable && (prefs.plexPlaysHere() || !isInstalled(PlexClient.PACKAGE))) { playPlexHere(m); return; }
+        openPlexApp(m);
+    }
+
+    /** Plays a Plex movie or episode in Phone TV's player, straight from the user's server. */
+    private void playPlexHere(MediaItem m) {
+        new Thread(() -> {
+            try {
+                PlexClient.Stream s = plex.stream(m);
+                main.post(() -> {
+                    Bundle server = new Bundle();
+                    server.putString("base", s.base);
+                    server.putString("token", s.token);
+                    server.putString("client", s.clientId);
+                    server.putString("key", s.ratingKey);
+                    server.putString("fallback", s.transcoded);
+                    plexInPlayer = m;
+                    Intent i = new Intent(this, PlayerActivity.class)
+                            .putExtra(PlayerActivity.X_URL, s.direct).putExtra(PlayerActivity.X_PLEX, server)
+                            .putExtra(PlayerActivity.X_TYPE, "episode".equals(m.type) ? "series" : "movie")
+                            .putExtra(PlayerActivity.X_TITLE, m.title).putExtra(PlayerActivity.X_LABEL, m.subtitle)
+                            .putExtra(PlayerActivity.X_ADDON, "Plex").putExtra(PlayerActivity.X_RESUME, m.viewOffsetMs);
+                    try {
+                        Bundle onThisScreen = launchOptions();
+                        if (onThisScreen != null) startActivityForResult(i, REQUEST_PLAYER, onThisScreen);
+                        else startActivityForResult(i, REQUEST_PLAYER);
+                    } catch (RuntimeException e) { toast(getString(R.string.player_failed)); }
+                });
+            } catch (IOException | JSONException e) {
+                final String why = CatalogRepository.describe(e);
+                main.post(() -> {
+                    toast(getString(R.string.plex_play_failed, why));
+                    if (isInstalled(PlexClient.PACKAGE)) openPlexApp(m);
+                });
+            }
+        }, "phonetv-plex-play").start();
+    }
+
+    private MediaItem plexInPlayer; // the Plex title Phone TV's player was opened for, if any
+
+    void openPlexApp(MediaItem m) {
         if (!isInstalled(PlexClient.PACKAGE)) { showMissingApp(Prefs.PLAY_PLEX, null); return; }
         Intent resume = new Intent(Intent.ACTION_VIEW, Uri.parse(PlexClient.playUri(m))).setPackage(PlexClient.PACKAGE)
                 .putExtra("android.intent.extra.START_PLAYBACK", true); // still read by older Plex builds
@@ -3919,8 +4126,16 @@ public class HomeActivity extends Activity {
     void importStremioAddons() {
         final TextView body = dialogText(getString(R.string.stremio_link_help));
         final TextView code = dialogCode("…");
+        // A QR code for the phone's camera: scanning it opens Stremio's page with the code filled in.
+        final ImageView qr = new Art(this);
+        qr.setBackgroundColor(0xFFFFFFFF);
+        qr.setPadding(ui.dp(8), ui.dp(8), ui.dp(8), ui.dp(8));
+        qr.setVisibility(View.GONE);
+        LinearLayout qrRow = new LinearLayout(this);
+        qrRow.setGravity(Gravity.CENTER);
+        qrRow.addView(qr, new LinearLayout.LayoutParams(ui.dp(168), ui.dp(168)));
         final AlertDialog d = new AlertDialog.Builder(this, R.style.PhoneTvDialog)
-                .setTitle(R.string.set_addon_stremio).setView(dialogForm(body, code))
+                .setTitle(R.string.set_addon_stremio).setView(dialogForm(body, qrRow, code))
                 .setPositiveButton(R.string.stremio_open_link, null)
                 .setNegativeButton(R.string.cancel, null).create();
         final String[] link = {null};
@@ -3936,7 +4151,10 @@ public class HomeActivity extends Activity {
             try {
                 StremioLink.Code c = StremioLink.create();
                 link[0] = c.link;
-                main.post(() -> code.setText(c.code));
+                main.post(() -> {
+                    code.setText(c.code);
+                    if (c.qr != null) images.load(qr, c.qr, ui.dp(168), true, () -> qr.setVisibility(View.VISIBLE));
+                });
                 stage = getString(R.string.stremio_stage_wait);
                 String token = null;
                 long until = System.currentTimeMillis() + 10 * 60_000L;
@@ -3947,7 +4165,7 @@ public class HomeActivity extends Activity {
                 }
                 if (!open[0]) return;
                 if (token == null) throw new IOException(getString(R.string.stremio_link_expired));
-                main.post(() -> { code.setText("✓"); body.setText(R.string.stremio_connected); });
+                main.post(() -> { qr.setVisibility(View.GONE); code.setText("✓"); body.setText(R.string.stremio_connected); });
                 stage = getString(R.string.stremio_stage_signin);
                 String session;
                 try { session = StremioLink.session(token); }

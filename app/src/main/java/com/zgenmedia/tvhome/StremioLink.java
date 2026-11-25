@@ -22,7 +22,7 @@ final class StremioLink {
     private static final String[] SKIP = {"https://v3-cinemeta.strem.io", "https://opensubtitles.strem.io/stremio/v1", "http://127.0.0.1"};
 
     static final class Code {
-        String code, link;
+        String code, link, qr;
     }
 
     private StremioLink() {}
@@ -34,6 +34,7 @@ final class StremioLink {
         Code c = new Code();
         c.code = r.getString("code");
         c.link = r.optString("link", "https://link.stremio.com/" + c.code);
+        c.qr = r.optString("qrcode", "https://link.stremio.com/qr?data=" + android.net.Uri.encode(c.link));
         return c;
     }
 

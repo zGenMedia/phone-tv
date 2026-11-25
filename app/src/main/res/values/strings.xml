@@ -129,7 +129,8 @@
     <string name="settings_keeper_pause">Open the stock home screen for 1 minute</string>
     <string name="keeper_paused">Stock home screen available for 1 minute</string>
     <string name="keeper_title">Replace the TV home screen</string>
-    <string name="keeper_body">Fire TV and Android TV don\'t let you choose a Home app. Phone TV can step in front of the stock home screen whenever it appears.\n\nTurn on \"Phone TV home\" under Accessibility. Phone TV only checks which app is on screen; it never reads what\'s on it.\n\nFire TV hides that menu, so use ADB instead:\nadb shell settings put secure enabled_accessibility_services %1$s\nadb shell settings put secure accessibility_enabled 1\n\nExperimental: system updates can block this. Turn it off the same way.</string>
+    <string name="keeper_body">Android TV and Google TV don\'t let you choose a Home app. Phone TV can step in front of the stock home screen whenever it appears, including when you press the Home button.\n\nTurn on \"Phone TV home\" under Accessibility:\n• Shield and Android TV: Settings › Device Preferences › Accessibility\n• Google TV: Settings › System › Accessibility\n\nPhone TV only checks which app is on screen; it never reads what\'s on it.\n\nIf your box has no Accessibility menu, use ADB instead:\nadb shell settings put secure enabled_accessibility_services %1$s\nadb shell settings put secure accessibility_enabled 1\n\nExperimental: system updates can block this. Turn it off the same way.</string>
+    <string name="keeper_body_fire">Fire TV doesn\'t let you choose a Home app. Phone TV can step in front of the Fire TV home screen whenever it appears, including when you press the Home button.\n\nFire TV hides the Accessibility menu this needs, so turn it on with ADB (Settings › My Fire TV › Developer options › ADB debugging):\nadb shell settings put secure enabled_accessibility_services %1$s\nadb shell settings put secure accessibility_enabled 1\n\nPhone TV only checks which app is on screen; it never reads what\'s on it.\n\nExperimental: system updates can block this. Turn it off the same way.</string>
     <string name="keeper_open_settings">Open Accessibility</string>
     <string name="keeper_no_settings">This device has no Accessibility screen. Use the ADB commands shown.</string>
     <string name="keeper_service_label">Phone TV home</string>
@@ -471,7 +472,7 @@
     <string name="addon_installing">Installing %1$d add-ons…</string>
     <string name="addon_installed">Add-ons installed: %1$d</string>
     <string name="addon_some_failed">Installed %1$d. Couldn\'t install %2$d (check the links).</string>
-    <string name="stremio_link_help">On a phone or computer signed in to Stremio, open link.stremio.com and enter this code. Phone TV only reads your add-on list.</string>
+    <string name="stremio_link_help">Scan this with your phone\'s camera and sign in to Stremio there. Or open link.stremio.com on any phone or computer and enter the code. Phone TV only reads your add-on list.</string>
     <string name="stremio_connected">Connected to Stremio. Reading your add-ons…</string>
     <string name="stremio_no_addons">Connected, but this Stremio account has no add-ons beyond the ones Stremio includes itself. Add some in Stremio, or paste their links here.</string>
     <string name="stremio_failed">Couldn\'t import from Stremio.\n\nStep: %1$s\nReason: %2$s\n\nNothing was changed. Close this and try again for a new code.</string>
@@ -545,4 +546,28 @@
     <string name="profile_switched">Watching as %1$s</string>
     <string name="profile_ask">Ask who\'s watching</string>
     <string name="profile_ask_hint">Show the profiles when Phone TV starts</string>
+    <string name="update_allow_android_tv">Allow installs first: Settings › Apps › Security &amp; restrictions › Unknown sources › Phone TV</string>
+    <string name="update_downloading">Downloading %1$s…</string>
+    <string name="from_all">All sources</string>
+    <string name="from_phone_tv">Phone TV only</string>
+    <string name="from_trakt">Trakt only</string>
+    <string name="row_trakt_lists">Trakt lists</string>
+    <string name="row_show">Show this row</string>
+    <string name="row_hide">Hide this row</string>
+    <string name="row_move_up">Move up</string>
+    <string name="row_move_down">Move down</string>
+    <string name="row_move_top">Move to the top</string>
+    <string name="row_arrange_body">Row %1$d of %2$d on For you.</string>
+    <string name="row_state_on">On · move</string>
+    <string name="row_state_off">Hidden</string>
+    <string name="set_trailer">Trailers in the banner</string>
+    <string name="set_trailer_hint">After 3 seconds on a title its trailer plays in place of the picture. Titles without one stay as a picture.</string>
+    <string name="trailer_muted">Muted</string>
+    <string name="trailer_sound">With sound</string>
+    <string name="set_plex_player">Plex titles play in</string>
+    <string name="set_plex_player_hint">Phone TV plays straight from your server and reports progress back to Plex. Use it if the Plex app opens without starting the title.</string>
+    <string name="plex_player_app">Plex app</string>
+    <string name="plex_player_here">Phone TV</string>
+    <string name="plex_play_failed">Couldn\'t get this title from your Plex server: %1$s</string>
+    <string name="player_open_plex">Open in Plex app</string>
 </resources>

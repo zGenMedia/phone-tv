@@ -248,6 +248,18 @@ final class TraktClient {
         return toItems(new JSONArray(json));
     }
 
+    /** Movies and shows in the user's Trakt collection. Needs a sign-in; a public profile has only the watchlist. */
+    List<MediaItem> collection() throws IOException, JSONException {
+        List<MediaItem> out = new ArrayList<>();
+        if (!signedIn()) return out;
+        for (String kind : new String[]{"movie", "show"}) {
+            JSONArray arr = new JSONArray(authorized("/sync/collection/" + kind + "s?extended=full"));
+            for (int i = 0; i < arr.length(); i++) arr.getJSONObject(i).put("type", kind); // the collection reply leaves it out
+            out.addAll(toItems(arr));
+        }
+        return out;
+    }
+
     /** Trakt's history reply, one entry per play, in the library's own shape. Plays without an IMDb id are skipped. */
     static List<Library.Watch> parseHistory(String json) throws JSONException {
         JSONArray plays = new JSONArray(json);
@@ -301,6 +313,14 @@ final class TraktClient {
         return h;
     }
 
+    private static long stamp(String iso) {
+        if (iso == null || iso.length() < 19) return 0;
+        java.text.SimpleDateFormat f = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US);
+        f.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+        try { return f.parse(iso.substring(0, 19)).getTime(); }
+        catch (java.text.ParseException e) { return 0; }
+    }
+
     private static List<MediaItem> toItems(JSONArray arr) {
         List<MediaItem> out = new ArrayList<>();
         for (int i = 0; i < arr.length(); i++) {
@@ -326,6 +346,7 @@ final class TraktClient {
             m.posterRef = "https://images.metahub.space/poster/small/" + imdb + "/img";
             m.backdropRef = "https://images.metahub.space/background/medium/" + imdb + "/img";
             m.logoRef = "https://images.metahub.space/logo/medium/" + imdb + "/img";
+            m.listedAt = stamp(entry.optString("listed_at", entry.optString("collected_at", entry.optString("last_collected_at"))));
             if (!m.title.isEmpty()) out.add(m);
         }
         return out;

@@ -124,12 +124,26 @@ final class PlexClient {
     List<MediaItem> continueWatching() throws IOException, JSONException {
         if (!hasServer() && refreshServer() == null) throw new IOException("no Plex Media Server on this account");
         try {
-            return metadata("/library/onDeck?X-Plex-Container-Size=20");
+            return unfinished();
         } catch (IOException first) {
             // The saved address may be stale; look the server up again and retry once.
             if (refreshServer() == null) throw first;
-            return metadata("/library/onDeck?X-Plex-Container-Size=20");
+            return unfinished();
         }
+    }
+
+    /**
+     * Plex's own Continue Watching list, which drops a title as soon as it's marked watched.
+     * Older servers don't have it; they answer from On Deck. Either way, anything the server
+     * already counts as fully watched is left out.
+     */
+    private List<MediaItem> unfinished() throws IOException, JSONException {
+        List<MediaItem> items;
+        try { items = metadata("/hubs/continueWatching/items?X-Plex-Container-Size=20"); }
+        catch (IOException | JSONException older) { items = metadata("/library/onDeck?X-Plex-Container-Size=20"); }
+        List<MediaItem> out = new ArrayList<>();
+        for (MediaItem m : items) if (!m.plexWatched) out.add(m);
+        return out;
     }
 
     List<MediaItem> recentlyAdded() throws IOException, JSONException {
@@ -155,6 +169,64 @@ final class PlexClient {
     static String playUri(MediaItem m) {
         return "plex://server://" + m.plexMachineId + "/com.plexapp.plugins.library/library/metadata/" + m.id
                 + "?viewOffset=" + m.viewOffsetMs + "&autoPlay=1";
+    }
+
+    // ------------------------------------------------------ playing in Phone TV
+
+    /** What Phone TV's player needs to play a Plex movie or episode and tell the server how far it got. */
+    static final class Stream {
+        String direct, transcoded, base, token, clientId, ratingKey;
+    }
+
+    /**
+     * Links for one movie or episode: the file itself, and the server's own HLS conversion as a
+     * second try for files the device can't decode. Blocking. Throws when the title has no
+     * playable file (a show or season, or media that's gone missing).
+     */
+    Stream stream(MediaItem m) throws IOException, JSONException {
+        String base = prefs.plexServerUri(), token = prefs.plexServerToken();
+        JSONObject container = json(Http.get(base + "/library/metadata/" + m.id, headers(token), 12_000)).optJSONObject("MediaContainer");
+        JSONArray items = container == null ? null : container.optJSONArray("Metadata");
+        JSONArray media = items == null || items.length() == 0 ? null : items.getJSONObject(0).optJSONArray("Media");
+        JSONArray parts = media == null || media.length() == 0 ? null : media.getJSONObject(0).optJSONArray("Part");
+        String key = parts == null || parts.length() == 0 ? "" : parts.getJSONObject(0).optString("key");
+        if (key.isEmpty()) throw new IOException("no playable file");
+        Stream s = new Stream();
+        s.base = base;
+        s.token = token;
+        s.clientId = prefs.plexClientId();
+        s.ratingKey = m.id;
+        s.direct = base + key + "?X-Plex-Token=" + Uri.encode(token);
+        s.transcoded = base + "/video/:/transcode/universal/start.m3u8?path=" + Uri.encode("/library/metadata/" + m.id)
+                + "&mediaIndex=0&partIndex=0&protocol=hls&fastSeek=1&directPlay=0&directStream=1&location=lan"
+                + "&videoQuality=100&videoResolution=1920x1080&maxVideoBitrate=20000&subtitles=auto"
+                + "&session=" + java.util.UUID.randomUUID()
+                + "&X-Plex-Platform=Android&X-Plex-Product=" + Uri.encode("Phone TV") + "&X-Plex-Version=" + BuildConfig.VERSION_NAME
+                + "&X-Plex-Client-Identifier=" + Uri.encode(s.clientId) + "&X-Plex-Token=" + Uri.encode(token);
+        return s;
+    }
+
+    /** Tells the server where playback is, so Plex's own Continue Watching and resume stay right. Blocking, best effort. */
+    static void report(String base, String token, String clientId, String ratingKey, String state, long positionMs, long durationMs) {
+        Map<String, String> h = new HashMap<>();
+        h.put("Accept", "application/json");
+        h.put("X-Plex-Token", token);
+        h.put("X-Plex-Client-Identifier", clientId);
+        h.put("X-Plex-Product", "Phone TV");
+        h.put("X-Plex-Platform", "Android");
+        try {
+            Http.get(base + "/:/timeline?ratingKey=" + ratingKey + "&key=" + Uri.encode("/library/metadata/" + ratingKey)
+                    + "&state=" + state + "&time=" + positionMs + "&duration=" + durationMs, h, 8_000);
+        } catch (IOException ignored) { /* the next report catches up */ }
+    }
+
+    /** Marks a title watched on the server. Blocking, best effort. */
+    static void markWatched(String base, String token, String clientId, String ratingKey) {
+        Map<String, String> h = new HashMap<>();
+        h.put("X-Plex-Token", token);
+        h.put("X-Plex-Client-Identifier", clientId);
+        try { Http.get(base + "/:/scrobble?identifier=com.plexapp.plugins.library&key=" + ratingKey, h, 8_000); }
+        catch (IOException ignored) { /* Plex marks it itself once the timeline passes 90 % */ }
     }
 
     // ----------------------------------------------------- Plex Home profiles
@@ -261,6 +333,7 @@ final class PlexClient {
             long duration = o.optLong("duration"), offset = o.optLong("viewOffset");
             if (duration > 0 && offset > 0) m.progressPercent = (int) Math.min(100, offset * 100 / duration);
             m.viewOffsetMs = offset;
+            m.plexWatched = offset == 0 && o.optInt("viewCount") > 0;
             m.watchedAt = o.optLong("lastViewedAt") * 1000L;
             if (!m.id.isEmpty() && !m.title.isEmpty()) out.add(m);
         }
