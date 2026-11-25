@@ -1,7 +1,7 @@
 {
-  "versionCode": 26,
-  "versionName": "0.13.0",
+  "versionCode": 27,
+  "versionName": "0.13.1",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "25659f11fbad18818506e624df05d82afe586990e7b1d20253c8acf7e0fedddb",
-  "notes": "New TV and film features: built-in player with add-ons, Continue watching, Discover, profiles, richer title pages and a movie art screen saver. Smoother scrolling."
+  "sha256": "e9405a5caee60d718f2f629e5ae574abb5f0c23658d7272857a40e601e7d6afe",
+  "notes": "New TV and film features: built-in player with add-ons, Continue watching, Discover, profiles and more. Fixed the wording on the Stremio import screen."
 }

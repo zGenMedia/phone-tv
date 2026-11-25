@@ -3903,13 +3903,13 @@ public class HomeActivity extends Activity {
         TextView code = dialogCode("…");
         AlertDialog d = new AlertDialog.Builder(this, R.style.PhoneTvDialog)
                 .setTitle(R.string.set_addon_stremio).setView(dialogForm(body, code))
-                .setPositiveButton(R.string.plex_open_link, null)
+                .setPositiveButton(R.string.stremio_open_link, null)
                 .setNegativeButton(R.string.cancel, null).create();
         final String[] link = {null};
         final boolean[] open = {true};
         d.setOnDismissListener(x -> open[0] = false);
         d.setOnShowListener(x -> d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            if (link[0] != null && !openUrl(link[0], null)) toast(getString(R.string.plex_no_browser));
+            if (link[0] != null && !openUrl(link[0], null)) toast(getString(R.string.stremio_no_browser));
         }));
         d.show();
         io.execute(() -> {

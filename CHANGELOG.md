@@ -3,6 +3,12 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.13.1 — 2026-11-25
+
+### Fixed
+- *Import from Stremio* said "Open plex.tv/link" on its button. It now says
+  and opens link.stremio.com.
+
 ## 0.13.0 — 2026-11-25
 
 ### Added — TV and film

@@ -472,6 +472,8 @@
     <string name="addon_installed">Add-ons installed: %1$d</string>
     <string name="addon_some_failed">Installed %1$d. Couldn\'t install %2$d (check the links).</string>
     <string name="stremio_link_help">On a phone or computer signed in to Stremio, open link.stremio.com and enter this code. Phone TV only reads your add-on list.</string>
+    <string name="stremio_open_link">Open link.stremio.com</string>
+    <string name="stremio_no_browser">No browser here. Open link.stremio.com on your phone or computer.</string>
     <string name="stremio_link_expired">The Stremio code ran out. Try again.</string>
     <string name="set_group_player">Phone TV player</string>
     <string name="set_autoplay">Play the first source</string>
