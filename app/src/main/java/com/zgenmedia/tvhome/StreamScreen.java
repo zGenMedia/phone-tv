@@ -117,7 +117,10 @@ final class StreamScreen implements Overlay {
         column.addView(sub);
 
         if (streams == null) {
-            column.addView(note(a.getString(R.string.sources_loading, Addons.of(a).all().size())));
+            View asking = Loading.line(a, a.getString(R.string.sources_loading, Addons.of(a).all().size()));
+            asking.setPadding(0, ui.dp(10), 0, ui.dp(12)); // this page has its own side margins
+            column.addView(asking);
+            column.addView(Loading.rows(a, 4, 72));
         } else if (streams.isEmpty()) {
             column.addView(note(a.getString(R.string.sources_none)));
         } else {

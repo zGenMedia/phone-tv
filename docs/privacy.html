@@ -264,11 +264,12 @@ section{padding:72px 0}
       <h2 style="margin-top:40px">Where Phone TV connects</h2>
       <ul class="lead" style="margin-top:18px">
         <li><b>Cinemeta and Metahub</b> (Stremio's public catalog and artwork) for the movies and shows on the home screen.</li>
-        <li><b>TVmaze</b> for the cast of TV shows. These requests contain the show's IMDb id.</li>
+        <li><b>TVmaze</b> for the cast of TV shows (these requests contain the show's IMDb id) and for today's premiere schedule on the Channels tab (the same request for everyone: just the date).</li>
         <li><b>Wikidata, Wikimedia Commons and Wikipedia</b> for banner suggestions, cast lists, actor photos and short biographies. These requests contain the titles and names you look at.</li>
         <li><b>GitHub Pages</b> (this site) to check for updates and download them.</li>
         <li><b>Plex</b>, only if you link it: plex.tv to sign in, then your own Plex server for your libraries, Continue watching and watch history.</li>
         <li><b>Trakt</b>, only if you sign in or add a username or lists: to read your watch history, watchlist, collection and public lists. Phone TV only reads from Trakt; it never changes your Trakt data. Signing out removes the token from the device and asks Trakt to cancel it.</li>
+        <li><b>Shared links</b>: a link you share names only the subject (its kind, public catalog id and name), nothing about you. The first time Phone TV is opened after installing, it looks at the clipboard once for one of its own share links, so a shared title can open; anything else on the clipboard is ignored and nothing is sent anywhere.</li>
         <li><b>YouTube</b>, only while <i>Trailers in the banner</i> is on (Settings › Home screen): the trailer of the featured title plays from YouTube, which then sees the request like any embedded YouTube video. Turn the setting off and nothing is loaded from YouTube.</li>
         <li><b>TMDB</b>, only if you add your own TMDB key: for ratings, suggestions and browsing by streaming service. These requests contain the title's IMDb id and your key.</li>
         <li><b>Add-ons you install</b>, only if you add them: Phone TV asks each one for catalogs, sources and subtitles for the title you open. Each add-on is run by its own author and its own privacy policy applies. Phone TV doesn't host or provide any content.</li>

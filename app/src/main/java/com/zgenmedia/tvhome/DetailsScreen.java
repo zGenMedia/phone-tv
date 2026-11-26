@@ -269,6 +269,7 @@ final class DetailsScreen implements Overlay {
                 addAction(row, first ? a.getString(R.string.details_watch_on, name) : name, first, installed, () -> a.openWith(player, item, null));
             }
             addAction(row, a.getString(R.string.details_trailer), false, true, () -> a.openTrailer(item, details == null ? null : details.trailerId));
+            if (item.id != null && item.id.startsWith("tt")) addAction(row, a.getString(R.string.share), false, true, () -> a.share(Share.link(item), item.title));
         }
         HorizontalScrollView strip = new HorizontalScrollView(a);
         strip.setHorizontalScrollBarEnabled(false);
@@ -350,7 +351,7 @@ final class DetailsScreen implements Overlay {
         episodeRow = null;
         castShelf = null;
         if (details == null) {
-            if (loading) extras.addView(note(a.getString(R.string.details_loading)));
+            if (loading) extras.addView(Loading.line(a, a.getString(R.string.details_loading)));
             else if (loadError != null) {
                 extras.addView(note(a.getString(R.string.details_failed, loadError)));
                 TextView retry = ui.pill(a.getString(R.string.retry), 0x26FFFFFF, Ui.TEXT);

@@ -107,6 +107,14 @@ final class Prefs {
     int heroTrailer() { return sp.getInt("heroTrailer", TRAILER_MUTED); }
     void setHeroTrailer(int v) { sp.edit().putInt("heroTrailer", v).apply(); }
 
+    /** OK on a channel: start the title from its beginning (the default), or join where the channel has got to. */
+    boolean channelsJoinLive() { return sp.getBoolean("channelsJoinLive", false); }
+    void setChannelsJoinLive(boolean live) { sp.edit().putBoolean("channelsJoinLive", live).apply(); }
+
+    /** Whether the one-time look for a shared link left by the download page has happened. */
+    boolean sharedLinkChecked() { return sp.getBoolean("sharedLinkChecked", false); }
+    void setSharedLinkChecked() { sp.edit().putBoolean("sharedLinkChecked", true).apply(); }
+
     /** Where a Plex title plays: the Plex app (as before) or Phone TV's own player. */
     boolean plexPlaysHere() { return sp.getBoolean("plexHere", false); }
     void setPlexPlaysHere(boolean here) { sp.edit().putBoolean("plexHere", here).apply(); }

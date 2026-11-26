@@ -1,7 +1,7 @@
 {
-  "versionCode": 30,
-  "versionName": "0.15.0",
+  "versionCode": 31,
+  "versionName": "0.16.0",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "7954dda21fb88d828517908c0338bee03d8ff3966df25238888ef7c5f32d3efd",
-  "notes": "Channels: a TV guide of always-on line-ups to tune in to. Pick for me. Networks and studios you can browse and save. Faster artwork. Setup transfer now carries every profile and only adds."
+  "sha256": "572f0a907b697608ea764b2bcbc0dc43efdda3a10db9c1975ca3ce333d494388",
+  "notes": "Share any movie, show, actor, network or studio with a link. Channels now carry tonight's real premieres and start titles from the beginning. New loading animations."
 }

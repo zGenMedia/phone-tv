@@ -592,7 +592,7 @@
     <string name="library_clear_companies_body">This removes every saved network and studio from this profile. Your saved titles and actors stay.</string>
     <string name="tab_channels">Channels</string>
     <string name="channels_title">Channels</string>
-    <string name="channels_about">Always-on line-ups to tune in to. Phone TV builds them from each network\'s and studio\'s own catalog on a shared clock; they are not the networks\' live broadcasts.</string>
+    <string name="channels_about">Always-on line-ups to tune in to. Tonight\'s real premieres run at their true times; the rest of the day is Phone TV\'s own schedule from each network\'s catalog, the same for everyone. These are not the networks\' live broadcasts.</string>
     <string name="channels_all">All</string>
     <string name="channels_networks">Networks</string>
     <string name="channels_studios">Movie studios</string>
@@ -623,4 +623,15 @@
     <string name="pick_watch">Watch</string>
     <string name="pick_details">Details</string>
     <string name="pick_another">Another pick</string>
+    <string name="share">Share</string>
+    <string name="share_title">Share %1$s</string>
+    <string name="share_text">%1$s on Phone TV: %2$s</string>
+    <string name="share_link_shown">The link is copied. Anyone who opens it lands on this in Phone TV, or is offered the download first:\n\n%1$s</string>
+    <string name="share_bad_link">That Phone TV link is incomplete, so there\'s nothing to open.</string>
+    <string name="channels_real">New tonight  ·  %1$s</string>
+    <string name="channels_join_live">Join where the channel is</string>
+    <string name="channels_join_start">From the beginning</string>
+    <string name="channels_starting_next">Nearly over. Starting the next one: %1$s</string>
+    <string name="set_channels_join">Tuning in to a channel starts</string>
+    <string name="set_channels_join_hint">From the beginning plays what\'s on from its start, or the next title when 20 minutes or less are left. Joining where the channel is works in Phone TV\'s own player.</string>
 </resources>

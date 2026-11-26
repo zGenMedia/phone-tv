@@ -129,6 +129,11 @@ final class CompanyScreen implements Overlay {
         save.setOnClickListener(v -> { a.toggleSaved(company); rebuild(); });
         LinearLayout buttons = new LinearLayout(a);
         buttons.addView(save);
+        TextView share = ui.pill(a.getString(R.string.share), Ui.SURFACE, Ui.TEXT);
+        share.setOnClickListener(v -> a.share(Share.link(company), company.name));
+        LinearLayout.LayoutParams shareAt = new LinearLayout.LayoutParams(-2, -2);
+        shareAt.leftMargin = ui.dp(10);
+        buttons.addView(share, shareAt);
         text.addView(buttons);
         head.addView(text, new LinearLayout.LayoutParams(0, -2, 1));
         column.addView(head);
@@ -162,7 +167,12 @@ final class CompanyScreen implements Overlay {
             line.addView(retry);
             column.addView(line);
         } else {
-            column.addView(note(a.getString(titles == null ? R.string.company_loading : R.string.company_none)));
+            if (titles == null) {
+                column.addView(Loading.line(a, a.getString(R.string.company_loading)));
+                column.addView(Loading.posters(a, a.gridPlan((int) (ui.dp(land ? 116 : 104) * Prefs.CARD_SCALES[a.prefs.cardSize()])), 2));
+            } else {
+                column.addView(note(a.getString(R.string.company_none)));
+            }
         }
 
         TextView back = ui.label("←", 17, Ui.TEXT, Ui.BOLD);

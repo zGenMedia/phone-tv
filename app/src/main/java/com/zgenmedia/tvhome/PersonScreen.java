@@ -193,7 +193,11 @@ final class PersonScreen implements Overlay {
         about.addView(name);
 
         if (profile == null) {
-            if (loading) about.addView(fact(a.getString(R.string.person_loading), 8));
+            if (loading) {
+                View finding = Loading.line(a, a.getString(R.string.person_loading));
+                finding.setPadding(0, ui.dp(8), 0, 0);
+                about.addView(finding);
+            }
         } else {
             String lived = lived();
             if (!lived.isEmpty()) about.addView(fact(lived, 8));
@@ -214,6 +218,11 @@ final class PersonScreen implements Overlay {
                 rebuild();
             });
             actions.addView(save);
+            TextView share = ui.pill(a.getString(R.string.share), 0x33FFFFFF, Ui.TEXT);
+            share.setOnClickListener(v -> a.share(Share.link(person), person.name));
+            LinearLayout.LayoutParams shareAt = new LinearLayout.LayoutParams(-2, -2);
+            shareAt.leftMargin = ui.dp(10);
+            actions.addView(share, shareAt);
             firstControl = save;
         }
         if (error != null) {

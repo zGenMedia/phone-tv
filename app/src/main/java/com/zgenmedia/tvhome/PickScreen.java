@@ -173,8 +173,13 @@ final class PickScreen implements Overlay {
             column.addView(why);
         } else {
             TextView status = ui.label(error != null ? error : a.getString(R.string.pick_choosing), land ? 24 : 20, Ui.TEXT, Ui.BOLD);
-            status.setPadding(0, ui.dp(8), 0, ui.dp(16));
+            status.setPadding(0, ui.dp(8), 0, ui.dp(error != null ? 16 : 6));
             column.addView(status);
+            if (error == null) {
+                LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(ui.dp(60), ui.dp(30));
+                dlp.bottomMargin = ui.dp(14);
+                column.addView(new Loading.Dots(a, ui.dp(10), Ui.ACCENT), dlp);
+            }
         }
 
         // Watch is first and under the thumb; "Another pick" is one step to the right.

@@ -3,6 +3,27 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.16.0 — 2026-11-25
+
+### Added
+- **Share anything.** A Share button on every movie, show, actor, network and
+  studio. The link opens the subject in Phone TV; without Phone TV it shows
+  what was shared and offers the download, and the freshly installed app goes
+  straight to it on first open. On a TV the link is shown and copied instead.
+- **Real premieres on Channels.** Tonight's actual new episodes (from TVmaze's
+  free schedule) run on their network's channel at their true times, marked
+  *New tonight*. The rest of the day stays Phone TV's own line-up: a complete
+  round-the-clock guide for these networks is licensed data no free source
+  carries.
+- **Loading that looks alive.** Grids show the outline of the cards about to
+  arrive with a light sweeping across; status lines get three rippling dots;
+  the player shows the dots while it buffers. No more bare "Loading…" text.
+
+### Changed
+- **Tuning in starts the title from the beginning.** When 20 minutes or less
+  are left, the next title starts instead. Joining where the channel is stays
+  available from a long press, or as the default in Settings › Playback.
+
 ## 0.15.0 — 2026-11-25
 
 ### Added

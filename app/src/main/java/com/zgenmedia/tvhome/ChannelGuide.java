@@ -33,7 +33,7 @@ final class ChannelGuide {
     private final Ui ui;
     private List<Channels.Channel> channels = new ArrayList<>();
     private String builtFor = "";  // the saved companies the list was built with
-    private boolean loading;
+    private boolean loading, guideLoaded;
     private int group = -1;        // -1: all groups
     /** Each visible row's "show what's on now", by channel key. Main thread only. */
     private final Map<String, Runnable> rows = new HashMap<>();
@@ -137,6 +137,8 @@ final class ChannelGuide {
         final ImageView still = new Art(a);
         still.setScaleType(ImageView.ScaleType.CENTER_CROP);
         thumb.addView(still, new FrameLayout.LayoutParams(-1, -1));
+        final View waiting = new Loading.Dots(a, ui.dp(7), Ui.ACCENT);
+        thumb.addView(waiting, new FrameLayout.LayoutParams(ui.dp(44), ui.dp(22), Gravity.CENTER));
         LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(thumbW, thumbW * 9 / 16);
         tlp.rightMargin = ui.dp(12);
         card.addView(thumb, tlp);
@@ -172,14 +174,19 @@ final class ChannelGuide {
                 when.setText(c.error != null ? c.error : "");
                 next.setText("");
                 track.setVisibility(View.INVISIBLE);
+                waiting.setVisibility(c.error != null ? View.GONE : View.VISIBLE);
                 return;
             }
+            waiting.setVisibility(View.GONE);
             Channels.Slot s = on.get(0);
             long t = System.currentTimeMillis();
             now.setText(s.item.title);
             long left = Math.max(1, (s.end - t + 59_999) / 60_000);
-            when.setText(a.getString(R.string.channels_when, clock(s.start), clock(s.end),
-                    a.getResources().getQuantityString(R.plurals.channels_left, (int) left, (int) left)));
+            String times = a.getString(R.string.channels_when, clock(s.start), clock(s.end),
+                    a.getResources().getQuantityString(R.plurals.channels_left, (int) left, (int) left));
+            // A real premiere at its true time is worth pointing out.
+            when.setText(s.real ? a.getString(R.string.channels_real, times) : times);
+            when.setTextColor(s.real ? Ui.ACCENT : Ui.TEXT_DIM);
             track.setVisibility(View.VISIBLE);
             int w = track.getWidth() > 0 ? track.getWidth() : ui.dp(160);
             done.getLayoutParams().width = w * s.percent(t) / 100;
@@ -200,7 +207,7 @@ final class ChannelGuide {
         card.setOnClickListener(v -> {
             List<Channels.Slot> on = Channels.lineup(c, System.currentTimeMillis(), 1);
             if (on.isEmpty()) { if (c.error != null) { c.error = null; show.run(); load(); } return; }
-            a.tuneIn(c, on.get(0), true);
+            a.tuneChannel(c);
         });
         card.setOnLongClickListener(v -> { options(c); return true; });
 
@@ -216,7 +223,7 @@ final class ChannelGuide {
         final Channels.Slot s = on.get(0);
         List<String> labels = new ArrayList<>();
         List<Runnable> acts = new ArrayList<>();
-        labels.add(a.getString(R.string.channels_tune));
+        labels.add(a.getString(R.string.channels_join_live));
         acts.add(() -> a.tuneIn(c, s, true));
         labels.add(a.getString(R.string.channels_from_start));
         acts.add(() -> a.tuneIn(c, s, false));
@@ -247,6 +254,21 @@ final class ChannelGuide {
         loading = true;
         final List<Channels.Channel> todo = new ArrayList<>(channels);
         new Thread(() -> {
+            // Tonight's real premieres first: one small download a day, shared by every channel.
+            if (!guideLoaded) {
+                final java.util.Map<String, List<TvGuide.Airing>> tonight = TvGuide.today(a);
+                a.main.post(() -> {
+                    guideLoaded = true;
+                    for (Channels.Channel c : channels) {
+                        List<TvGuide.Airing> aired = new ArrayList<>();
+                        for (String name : c.guideNames) if (tonight.get(name) != null) aired.addAll(tonight.get(name));
+                        java.util.Collections.sort(aired, (x, y) -> Long.compare(x.start, y.start));
+                        c.aired = aired;
+                        Runnable row = rows.get(c.key());
+                        if (row != null) row.run();
+                    }
+                });
+            }
             for (final Channels.Channel c : todo) {
                 if (c.titles != null || c.error != null) continue;
                 List<MediaItem> got = null;

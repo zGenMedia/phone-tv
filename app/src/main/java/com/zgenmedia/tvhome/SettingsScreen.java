@@ -411,6 +411,10 @@ final class SettingsScreen implements Overlay {
                     prefs.plexPlaysHere() ? 1 : 0, i -> { prefs.setPlexPlaysHere(i == 1); apply(PANE); });
         }
 
+        choice(open, "channelsJoin", R.string.set_channels_join, R.string.set_channels_join_hint,
+                names(R.string.channels_join_start, R.string.channels_join_live),
+                prefs.channelsJoinLive() ? 1 : 0, i -> { prefs.setChannelsJoinLive(i == 1); apply(PANE); });
+
         // Say plainly which of them Phone TV can actually see, so a missing app is no surprise later.
         List<String> found = new ArrayList<>(), missing = new ArrayList<>();
         for (String p : HomeActivity.PLAYERS) (a.playerPackage(p) != null ? found : missing).add(HomeActivity.playerName(p));

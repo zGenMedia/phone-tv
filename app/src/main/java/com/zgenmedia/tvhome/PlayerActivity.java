@@ -73,6 +73,7 @@ public final class PlayerActivity extends Activity {
     private FrameLayout root, videoBox;
     private SurfaceView surface;
     private TextView captions, timeNow, timeLeft, status, playButton, nextButton;
+    private View buffering;
     private LinearLayout bar;
     private SeekBar seek;
     private float videoAspect;
@@ -153,6 +154,10 @@ public final class PlayerActivity extends Activity {
         status = ui.label("", 15, Ui.TEXT, Ui.MEDIUM);
         status.setGravity(Gravity.CENTER);
         root.addView(status, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER));
+        // While the video is loading or catching up: three dots over the picture, no words needed.
+        buffering = new Loading.Dots(this, ui.dp(12), 0xFFFFFFFF);
+        buffering.setVisibility(View.GONE);
+        root.addView(buffering, new FrameLayout.LayoutParams(ui.dp(76), ui.dp(40), Gravity.CENTER));
 
         // The bar: title on top, the timeline and the buttons below, over a soft shade.
         bar = new LinearLayout(this);
@@ -261,7 +266,8 @@ public final class PlayerActivity extends Activity {
                 captions.setText(text);
             }
             @Override public void onPlaybackStateChanged(int state) {
-                status.setText(state == Player.STATE_BUFFERING ? getString(R.string.player_loading) : "");
+                status.setText("");
+                buffering.setVisibility(state == Player.STATE_BUFFERING ? View.VISIBLE : View.GONE);
                 if (state == Player.STATE_ENDED) { markFinished(); if (nextEpisode != null) leave(RESULT_NEXT); else finish(); }
             }
             @Override public void onIsPlayingChanged(boolean playing) {
@@ -270,7 +276,7 @@ public final class PlayerActivity extends Activity {
             }
             @Override public void onPlayerError(PlaybackException e) { failed(e); }
         });
-        status.setText(R.string.player_loading);
+        buffering.setVisibility(View.VISIBLE);
         // Subtitles from add-ons are fetched first (a few seconds at most), then playback starts.
         new Thread(() -> {
             List<Addons.Subtitle> subs = id == null ? new ArrayList<>()
@@ -316,6 +322,7 @@ public final class PlayerActivity extends Activity {
             return;
         }
         saveProgress();
+        buffering.setVisibility(View.GONE);
         String why = e.getErrorCodeName().replace("ERROR_CODE_", "").replace('_', ' ').toLowerCase(Locale.ROOT);
         new AlertDialog.Builder(this, R.style.PhoneTvDialog)
                 .setTitle(R.string.player_failed)

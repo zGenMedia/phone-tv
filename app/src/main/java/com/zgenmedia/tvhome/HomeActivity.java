@@ -272,6 +272,10 @@ public class HomeActivity extends Activity {
         catalog.loadCached();
         render();
         if (state == null && Profiles.several(this) && Profiles.askOnStart(this)) showProfiles();
+        if (state == null && !openShared(getIntent()) && !prefs.sharedLinkChecked()) {
+            prefs.setSharedLinkChecked();
+            sharedLinkCheckDue = true;
+        }
         refreshContent();
         checkForUpdate(false);
         if (!tvDevice) {
@@ -341,7 +345,14 @@ public class HomeActivity extends Activity {
         io.shutdownNow();
     }
 
-    @Override public void onWindowFocusChanged(boolean focused) { super.onWindowFocusChanged(focused); if (focused) applySystemBars(); }
+    @Override
+    public void onWindowFocusChanged(boolean focused) {
+        super.onWindowFocusChanged(focused);
+        if (!focused) return;
+        applySystemBars();
+        // Android only lets an app read the clipboard while it is in front, so this is the moment.
+        if (sharedLinkCheckDue) { sharedLinkCheckDue = false; main.post(this::openSharedFromClipboard); }
+    }
 
     @Override
     public void onConfigurationChanged(Configuration c) {
@@ -355,6 +366,7 @@ public class HomeActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         if (Updater.ACTION_INSTALL_STATUS.equals(intent.getAction())) { onInstallStatus(intent); return; }
+        if (openShared(intent)) return;
         goHome();
         caseDismissed = false; // Home on the phone puts the case screen back
         syncTvLink();
@@ -1277,7 +1289,8 @@ public class HomeActivity extends Activity {
     }
 
     void render() {
-        if (root == null) return;
+        // A reply from the network can arrive after the screen has closed; there is nothing left to draw on.
+        if (root == null || isFinishing() || isDestroyed()) return;
         main.removeCallbacks(heroAdvance);
         images.clearDeferred(home);
         View had = focused();
@@ -2122,7 +2135,9 @@ public class HomeActivity extends Activity {
         if (!key.equals(discoverKey)) { discoverKey = key; discovered.clear(); discoverEnd = false; discoverError = null; loadDiscover(); }
         boolean discoverLoading = discoverKey.equals(discoverLoadingKey);
         if (discovered.isEmpty()) {
-            browse.addView(emptyNote(discoverLoading ? getString(R.string.discover_loading) : discoverError != null ? discoverError : getString(R.string.library_none_match)));
+            // While the first page loads, the grid's outline holds its place.
+            if (discoverLoading) browse.addView(Loading.posters(this, gridPlan(cardWidth(land() ? 116 : 104)), 2));
+            else browse.addView(emptyNote(discoverError != null ? discoverError : getString(R.string.library_none_match)));
             return;
         }
         int[] plan = gridPlan(cardWidth(land() ? 116 : 104));
@@ -2511,7 +2526,11 @@ public class HomeActivity extends Activity {
                 column.addView(rowTitle(getString(R.string.library_watched)));
             }
             List<Library.Watch> history = library.history(remoteHistory(), sort);
-            if (history.isEmpty()) { column.addView(emptyNote(getString(historyLoading ? R.string.library_history_loading : R.string.library_history_empty))); return; }
+            if (history.isEmpty()) {
+                if (historyLoading) column.addView(Loading.line(this, getString(R.string.library_history_loading)));
+                else column.addView(emptyNote(getString(R.string.library_history_empty)));
+                return;
+            }
             int[] plan = gridPlan(cardWidth(land() ? 116 : 104));
             List<View> cells = new ArrayList<>();
             for (Library.Watch w : history) {
@@ -3253,9 +3272,31 @@ public class HomeActivity extends Activity {
      * Tunes in to a channel. {@code live} joins at the point the channel has reached;
      * otherwise the title starts from the top. A show first needs its episode worked out.
      */
+    /**
+     * OK on a channel. By default the title on now starts from its beginning, so nobody is
+     * dropped into the middle of a film; when it has twenty minutes or less to run, the next
+     * one starts instead. Settings › Playback can make OK join at the live point.
+     */
+    void tuneChannel(Channels.Channel c) {
+        long now = System.currentTimeMillis();
+        List<Channels.Slot> on = Channels.lineup(c, now, 2);
+        if (on.isEmpty()) return;
+        if (prefs.channelsJoinLive()) { tuneIn(c, on.get(0), true); return; }
+        Channels.Slot current = on.get(0);
+        if (current.end - now <= CHANNEL_NEARLY_OVER_MS && on.size() > 1) {
+            toast(getString(R.string.channels_starting_next, on.get(1).item.title));
+            tuneIn(c, on.get(1), false);
+        } else {
+            tuneIn(c, current, false);
+        }
+    }
+
+    private static final long CHANNEL_NEARLY_OVER_MS = 20 * 60_000L;
+
     void tuneIn(Channels.Channel c, final Channels.Slot s, final boolean live) {
         final MediaItem m = s.item;
         if (!m.isShow()) { startTuned(m, null, s, live); return; }
+        if (s.episodeId != null) { startTuned(m, s.episodeId, s, live); return; } // a real showing names its episode
         toast(getString(R.string.channels_finding_episode, m.title));
         new Thread(() -> {
             CatalogRepository.Episode ep = null;
@@ -3272,7 +3313,7 @@ public class HomeActivity extends Activity {
         boolean here = Prefs.PLAY_HERE.equals(with) || (Prefs.PLAY_ASK.equals(with) && hasStreamAddon());
         liveKey = null;
         if (here) {
-            if (live) { liveKey = m.id + "|" + episodeId; liveStart = s.start; liveEnd = s.end; }
+            if (live) { liveKey = m.id + "|" + episodeId; liveStart = s.origin; liveEnd = s.end; }
             showStreams(m, episodeId);
             return;
         }
@@ -3288,6 +3329,70 @@ public class HomeActivity extends Activity {
         if (now >= liveEnd) { liveKey = null; return 0; }
         long into = now - liveStart;
         return into < 20_000 ? 0 : into; // just started: simply start
+    }
+
+    // ================================================================ sharing
+
+    private boolean sharedLinkCheckDue;
+
+    /** Hands a link to whatever the user shares with (messages, mail…); a TV with nowhere to send it shows the link instead. */
+    void share(String link, String subject) {
+        Intent send = new Intent(Intent.ACTION_SEND).setType("text/plain")
+                .putExtra(Intent.EXTRA_SUBJECT, subject)
+                .putExtra(Intent.EXTRA_TEXT, getString(R.string.share_text, subject, link));
+        boolean anywhere = !tvDevice && send.resolveActivity(getPackageManager()) != null;
+        if (anywhere && startSafely(Intent.createChooser(send, getString(R.string.share_title, subject)))) return;
+        android.content.ClipboardManager clip = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        if (clip != null) clip.setPrimaryClip(android.content.ClipData.newPlainText(subject, link));
+        showNotice(getString(R.string.share_title, subject), getString(R.string.share_link_shown, link),
+                new String[]{getString(R.string.close)}, new Runnable[]{null});
+    }
+
+    /** Opens what a link points at. True when the intent was one of ours, whether or not it was usable. */
+    private boolean openShared(Intent intent) {
+        if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction()) || intent.getData() == null) return false;
+        Uri link = intent.getData();
+        boolean ours = "phonetv".equals(link.getScheme()) || Share.looksLikeLink(link.toString());
+        if (!ours) return false;
+        intent.setData(null); // handled: a rotation or relaunch must not open it again
+        Share.Target t = Share.parse(link);
+        if (t == null) toast(getString(R.string.share_bad_link)); else openShared(t);
+        return true;
+    }
+
+    private void openShared(Share.Target t) {
+        if (Share.PERSON.equals(t.type)) {
+            if (t.id.isEmpty()) { showPerson(t.name); return; }
+            Library.Person p = new Library.Person();
+            p.id = t.id;
+            p.name = t.name;
+            showPerson(p);
+        } else if (Share.COMPANY.equals(t.type)) {
+            Library.Company c = new Library.Company();
+            c.id = t.id;
+            c.name = t.name;
+            c.kind = t.kind;
+            showCompany(c);
+        } else {
+            showDetails(MediaItem.catalog(t.id, t.type, t.name, ""));
+        }
+    }
+
+    /**
+     * The first time Phone TV opens after being installed: if the download page left a shared
+     * link on the clipboard, go to what was shared. Looked at once, ever, and only acted on
+     * when it is one of Phone TV's own links; anything else on the clipboard is ignored.
+     */
+    private void openSharedFromClipboard() {
+        try {
+            android.content.ClipboardManager clip = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            android.content.ClipData data = clip == null ? null : clip.getPrimaryClip();
+            if (data == null || data.getItemCount() == 0) return;
+            CharSequence text = data.getItemAt(0).coerceToText(this);
+            if (!Share.looksLikeLink(text)) return;
+            Share.Target t = Share.parse(Share.firstLink(text));
+            if (t != null) openShared(t);
+        } catch (RuntimeException ignored) { /* some devices refuse clipboard reads; the link still works when tapped */ }
     }
 
     // ========================================================== pick for me
