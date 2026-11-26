@@ -3,6 +3,25 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.16.2 — 2026-11-25
+
+### Added
+- **Set up from a phone or computer** (Settings › System). The TV shows an
+  address and a code; open the address in any browser on the same network,
+  iPhones included, and paste add-on links, a TMDB key, a Trakt name or
+  lists. Nothing needs to be installed on the phone, and no browser is needed
+  on the TV. Open only while its screen is up, and only with the TV's code.
+
+### Fixed
+- **Trakt "403".** A Client ID carried over from an older setup could make
+  Trakt refuse every request; those are now retried under Phone TV's own. A
+  refused sign-in is renewed once before giving up. When Trakt still says no,
+  the message says why (a private profile, or a sign-in to redo) and where to
+  fix it, instead of a bare number.
+- **After a setup transfer**, Phone TV now says which sign-ins the other
+  device had (Plex, Trakt) and takes you to sign in here: sign-ins are never
+  copied between devices.
+
 ## 0.16.1 — 2026-11-25
 
 ### Fixed

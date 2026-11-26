@@ -1,7 +1,7 @@
 {
-  "versionCode": 32,
-  "versionName": "0.16.1",
+  "versionCode": 33,
+  "versionName": "0.16.2",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "3ce7c834204f8988f319ce454b4a3a226e9dbc6a31b420da4175b5163aeffc80",
-  "notes": "The window no longer flips between landscape and portrait on PC. Setup transfer finds devices across Wi-Fi and cable. Plus sharing, Channels and new loading animations from 0.16."
+  "sha256": "7419cbdbbf272eb2d1186950d3888d042dec14f4cf1813639dd2bb9621576bb2",
+  "notes": "Set up a TV from any phone's browser, iPhone included (Settings > System). Trakt errors are retried and explained. After a setup transfer, Phone TV says which sign-ins to redo."
 }

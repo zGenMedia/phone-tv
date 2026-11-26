@@ -641,4 +641,21 @@
     <string name="orientation_auto">Automatic</string>
     <string name="orientation_landscape">Landscape</string>
     <string name="orientation_portrait">Portrait</string>
+    <string name="trakt_refused_profile">Trakt wouldn\'t show this profile (error %1$d). It is probably private. Sign in on this device: Settings › Sources › Trakt. Sign-ins aren\'t copied between devices.</string>
+    <string name="trakt_refused_signed_in">Trakt refused this sign-in (error %1$d). Sign out and sign in again: Settings › Sources › Trakt.</string>
+    <string name="setup_sign_in_title">Sign in on this device too</string>
+    <string name="setup_sign_in_body">Your setup came across, but sign-ins are never copied between devices. The other device was signed in to: %1$s.\n\nSign in here as well to see your rows and history. Each one shows a short code to enter on your phone.</string>
+    <string name="setup_sign_in_open">Open Sources</string>
+    <string name="browser_setup_title">Set up from a phone or computer</string>
+    <string name="browser_setup_hint">Paste add-on links and keys from any browser on your network. Works from an iPhone.</string>
+    <string name="browser_setup_help">On any phone or computer on the same network, open this address in the browser:</string>
+    <string name="browser_setup_code">and enter this code on the page:</string>
+    <string name="browser_setup_got">Received: %1$s</string>
+    <string name="browser_setup_nothing">The page was sent with nothing filled in.</string>
+    <plurals name="browser_setup_addons">
+        <item quantity="one">%1$d add-on link</item>
+        <item quantity="other">%1$d add-on links</item>
+    </plurals>
+    <string name="browser_setup_offline">This device isn\'t on a network, so no phone can reach it yet.</string>
+    <string name="browser_setup_emulator">This copy of Phone TV runs inside an emulator (such as BlueStacks), which phones can\'t connect to. On a PC, paste straight into Phone TV instead: Settings › Add-ons.</string>
 </resources>

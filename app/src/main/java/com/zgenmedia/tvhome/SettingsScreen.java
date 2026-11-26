@@ -515,6 +515,7 @@ final class SettingsScreen implements Overlay {
         }
 
         LinearLayout setup = group(R.string.set_group_setup);
+        action(setup, "setupBrowser", a.getString(R.string.browser_setup_title), a.getString(R.string.browser_setup_hint), null, a::setupFromBrowser);
         action(setup, "setupSend", a.getString(R.string.set_setup_send), a.getString(R.string.set_setup_send_hint), null, a::sendSetup);
         action(setup, "setupGet", a.getString(R.string.set_setup_get), a.getString(R.string.set_setup_get_hint), null, a::receiveSetup);
         action(setup, "setupSave", a.getString(R.string.set_setup_save), a.getString(R.string.set_setup_save_hint), null, a::saveSetup);

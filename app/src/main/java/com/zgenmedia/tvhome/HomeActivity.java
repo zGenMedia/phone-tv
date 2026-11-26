@@ -771,6 +771,8 @@ public class HomeActivity extends Activity {
                 .put("settings", prefs.exportSettings()).put("library", new JSONObject(library.export()))
                 .put("progress", new JSONArray(Progress.of(this).export()))
                 .put("profiles", others)
+                // Only the names of what was signed in, so the other device can say what to sign in to again.
+                .put("signIns", new JSONArray().put(plex.isLinked() ? "Plex" : "").put(trakt.signedIn() ? "Trakt" : ""))
                 .put("addons", Addons.of(this).exportList()).toString();
     }
 
@@ -857,6 +859,105 @@ public class HomeActivity extends Activity {
         render();
         for (Overlay page : pages) page.rebuild();
         toast(getString(R.string.setup_restored, added));
+        remindSignIns(text);
+    }
+
+    /** Sign-ins never travel in a setup. If the other device had some that this one lacks, say so and offer the way there. */
+    private void remindSignIns(String setup) {
+        List<String> missing = new ArrayList<>();
+        try {
+            JSONArray had = new JSONObject(setup).optJSONArray("signIns");
+            for (int i = 0; had != null && i < had.length(); i++) {
+                String name = had.optString(i);
+                if ("Plex".equals(name) && !plex.isLinked()) missing.add(name);
+                if ("Trakt".equals(name) && !trakt.signedIn()) missing.add(name);
+            }
+        } catch (JSONException ignored) { /* an older setup names none */ }
+        if (missing.isEmpty()) return;
+        showNotice(getString(R.string.setup_sign_in_title), getString(R.string.setup_sign_in_body, TextUtils.join(", ", missing)),
+                new String[]{getString(R.string.setup_sign_in_open), getString(R.string.close)},
+                new Runnable[]{() -> showSettingsAt(SettingsScreen.SOURCES), null});
+    }
+
+    // ------------------------------------------------------ from a phone's browser
+
+    private BrowserSetup browserSetup;
+
+    /**
+     * Opens the TV to one small web page on the home network so any phone or computer,
+     * iPhones included, can paste in add-on links and keys. See {@link BrowserSetup}.
+     */
+    void setupFromBrowser() {
+        final String ip = SetupTransfer.localAddress();
+        if (ip.isEmpty() || SetupTransfer.behindEmulator(ip)) {
+            showNotice(getString(R.string.browser_setup_title), getString(ip.isEmpty() ? R.string.browser_setup_offline : R.string.browser_setup_emulator),
+                    new String[]{getString(R.string.close)}, new Runnable[]{null});
+            return;
+        }
+        final String code = SetupTransfer.newCode();
+        TextView body = dialogText(getString(R.string.browser_setup_help));
+        final TextView where = dialogCode("…");
+        where.setTextSize(22);
+        where.setLetterSpacing(0.02f);
+        TextView codeLabel = dialogText(getString(R.string.browser_setup_code));
+        TextView codeView = dialogCode(code.substring(0, 3) + " " + code.substring(3));
+        final TextView log = dialogText("");
+        log.setTextColor(Ui.ACCENT);
+        final AlertDialog dialog = new AlertDialog.Builder(this, R.style.PhoneTvDialog)
+                .setTitle(R.string.browser_setup_title).setView(dialogForm(body, where, codeLabel, codeView, log))
+                .setNegativeButton(R.string.setup_stop, null).create();
+        if (browserSetup == null) browserSetup = new BrowserSetup();
+        dialog.setOnDismissListener(d -> browserSetup.stop());
+        dialog.show();
+        new Thread(() -> {
+            try {
+                int port = browserSetup.start(code, SetupTransfer.deviceName(this), new BrowserSetup.Receiver() {
+                    @Override public void received(Map<String, String> fields) { main.post(() -> log.setText(applyBrowserSetup(fields))); }
+                    @Override public void locked() { main.post(() -> { if (dialog.isShowing()) dialog.dismiss(); toast(getString(R.string.setup_too_many)); }); }
+                });
+                main.post(() -> where.setText("http://" + ip + ":" + port));
+            } catch (IOException e) {
+                main.post(() -> { if (dialog.isShowing()) dialog.dismiss(); toast(getString(R.string.setup_failed, String.valueOf(e.getMessage()))); });
+            }
+        }, "phonetv-browser-setup-start").start();
+    }
+
+    /** Puts to use what a phone's browser sent. Returns a line saying what was taken. */
+    private String applyBrowserSetup(Map<String, String> f) {
+        List<String> did = new ArrayList<>();
+        List<String> links = new ArrayList<>();
+        for (String line : String.valueOf(f.get("addons") == null ? "" : f.get("addons")).split("\\s+")) {
+            if (line.startsWith("http://") || line.startsWith("https://") || line.startsWith("stremio://")) links.add(line);
+        }
+        if (!links.isEmpty()) { installAddons(links); did.add(getResources().getQuantityString(R.plurals.browser_setup_addons, links.size(), links.size())); }
+        final String tmdb = f.get("tmdb");
+        if (tmdb != null && tmdb.matches("[A-Za-z0-9]{16,64}")) {
+            did.add(getString(R.string.set_tmdb));
+            new Thread(() -> {
+                boolean ok;
+                try { Http.get("https://api.themoviedb.org/3/configuration?api_key=" + Uri.encode(tmdb)); ok = true; }
+                catch (IOException e) { ok = false; }
+                final boolean good = ok;
+                main.post(() -> { if (good) prefs.setTmdbKey(tmdb); toast(getString(good ? R.string.tmdb_saved : R.string.tmdb_rejected)); });
+            }, "phonetv-tmdb-check").start();
+        }
+        String user = f.get("traktUser"), lists = f.get("traktLists");
+        boolean trakted = false;
+        if (user != null && user.matches("[A-Za-z0-9_.-]{1,60}")) { prefs.setTraktUser(user); trakted = true; }
+        if (lists != null && !lists.isEmpty()) {
+            // Added to the lists already here, never in place of them.
+            String have = prefs.traktLists();
+            StringBuilder all = new StringBuilder(have);
+            for (String line : lists.split("\\s+")) {
+                if (!line.startsWith("http") || have.contains(line)) continue;
+                if (all.length() > 0) all.append('\n');
+                all.append(line);
+            }
+            prefs.saveTrakt(prefs.traktClientId(), all.toString());
+            trakted = true;
+        }
+        if (trakted) { did.add("Trakt"); refreshTrakt(); refreshHistory(); }
+        return did.isEmpty() ? getString(R.string.browser_setup_nothing) : getString(R.string.browser_setup_got, TextUtils.join(", ", did));
     }
 
     // ------------------------------------------------- device to device, built in
@@ -1287,6 +1388,17 @@ public class HomeActivity extends Activity {
     }
 
     /** Opt-in rows from public Trakt lists; a no-op unless the user configured them. */
+    /** Says what a refused Trakt request means and what to do, instead of a bare status number. */
+    private String traktProblem(Exception e) {
+        if (e instanceof Http.StatusException) {
+            int code = ((Http.StatusException) e).code;
+            if (code == 401 || code == 403) {
+                return getString(trakt.signedIn() ? R.string.trakt_refused_signed_in : R.string.trakt_refused_profile, code);
+            }
+        }
+        return CatalogRepository.describe(e);
+    }
+
     void refreshTrakt() {
         if (!trakt.isConfigured()) {
             if (!traktRows.isEmpty() || !traktErrors.isEmpty()) {
@@ -2616,7 +2728,7 @@ public class HomeActivity extends Activity {
             }
             if (trakt.hasHistory()) {
                 try { fromTrakt = trakt.history(); toWatch = trakt.watchlist(); }
-                catch (IOException | JSONException e) { problems.add("Trakt: " + CatalogRepository.describe(e)); }
+                catch (IOException | JSONException e) { problems.add("Trakt: " + traktProblem(e)); }
             }
             List<MediaItem> owned = null;
             if (trakt.hasHistory()) {

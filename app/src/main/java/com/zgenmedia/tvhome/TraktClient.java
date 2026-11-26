@@ -137,7 +137,9 @@ final class TraktClient {
         try {
             return get(path, prefs.traktAccess());
         } catch (Http.StatusException e) {
-            if (e.code != 401) throw e;
+            // 401: the token ran out early. 403: Trakt no longer accepts it as it stands.
+            // A fresh token settles both when the sign-in itself is still good.
+            if (e.code != 401 && e.code != 403) throw e;
             renew();
             return get(path, prefs.traktAccess());
         }
@@ -302,7 +304,21 @@ final class TraktClient {
         return meta.optString("name", ref.slug);
     }
 
-    private String get(String path) throws IOException { return get(path, null); }
+    /**
+     * A request that needs no sign-in. It goes under the user's own Client ID when they once
+     * entered one; if Trakt has stopped accepting that ID (deleted, or carried over from
+     * another device in a setup), it is asked again under Phone TV's.
+     */
+    private String get(String path) throws IOException {
+        try {
+            return get(path, null);
+        } catch (Http.StatusException e) {
+            if ((e.code != 401 && e.code != 403) || prefs.traktClientId().isEmpty()) throw e;
+            Map<String, String> h = headers(null);
+            h.put("trakt-api-key", APP_ID);
+            return new String(Http.get(API + path, h, 15_000), StandardCharsets.UTF_8);
+        }
+    }
 
     private String get(String path, String bearer) throws IOException {
         return new String(Http.get(API + path, headers(bearer), 15_000), StandardCharsets.UTF_8);
