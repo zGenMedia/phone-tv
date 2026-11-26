@@ -39,6 +39,10 @@ h1{margin:6px 0 4px;font-size:26px;line-height:1.2}
 .note{color:var(--mute);font-size:13px;margin:16px 0 0}
 .note b{color:var(--dim);font-weight:600}
 .bad{display:none}
+.missing{display:none;margin:14px 0 4px;padding:14px 16px;border:1px solid var(--amber,#ffb547);border-radius:14px;font-size:15px;line-height:1.5;color:var(--dim,#a3a9b8)}
+.missing b{color:var(--text,#eef0f5)}
+.missing > b,.missing > span{display:block}
+.missing > span{margin-top:6px}
 </style>
 </head>
 <body>
@@ -50,7 +54,13 @@ h1{margin:6px 0 4px;font-size:26px;line-height:1.2}
     <p class="kind" id="kind"></p>
     <p class="about" id="about"></p>
     <a class="btn open" id="open" href="https://zgenmedia.github.io/phone-tv/">Open in Phone TV</a>
-    <a class="btn get" id="get" href="https://zgenmedia.com/tv/about/">New here? See what Phone TV is</a>
+    <div class="missing" id="missing" role="status">
+      <b>Phone TV didn't open.</b>
+      <span id="why">That usually means it isn't on this device yet. It's free, and takes a few minutes to set up.</span>
+      <span id="inapp" style="display:none">You're inside another app's built-in browser, which can block this. Open the menu (⋮ or ⋯), choose <b>Open in Chrome</b> or <b>Open in browser</b>, then try again.</span>
+      <span id="have" style="display:none">Already have it? Just open Phone TV yourself. This link was copied, so it goes straight there.</span>
+    </div>
+    <a class="btn get" id="get" href="https://zgenmedia.com/tv/about/">Don't have Phone TV? See what it is</a>
     <p class="note" id="note">Phone TV is a free, open-source home screen for phones, TV boxes, PCs and Macs.
       <b>If you install it, just open Phone TV:</b> it goes straight to what was shared.</p>
     <p class="note" id="ios" style="display:none">Phone TV is a free TV-style home screen for movies and shows. It runs on Android, TV boxes, PCs and Macs,
@@ -136,12 +146,50 @@ h1{margin:6px 0 4px;font-size:26px;line-height:1.2}
     return;
   }
 
-  // New here: the button goes to the page that explains Phone TV, not straight to a
-  // download. This link is left on the clipboard on the way, so if they do install,
-  // the app can still land on what was shared.
-  get.addEventListener('click', function () {
-    try { if (navigator.clipboard) navigator.clipboard.writeText(location.href); } catch (e) {}
+  // Leaving this link on the clipboard lets the app land on what was shared the next
+  // time it is opened, whether it's installed in five minutes or was there all along.
+  function remember() {
+    try {
+      if (navigator.clipboard) navigator.clipboard.writeText(location.href.split('#')[0])
+        .then(function () { document.getElementById('have').style.display = 'block'; }, function () {});
+    } catch (e) {}
+  }
+  get.addEventListener('click', remember);
+
+  // "Open in Phone TV" can only work where Phone TV is installed. Where it isn't, a
+  // browser does nothing at all, and nothing happening looks like a broken link. So
+  // watch for that: if this page is still in front a moment after the tap, say why
+  // and put the way to get Phone TV first.
+  var open = document.getElementById('open'), missing = document.getElementById('missing');
+  var inApp = /FBAN|FBAV|FB_IAB|Instagram|Line\/|Twitter|TikTok|musical_ly|Bytedance|Snapchat|Pinterest|LinkedInApp/i.test(navigator.userAgent);
+  var android = /Android/i.test(navigator.userAgent), waiting = 0;
+
+  function didNotOpen() {
+    clearTimeout(waiting);
+    if (inApp) { document.getElementById('why').style.display = 'none'; document.getElementById('inapp').style.display = 'block'; }
+    else if (!android) document.getElementById('why').textContent = 'It opens on a device that has Phone TV: an Android phone or tablet, a TV box, or a computer running it.';
+    missing.style.display = 'block';
+    open.className = 'btn get'; open.textContent = 'Try opening again';
+    get.className = 'btn open'; get.textContent = inApp ? 'Or see what Phone TV is' : 'See what Phone TV is and get it';
+    document.getElementById('note').style.display = 'none';
+  }
+  function opened() { clearTimeout(waiting); }
+
+  // Android browsers can be told what to do when the app is missing: come back here,
+  // marked #missing. Everywhere else, and inside other apps' browsers, the wait decides.
+  if (android && !inApp) {
+    open.href = 'intent://open?' + params.toString() + '#Intent;scheme=phonetv;package=com.kinglifer.tvlauncher;'
+              + 'S.browser_fallback_url=' + encodeURIComponent(location.href.split('#')[0] + '#missing') + ';end';
+  }
+  open.addEventListener('click', function () {
+    remember();
+    clearTimeout(waiting);
+    waiting = setTimeout(function () { if (!document.hidden) didNotOpen(); }, 1800);
   });
+  document.addEventListener('visibilitychange', function () { if (document.hidden) opened(); });
+  window.addEventListener('pagehide', opened);
+  window.addEventListener('hashchange', function () { if (location.hash === '#missing') didNotOpen(); });
+  if (location.hash === '#missing') didNotOpen();
 })();
 </script>
 </body>
