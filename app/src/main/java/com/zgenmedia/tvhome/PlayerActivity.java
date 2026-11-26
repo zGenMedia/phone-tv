@@ -102,6 +102,8 @@ public final class PlayerActivity extends Activity {
         Ui.applyTheme(prefs);
         ui = new Ui(this, prefs.scale());
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        // Video is landscape unless the user has held the whole app to portrait (Settings › Look).
+        if (prefs.orientationChosen() == Prefs.TURN_PORTRAIT) setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
         readIntent(getIntent());
         buildViews();
         setContentView(root);

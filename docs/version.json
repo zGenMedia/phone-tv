@@ -1,7 +1,7 @@
 {
-  "versionCode": 31,
-  "versionName": "0.16.0",
+  "versionCode": 32,
+  "versionName": "0.16.1",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "572f0a907b697608ea764b2bcbc0dc43efdda3a10db9c1975ca3ce333d494388",
-  "notes": "Share any movie, show, actor, network or studio with a link. Channels now carry tonight's real premieres and start titles from the beginning. New loading animations."
+  "sha256": "3ce7c834204f8988f319ce454b4a3a226e9dbc6a31b420da4175b5163aeffc80",
+  "notes": "The window no longer flips between landscape and portrait on PC. Setup transfer finds devices across Wi-Fi and cable. Plus sharing, Channels and new loading animations from 0.16."
 }

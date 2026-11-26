@@ -218,16 +218,16 @@
     <string name="set_setup_get_hint">Use this on the new device while the other one is sending.</string>
     <string name="setup_send_title">Send my setup</string>
     <string name="setup_send_help">On the other device, open Phone TV › Settings › Get setup from another device, pick this device and enter this code:</string>
-    <string name="setup_send_where">This device: %1$s · %2$s\nKeep this open. It stops after 10 minutes.</string>
+    <string name="setup_send_where">This device: %1$s · address %2$s\nKeep this open. It stops after 10 minutes.</string>
     <string name="setup_stop">Stop</string>
     <string name="setup_sent">Setup sent</string>
     <string name="setup_offer_ended">Stopped sending. Start again when the other device is ready.</string>
     <string name="setup_too_many">Too many wrong codes, so sending stopped. Start again for a new code.</string>
     <string name="setup_get_title">Get setup from another device</string>
-    <string name="setup_get_help">On your other device, open Phone TV › Settings › Send my setup to another device. Both must be on the same Wi-Fi.</string>
+    <string name="setup_get_help">On your other device, open Phone TV › Settings › Send my setup to another device. Both must be on the same home network; Wi-Fi and cable both work.</string>
     <string name="setup_looking">Looking for devices…</string>
     <string name="setup_pick">Pick the device that is sending:</string>
-    <string name="setup_address_hint">Or type the address it shows, e.g. 192.168.1.20:41234</string>
+    <string name="setup_address_hint">Not listed? Type the address it shows, e.g. 192.168.1.20</string>
     <string name="setup_use_address">Use address</string>
     <string name="setup_code_help">Enter the 6-digit code shown on that device.</string>
     <string name="setup_code_hint">6-digit code</string>
@@ -634,4 +634,11 @@
     <string name="channels_starting_next">Nearly over. Starting the next one: %1$s</string>
     <string name="set_channels_join">Tuning in to a channel starts</string>
     <string name="set_channels_join_hint">From the beginning plays what\'s on from its start, or the next title when 20 minutes or less are left. Joining where the channel is works in Phone TV\'s own player.</string>
+    <string name="setup_send_emulator">This copy of Phone TV runs inside an emulator (such as BlueStacks), which other devices can\'t connect to.\n\nDo it the other way round: choose Send on the other device, then Get setup from another device here and type the address it shows.</string>
+    <string name="setup_get_help_emulator">On your other device, open Phone TV › Settings › Send my setup to another device. Then type the address it shows below. An emulator (such as BlueStacks) can\'t see other devices by itself, but it can reach one by its address.</string>
+    <string name="set_orientation">Screen direction</string>
+    <string name="set_orientation_hint">Automatic turns with the device. Landscape or Portrait keeps the whole app, player included, one way up; use it if the window keeps flipping on a PC.</string>
+    <string name="orientation_auto">Automatic</string>
+    <string name="orientation_landscape">Landscape</string>
+    <string name="orientation_portrait">Portrait</string>
 </resources>

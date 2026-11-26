@@ -36,6 +36,14 @@ import java.util.Locale;
 final class SetupTransfer {
     static final String SERVICE_TYPE = "_phonetv-setup._tcp.";
     private static final String HELLO = "PHONETV-SETUP 1";
+    /** Asked in place of a code: "which Phone TV are you?" Lets a device be found without discovery. */
+    private static final String WHO = "WHO";
+    /**
+     * The port an offer listens on when it's free. A known port means the other device only
+     * needs this one's address, and can look for it across the network when the router
+     * doesn't pass discovery between Wi-Fi and cable (many don't).
+     */
+    static final int PORT = 41500;
     private static final int MAX_WRONG = 5;
     private static final long OFFER_MS = 10 * 60_000L;
     private static final int MAX_BYTES = 8 * 1024 * 1024;
@@ -70,7 +78,8 @@ final class SetupTransfer {
         stopOffering();
         final ServerSocket socket = new ServerSocket();
         socket.setReuseAddress(true);
-        socket.bind(new InetSocketAddress(0));
+        try { socket.bind(new InetSocketAddress(PORT)); }
+        catch (IOException taken) { socket.bind(new InetSocketAddress(0)); } // something else has it: any free port
         socket.setSoTimeout(1_000); // wakes up each second to check the clock
         server = socket;
         final byte[] payload = setup.getBytes(StandardCharsets.UTF_8);
@@ -87,6 +96,12 @@ final class SetupTransfer {
                         BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream(), StandardCharsets.UTF_8));
                         String hello = in.readLine(), given = in.readLine();
                         OutputStream out = s.getOutputStream();
+                        if (HELLO.equals(hello) && WHO.equals(given == null ? "" : given.trim())) {
+                            // A device looking for senders. It learns a name, nothing else, and still needs the code.
+                            out.write(("NAME " + deviceName + "\n").getBytes(StandardCharsets.UTF_8));
+                            out.flush();
+                            continue;
+                        }
                         if (!HELLO.equals(hello) || !code.equals(given == null ? "" : given.trim())) {
                             out.write("NO\n".getBytes(StandardCharsets.UTF_8));
                             out.flush();
@@ -175,9 +190,50 @@ final class SetupTransfer {
         };
         try { nsd.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discovering); }
         catch (RuntimeException e) { discovering = null; }
+        sweep(listener);
+    }
+
+    private java.util.concurrent.ExecutorService sweeping;
+
+    /**
+     * Discovery's understudy: knocks on the offer port of every address beside this one's
+     * (the usual home network has 254) and reports whoever answers as Phone TV. This finds
+     * a sender that discovery misses, which is common between Wi-Fi and wired devices.
+     * It can't see out of an emulator's private network; there the address is typed in.
+     */
+    private void sweep(final Finding listener) {
+        final String mine = localAddress();
+        int lastDot = mine.lastIndexOf('.');
+        if (lastDot < 0 || behindEmulator(mine)) return;
+        final String prefix = mine.substring(0, lastDot + 1);
+        final java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(24);
+        sweeping = pool;
+        for (int i = 1; i < 255; i++) {
+            final String host = prefix + i;
+            if (host.equals(mine)) continue;
+            pool.execute(() -> {
+                try (Socket s = new Socket()) {
+                    s.connect(new InetSocketAddress(host, PORT), 450);
+                    s.setSoTimeout(2_000);
+                    s.getOutputStream().write((HELLO + "\n" + WHO + "\n").getBytes(StandardCharsets.UTF_8));
+                    s.getOutputStream().flush();
+                    String reply = line(s.getInputStream());
+                    if (reply.startsWith("NAME ") && sweeping == pool) listener.found(reply.substring(5).trim(), host, PORT);
+                } catch (IOException | RuntimeException nobody) { /* the usual answer */ }
+            });
+        }
+        pool.shutdown();
+    }
+
+    /** Android emulators (BlueStacks among them) sit on a private 10.0.2.x or 10.0.3.x network of their own. */
+    static boolean behindEmulator(String address) {
+        return address.startsWith("10.0.2.") || address.startsWith("10.0.3.");
     }
 
     void stopFinding() {
+        java.util.concurrent.ExecutorService sweep = sweeping;
+        sweeping = null;
+        if (sweep != null) sweep.shutdownNow();
         NsdManager.DiscoveryListener d = discovering;
         discovering = null;
         if (d != null) try { nsd().stopServiceDiscovery(d); } catch (RuntimeException ignored) { /* not started */ }
@@ -220,7 +276,7 @@ final class SetupTransfer {
     /** One line, read byte by byte so nothing after it is swallowed by a buffer. */
     private static String line(InputStream in) throws IOException {
         ByteArrayOutputStream b = new ByteArrayOutputStream();
-        for (int c; (c = in.read()) != -1 && c != '\n'; ) { b.write(c); if (b.size() > 64) break; }
+        for (int c; (c = in.read()) != -1 && c != '\n'; ) { b.write(c); if (b.size() > 96) break; }
         return b.toString("UTF-8").trim();
     }
 

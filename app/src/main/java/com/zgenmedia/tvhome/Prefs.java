@@ -107,6 +107,14 @@ final class Prefs {
     int heroTrailer() { return sp.getInt("heroTrailer", TRAILER_MUTED); }
     void setHeroTrailer(int v) { sp.edit().putInt("heroTrailer", v).apply(); }
 
+    // Which way up the screen is held: follow the device, or stay put.
+    static final int TURN_AUTO = 0, TURN_LANDSCAPE = 1, TURN_PORTRAIT = 2;
+    /** @param fixedByNature true on TVs and PC emulators, which start out held to landscape */
+    int orientation(boolean fixedByNature) { return sp.getInt("orientation", fixedByNature ? TURN_LANDSCAPE : TURN_AUTO); }
+    void setOrientation(int v) { sp.edit().putInt("orientation", v).apply(); }
+    /** The saved choice alone, for the player, which can't tell what kind of device this is. -1 when never chosen. */
+    int orientationChosen() { return sp.getInt("orientation", -1); }
+
     /** OK on a channel: start the title from its beginning (the default), or join where the channel has got to. */
     boolean channelsJoinLive() { return sp.getBoolean("channelsJoinLive", false); }
     void setChannelsJoinLive(boolean live) { sp.edit().putBoolean("channelsJoinLive", live).apply(); }

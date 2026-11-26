@@ -296,6 +296,10 @@ final class SettingsScreen implements Overlay {
         toggle(color, "black", R.string.set_black, R.string.set_black_hint, prefs.pureBlack(),
                 () -> { prefs.setPureBlack(!prefs.pureBlack()); apply(EVERYTHING); });
 
+        choice(color, "orientation", R.string.set_orientation, R.string.set_orientation_hint,
+                names(R.string.orientation_auto, R.string.orientation_landscape, R.string.orientation_portrait),
+                prefs.orientation(a.tvDevice || a.isEmulator()), i -> { prefs.setOrientation(i); a.applyOrientation(); apply(PANE); });
+
         LinearLayout size = group(R.string.set_group_size);
         choice(size, "size", R.string.set_size, R.string.set_size_hint, names(R.string.size_compact, R.string.size_standard, R.string.size_large),
                 prefs.sizeIndex(), i -> { prefs.setSizeIndex(i); apply(EVERYTHING); });

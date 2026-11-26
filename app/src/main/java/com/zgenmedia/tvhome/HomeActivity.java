@@ -325,8 +325,28 @@ public class HomeActivity extends Activity {
         trailer.keepOnly(featured);
     }
 
+    /**
+     * Holds the screen to one direction when asked to. Left to itself Android turns the screen to
+     * suit each page (the player wants landscape), which on a PC emulator flips the whole window
+     * back and forth. TVs and emulators start out held to landscape; phones follow the hand.
+     */
+    void applyOrientation() {
+        if (this instanceof TvHomeActivity) return; // a TV plugged into the phone is always landscape
+        int want = prefs.orientation(tvDevice || isEmulator());
+        setRequestedOrientation(want == Prefs.TURN_LANDSCAPE ? android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                : want == Prefs.TURN_PORTRAIT ? android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                : android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+    }
+
+    /** BlueStacks and other Android-on-PC players: a "PC" device, or one on an emulator's private network. */
+    boolean isEmulator() {
+        return getPackageManager().hasSystemFeature("android.hardware.type.pc")
+                || SetupTransfer.behindEmulator(SetupTransfer.localAddress());
+    }
+
     /** Pushes the look settings into the theme and the view helpers. Call before rebuilding views. */
     void applyLook() {
+        applyOrientation();
         Ui.applyTheme(prefs);
         ui.setScale(prefs.scale());
         ui.focusStyle = prefs.focusStyle();
@@ -882,7 +902,11 @@ public class HomeActivity extends Activity {
                     }
                 });
                 String ip = SetupTransfer.localAddress();
-                main.post(() -> where.setText(getString(R.string.setup_send_where, name, ip.isEmpty() ? "?" : ip + ":" + port)));
+                // The usual port needn't be typed; only an unusual one is shown.
+                String address = ip.isEmpty() ? "?" : port == SetupTransfer.PORT ? ip : ip + ":" + port;
+                main.post(() -> where.setText(SetupTransfer.behindEmulator(ip)
+                        ? getString(R.string.setup_send_emulator)
+                        : getString(R.string.setup_send_where, name, address)));
             } catch (IOException | RuntimeException e) {
                 main.post(() -> { if (dialog.isShowing()) dialog.dismiss(); toast(getString(R.string.setup_failed, String.valueOf(e.getMessage()))); });
             }
@@ -902,7 +926,9 @@ public class HomeActivity extends Activity {
         address.setSingleLine(true);
         address.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
         keyboardOnSelect(address);
-        LinearLayout form = dialogForm(dialogText(getString(R.string.setup_get_help)), looking, found, address);
+        boolean emulator = SetupTransfer.behindEmulator(SetupTransfer.localAddress());
+        LinearLayout form = dialogForm(dialogText(getString(emulator ? R.string.setup_get_help_emulator : R.string.setup_get_help)), looking, found, address);
+        if (emulator) looking.setVisibility(View.GONE); // nothing can be found from in here; the address is typed
         AlertDialog dialog = new AlertDialog.Builder(this, R.style.PhoneTvDialog)
                 .setTitle(R.string.setup_get_title).setView(form)
                 .setPositiveButton(R.string.setup_use_address, null)
@@ -910,14 +936,16 @@ public class HomeActivity extends Activity {
         java.util.Map<String, View> rows = new java.util.HashMap<>();
         dialog.setOnDismissListener(d -> transfer().stopFinding());
         dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            String typed = address.getText().toString().trim();
+            // "192.168.1.20", or with a port when the sender showed one.
+            String typed = address.getText().toString().trim().replace(" ", "");
+            if (typed.isEmpty()) { address.setError(getString(R.string.setup_address_hint)); return; }
             int colon = typed.lastIndexOf(':');
-            if (colon <= 0) { address.setError(getString(R.string.setup_address_hint)); return; }
-            try {
-                int port = Integer.parseInt(typed.substring(colon + 1));
-                dialog.dismiss();
-                askCode(typed, typed.substring(0, colon), port);
-            } catch (NumberFormatException e) { address.setError(getString(R.string.setup_address_hint)); }
+            String host = colon > 0 ? typed.substring(0, colon) : typed;
+            int port = SetupTransfer.PORT;
+            try { if (colon > 0) port = Integer.parseInt(typed.substring(colon + 1)); }
+            catch (NumberFormatException e) { address.setError(getString(R.string.setup_address_hint)); return; }
+            dialog.dismiss();
+            askCode(host, host, port);
         }));
         dialog.show();
         transfer().find(new SetupTransfer.Finding() {

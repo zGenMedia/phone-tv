@@ -3,6 +3,19 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.16.1 — 2026-11-25
+
+### Fixed
+- **The window no longer flips between landscape and portrait** on BlueStacks
+  and other PC players (it did when a stream opened the player). PCs and TVs
+  now start out held to landscape. Settings › Look › Screen direction chooses
+  Automatic, Landscape or Portrait for the whole app, player included.
+- **Setup transfer finds devices across Wi-Fi and cable.** Besides discovery,
+  the receiving device now looks along the network for a sender itself, and a
+  typed address no longer needs the port. Inside an emulator such as
+  BlueStacks, which can't be seen by other devices, each screen now says so
+  and tells you which way round to do it.
+
 ## 0.16.0 — 2026-11-25
 
 ### Added
