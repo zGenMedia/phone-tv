@@ -3,6 +3,20 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.16.5 — 2026-11-25
+
+### Added
+- **Episodes in the player.** While watching a show, the control bar has an
+  *Episodes* button: the whole run as one list to scroll, opened on the
+  episode that's playing. Pick another and it goes to that episode's sources.
+- **Preferred quality** (Settings › Playback). Choose 4K, 1080p, 720p or
+  480p and sources of that quality are listed and auto-played first. Nothing
+  is hidden: the rest stay underneath for when the preferred one isn't there.
+
+### Changed
+- **Back from the player lands on the title's page**, wherever playback was
+  started from (Continue watching, a channel, the sources list).
+
 ## 0.16.4 — 2026-11-25
 
 ### Fixed

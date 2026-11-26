@@ -663,4 +663,8 @@
     <string name="player_no_picture_body">This source\'s video is %1$s, which this device can\'t decode, so only the sound is playing. Phones and PC players usually stop at 1080p; TV boxes such as the Shield show 4K and Dolby Vision.\n\nPick a 1080p source for this device.</string>
     <string name="player_keep_listening">Keep listening</string>
     <string name="sources_may_not_show">May play without picture on this device</string>
+    <string name="player_episodes">Episodes</string>
+    <string name="set_quality">Preferred quality</string>
+    <string name="set_quality_hint">Sources of this quality are listed and auto-played first. The others stay on the list underneath, for when it isn\'t available. A 1080p TV gains nothing from 4K.</string>
+    <string name="quality_any">No preference</string>
 </resources>

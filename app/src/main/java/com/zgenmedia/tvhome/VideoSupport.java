@@ -17,6 +17,7 @@ import java.util.Locale;
 final class VideoSupport {
     private static final java.util.regex.Pattern FOUR_K = java.util.regex.Pattern.compile("\\b4k\\b"),
             DOLBY_VISION = java.util.regex.Pattern.compile("\\b(dv|dovi)\\b");
+    private static final java.util.regex.Pattern SD = java.util.regex.Pattern.compile("\\bsd\\b");
     private static Boolean fourK, dolbyVision;
 
     private VideoSupport() {}
@@ -29,6 +30,33 @@ final class VideoSupport {
         boolean isDv = DOLBY_VISION.matcher(l).find() || l.contains("dolby vision");
         if (isDv && !l.contains("hdr") && !dolbyVision()) return false; // Dolby Vision with no HDR10 layer to fall back to
         return !is4k || fourK();
+    }
+
+    /** The quality a source's label claims, as a line count (2160, 1080, 720, 480), or 0 when it doesn't say. */
+    static int quality(String label) {
+        String l = label.toLowerCase(Locale.ROOT);
+        if (l.contains("2160") || FOUR_K.matcher(l).find() || l.contains("uhd")) return 2160;
+        if (l.contains("1080")) return 1080;
+        if (l.contains("720")) return 720;
+        if (l.contains("480") || l.contains("576") || SD.matcher(l).find()) return 480;
+        return 0;
+    }
+
+    /**
+     * Puts the preferred quality first without dropping anything: exact matches, then the
+     * next best below it, then sources that don't say, then the ones above it. Within each
+     * the add-ons' own order is kept, since they already sort by what they think is best.
+     */
+    static <T> void sortByPreference(java.util.List<T> sources, final java.util.function.Function<T, String> label, final int preferred) {
+        if (preferred <= 0) return;
+        java.util.Collections.sort(sources, (a, b) -> Integer.compare(rank(quality(label.apply(a)), preferred), rank(quality(label.apply(b)), preferred)));
+    }
+
+    private static int rank(int quality, int preferred) {
+        if (quality == preferred) return 0;
+        if (quality == 0) return 5_000;                       // unlabelled: after the known lower ones
+        if (quality < preferred) return preferred - quality;  // closest below first
+        return 10_000 + quality - preferred;                  // above the preference: last
     }
 
     static synchronized boolean fourK() {

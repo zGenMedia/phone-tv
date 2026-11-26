@@ -1,7 +1,7 @@
 {
-  "versionCode": 35,
-  "versionName": "0.16.4",
+  "versionCode": 36,
+  "versionName": "0.16.5",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "ffda28c6cc0478236f4ad9a8b9752003dbe9070f7a91413616389bf3eec5881f",
-  "notes": "4K sources: the picture is now tried even when the device doesn't advertise it, a black screen is explained, and sources this device can't show are marked on the sources page."
+  "sha256": "04b271187576b44bb1626f3e9a374772368813a42d1b5cdea6c9d471f114e9e8",
+  "notes": "An Episodes list while watching a show, a preferred picture quality in Settings > Playback, and Back from the player returns to the title's page."
 }

@@ -433,6 +433,11 @@ final class SettingsScreen implements Overlay {
         LinearLayout here = group(R.string.set_group_player);
         toggle(here, "autoPlay", R.string.set_autoplay, R.string.set_autoplay_hint, prefs.autoPlayFirst(),
                 () -> { prefs.setAutoPlayFirst(!prefs.autoPlayFirst()); apply(PANE); });
+        int wanted = 0;
+        for (int i = 0; i < Prefs.QUALITIES.length; i++) if (Prefs.QUALITIES[i] == prefs.preferredQuality()) wanted = i;
+        choice(here, "quality", R.string.set_quality, R.string.set_quality_hint,
+                new String[]{a.getString(R.string.quality_any), "4K", "1080p", "720p", "480p"}, wanted,
+                i -> { prefs.setPreferredQuality(Prefs.QUALITIES[i]); apply(PANE); });
         final String[] langs = {"en", "es", "fr", "de", "it", "pt", "nl", "pl", "tr", "ru", "ar", "hi", "ja", "ko", "zh"};
         String[] langNames = new String[langs.length];
         int sub = 0, audio = 0;

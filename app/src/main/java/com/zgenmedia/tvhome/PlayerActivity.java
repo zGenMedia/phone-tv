@@ -62,7 +62,7 @@ public final class PlayerActivity extends Activity {
     static final String X_URL = "url", X_HEADERS = "headers", X_ID = "id", X_TYPE = "type", X_EPISODE = "episode",
             X_TITLE = "title", X_LABEL = "label", X_POSTER = "poster", X_BACKDROP = "backdrop", X_LOGO = "logo",
             X_RESUME = "resume", X_ADDON = "addon", X_NEXT_EPISODE = "nextEpisode", X_NEXT_LABEL = "nextLabel",
-            X_PLEX = "plex";
+            X_PLEX = "plex", X_EPISODES = "episodes";
     static final int RESULT_NEXT = 2, RESULT_OTHER_SOURCE = 3;
     private static final long SEEK_MS = 10_000, BAR_HIDE_MS = 4_000, SAVE_EVERY_MS = 10_000;
 
@@ -114,6 +114,8 @@ public final class PlayerActivity extends Activity {
     /** Set when the title comes from the user's Plex server: where to report progress, and a second link to try. */
     private Bundle plex;
     private boolean triedPlexFallback;
+    /** Every episode of the show being watched, one per entry as "id, tab, S1 · E3, tab, title"; null for a movie. */
+    private ArrayList<String> episodes;
 
     private void readIntent(Intent i) {
         url = i.getStringExtra(X_URL);
@@ -125,6 +127,7 @@ public final class PlayerActivity extends Activity {
         addon = nz(i.getStringExtra(X_ADDON));
         nextEpisode = i.getStringExtra(X_NEXT_EPISODE);
         plex = i.getBundleExtra(X_PLEX);
+        episodes = i.getStringArrayListExtra(X_EPISODES);
         Bundle h = i.getBundleExtra(X_HEADERS);
         if (h != null) for (String k : h.keySet()) headers.put(k, h.getString(k));
     }
@@ -209,6 +212,7 @@ public final class PlayerActivity extends Activity {
         button(buttons, getString(R.string.player_subtitles), () -> pickTrack(C.TRACK_TYPE_TEXT));
         if (plex == null) button(buttons, getString(R.string.player_sources), () -> leave(RESULT_OTHER_SOURCE));
         if (nextEpisode != null) nextButton = button(buttons, getString(R.string.player_next), () -> leave(RESULT_NEXT));
+        if (episodes != null && episodes.size() > 1) button(buttons, getString(R.string.player_episodes), this::pickEpisode);
         android.widget.HorizontalScrollView strip = new android.widget.HorizontalScrollView(this);
         strip.setHorizontalScrollBarEnabled(false);
         strip.addView(buttons);
@@ -632,6 +636,35 @@ public final class PlayerActivity extends Activity {
     }
 
     // ================================================================= lifecycle
+
+    /**
+     * The show's episodes as one long list to scroll, opened on the one that's playing.
+     * Choosing another goes to its sources, exactly as "Next episode" does.
+     */
+    private void pickEpisode() {
+        if (episodes == null || episodes.isEmpty()) return;
+        final String[] ids = new String[episodes.size()], labels = new String[episodes.size()], lines = new String[episodes.size()];
+        int current = -1;
+        for (int i = 0; i < ids.length; i++) {
+            String[] parts = episodes.get(i).split("\t", 3);
+            ids[i] = parts[0];
+            labels[i] = parts.length > 1 ? parts[1] : "";
+            lines[i] = labels[i] + (parts.length > 2 && !parts[2].isEmpty() ? "  ·  " + parts[2] : "");
+            if (ids[i].equals(episodeId)) current = i;
+        }
+        new AlertDialog.Builder(this, R.style.PhoneTvDialog)
+                .setTitle(title)
+                .setSingleChoiceItems(lines, current, (d, which) -> {
+                    d.dismiss();
+                    if (ids[which].equals(episodeId)) return; // already watching it
+                    saveProgress();
+                    setResult(RESULT_NEXT, new Intent().putExtra(X_ID, id).putExtra(X_TYPE, type).putExtra(X_TITLE, title)
+                            .putExtra(X_EPISODE, ids[which]).putExtra(X_LABEL, labels[which]).putExtra(X_ADDON, addon));
+                    finish();
+                })
+                .setNegativeButton(R.string.player_close, null)
+                .show();
+    }
 
     private void leave(int result) {
         saveProgress();

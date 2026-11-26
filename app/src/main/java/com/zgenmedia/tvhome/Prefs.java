@@ -107,6 +107,15 @@ final class Prefs {
     int heroTrailer() { return sp.getInt("heroTrailer", TRAILER_MUTED); }
     void setHeroTrailer(int v) { sp.edit().putInt("heroTrailer", v).apply(); }
 
+    /**
+     * The picture quality the user would rather watch, as a line count (2160, 1080, 720, 480),
+     * or 0 for no preference. Sources of that quality are listed and auto-played first;
+     * the others stay on the list underneath.
+     */
+    static final int[] QUALITIES = {0, 2160, 1080, 720, 480};
+    int preferredQuality() { return sp.getInt("preferredQuality", 0); }
+    void setPreferredQuality(int lines) { sp.edit().putInt("preferredQuality", lines).apply(); }
+
     // Which way up the screen is held: follow the device, or stay put.
     static final int TURN_AUTO = 0, TURN_LANDSCAPE = 1, TURN_PORTRAIT = 2;
     /** @param fixedByNature true on TVs and PC emulators, which start out held to landscape */

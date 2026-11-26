@@ -34,6 +34,9 @@ final class DetailsScreen implements Overlay {
     private final HomeActivity a;
     private final Ui ui;
     private final MediaItem item;
+
+    /** True when this page is the page for {@code m}. */
+    boolean shows(MediaItem m) { return m != null && m.source == item.source && String.valueOf(m.id).equals(item.id); }
     private final FrameLayout root;
 
     private CatalogRepository.Details details; // null until fetched (always null for Plex items)

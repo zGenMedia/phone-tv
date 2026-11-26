@@ -66,6 +66,8 @@ final class StreamScreen implements Overlay {
         final String id = episodeId != null ? episodeId : item.id;
         new Thread(() -> {
             List<Addons.Stream> found = Addons.of(a).streams(type, id);
+            // The quality chosen in Settings goes to the top; everything else stays, underneath.
+            VideoSupport.sortByPreference(found, s -> s.name + " " + s.title + " " + (s.filename == null ? "" : s.filename), a.prefs.preferredQuality());
             a.main.post(() -> {
                 streams = found;
                 if (a.prefs.autoPlayFirst()) {

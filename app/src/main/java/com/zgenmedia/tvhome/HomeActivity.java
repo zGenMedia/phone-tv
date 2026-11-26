@@ -183,6 +183,9 @@ public class HomeActivity extends Activity {
     // Screen state. "home" holds the launcher; pages (details, settings) are added to root above it.
     private FrameLayout root, home;
     private Overlay overlay; // the page on top, if any
+
+    /** The page on top, if any. */
+    Overlay topPage() { return overlay; }
     private final ArrayDeque<Overlay> pages = new ArrayDeque<>(); // every open page, newest first
     private final Map<Overlay, View> pageFocus = new HashMap<>();                     // where the remote was on a covered page
     private String overlayReturnKey;
@@ -688,16 +691,25 @@ public class HomeActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_PLAYER) {
             renderPreservingScroll(); // Continue watching changed
-            MediaItem fromPlex = plexInPlayer;
+            MediaItem fromPlex = plexInPlayer, watched = playerItem;
             plexInPlayer = null;
+            playerItem = null;
             if (fromPlex != null) {
                 // Played from Plex: the row should show the new position; a failed play can go to the Plex app.
                 main.postDelayed(this::refreshPlex, 1_500);
                 if (resultCode == PlayerActivity.RESULT_OTHER_SOURCE) openPlexApp(fromPlex);
+                else returnToTitle(fromPlex);
                 return;
             }
-            if (data == null || (resultCode != PlayerActivity.RESULT_NEXT && resultCode != PlayerActivity.RESULT_OTHER_SOURCE)) return;
-            MediaItem m = MediaItem.catalog(data.getStringExtra(PlayerActivity.X_ID), data.getStringExtra(PlayerActivity.X_TYPE),
+            if (data == null || (resultCode != PlayerActivity.RESULT_NEXT && resultCode != PlayerActivity.RESULT_OTHER_SOURCE)) {
+                // Back out of the player lands on the title's own page, wherever playback was started from.
+                if (watched != null) returnToTitle(watched);
+                return;
+            }
+            // Another source, or another episode: the old sources page gives way to the new one.
+            while (overlay instanceof StreamScreen) closeOverlay();
+            MediaItem m = watched != null && watched.id.equals(data.getStringExtra(PlayerActivity.X_ID)) ? watched
+                    : MediaItem.catalog(data.getStringExtra(PlayerActivity.X_ID), data.getStringExtra(PlayerActivity.X_TYPE),
                     data.getStringExtra(PlayerActivity.X_TITLE), "");
             showStreams(m, data.getStringExtra(PlayerActivity.X_EPISODE));
             return;
@@ -1631,9 +1643,19 @@ public class HomeActivity extends Activity {
 
     /** Resume straight into the player when the saved link still works; otherwise pick a source again. */
     private void resume(Progress.Entry e) {
-        MediaItem m = e.item();
+        final MediaItem m = e.item();
         String episode = e.episodeId.isEmpty() ? null : e.episodeId;
         if (e.url.isEmpty()) { showStreams(m, episode); return; }
+        if (episode != null && catalog.cachedDetails(m) == null && !resumeAskedDetails) {
+            // A show resumed straight from the home screen: fetch its episode list first (a moment),
+            // so the player can offer Next episode and Episodes. If that fails, it plays without them.
+            resumeAskedDetails = true;
+            new Thread(() -> {
+                try { catalog.details(m); } catch (IOException | JSONException | RuntimeException ignored) { /* plays without the list */ }
+                main.post(() -> { resume(e); resumeAskedDetails = false; });
+            }, "phonetv-resume").start();
+            return;
+        }
         String next = null, nextLabel = null;
         CatalogRepository.Details d = catalog.cachedDetails(m);
         if (episode != null && d != null) {
@@ -1642,6 +1664,8 @@ public class HomeActivity extends Activity {
         }
         startPlayer(m, episode, e.episodeLabel, e.url, e.headers, e.addon, e.positionMs, next, nextLabel);
     }
+
+    private boolean resumeAskedDetails;
 
     private void openNextEpisode(MediaItem m, String lastEpisode) {
         io.execute(() -> {
@@ -4355,6 +4379,14 @@ public class HomeActivity extends Activity {
     }
 
     private MediaItem plexInPlayer; // the Plex title Phone TV's player was opened for, if any
+    private MediaItem playerItem;   // whatever the player was opened for, to come back to its page
+
+    /** After watching: the sources page has done its job, and the title's page is where Back should land. */
+    private void returnToTitle(MediaItem m) {
+        while (overlay instanceof StreamScreen) closeOverlay();
+        if (overlay instanceof DetailsScreen && ((DetailsScreen) overlay).shows(m)) { overlay.rebuild(); return; } // refresh watched marks
+        showDetails(m);
+    }
 
     void openPlexApp(MediaItem m) {
         if (!isInstalled(PlexClient.PACKAGE)) { showMissingApp(Prefs.PLAY_PLEX, null); return; }
@@ -4476,6 +4508,17 @@ public class HomeActivity extends Activity {
                 .putExtra(PlayerActivity.X_POSTER, m.posterRef).putExtra(PlayerActivity.X_BACKDROP, m.backdropRef)
                 .putExtra(PlayerActivity.X_LOGO, m.logoRef).putExtra(PlayerActivity.X_RESUME, resumeMs)
                 .putExtra(PlayerActivity.X_NEXT_EPISODE, nextEpisodeId).putExtra(PlayerActivity.X_NEXT_LABEL, nextLabel);
+        // A show brings its episode list along, so the player can offer them without leaving.
+        CatalogRepository.Details known = episodeId == null ? null : catalog.cachedDetails(m);
+        if (known != null && !known.episodes.isEmpty()) {
+            ArrayList<String> list = new ArrayList<>();
+            for (CatalogRepository.Episode e : known.episodes) {
+                if (e.season <= 0) continue; // specials aren't part of the run
+                list.add(e.id + "\t" + Library.episodeLabel(e.season, e.number) + "\t" + (e.title == null ? "" : e.title.replace('\t', ' ')));
+            }
+            i.putExtra(PlayerActivity.X_EPISODES, list);
+        }
+        playerItem = m;
         try {
             Bundle onThisScreen = launchOptions();
             if (onThisScreen != null) startActivityForResult(i, REQUEST_PLAYER, onThisScreen);
