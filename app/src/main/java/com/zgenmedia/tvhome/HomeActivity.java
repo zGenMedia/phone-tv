@@ -3500,10 +3500,49 @@ public class HomeActivity extends Activity {
     private boolean sharedLinkCheckDue;
 
     /** Hands a link to whatever the user shares with (messages, mail…); a TV with nowhere to send it shows the link instead. */
-    void share(String link, String subject) {
-        Intent send = new Intent(Intent.ACTION_SEND).setType("text/plain")
+    void share(String link, String subject) { share(link, subject, null); }
+
+    /**
+     * Shares a link with its picture attached (the poster, the actor's face), so the post or
+     * message shows something even where the link alone would not get a preview. The picture
+     * is fetched first; if that fails the link goes out by itself, as before.
+     */
+    void share(final String link, final String subject, final String pictureUrl) {
+        if (tvDevice || pictureUrl == null || pictureUrl.isEmpty()) { shareNow(link, subject, null); return; }
+        new Thread(() -> {
+            Uri picture = null;
+            try {
+                byte[] data = Http.get(pictureUrl, new HashMap<String, String>(), 8_000);
+                android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeByteArray(data, 0, data.length);
+                if (bmp != null) {
+                    java.io.File dir = new java.io.File(getCacheDir(), "share");
+                    //noinspection ResultOfMethodCallIgnored
+                    dir.mkdirs();
+                    java.io.File file = new java.io.File(dir, "phone-tv-share.jpg");
+                    try (java.io.FileOutputStream out = new java.io.FileOutputStream(file)) {
+                        // JPEG has no transparency: a see-through logo is set on white first.
+                        android.graphics.Bitmap flat = android.graphics.Bitmap.createBitmap(bmp.getWidth(), bmp.getHeight(), android.graphics.Bitmap.Config.RGB_565);
+                        android.graphics.Canvas canvas = new android.graphics.Canvas(flat);
+                        canvas.drawColor(0xFFFFFFFF);
+                        canvas.drawBitmap(bmp, 0, 0, null);
+                        flat.compress(android.graphics.Bitmap.CompressFormat.JPEG, 88, out);
+                    }
+                    picture = androidx.core.content.FileProvider.getUriForFile(this, getPackageName() + ".share", file);
+                }
+            } catch (IOException | RuntimeException | OutOfMemoryError noPicture) { /* the link still goes out */ }
+            final Uri attached = picture;
+            main.post(() -> shareNow(link, subject, attached));
+        }, "phonetv-share").start();
+    }
+
+    private void shareNow(String link, String subject, Uri picture) {
+        Intent send = new Intent(Intent.ACTION_SEND).setType(picture == null ? "text/plain" : "image/jpeg")
                 .putExtra(Intent.EXTRA_SUBJECT, subject)
                 .putExtra(Intent.EXTRA_TEXT, getString(R.string.share_text, subject, link));
+        if (picture != null) {
+            send.putExtra(Intent.EXTRA_STREAM, picture).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            send.setClipData(android.content.ClipData.newUri(getContentResolver(), subject, picture)); // lets the chooser show it
+        }
         boolean anywhere = !tvDevice && send.resolveActivity(getPackageManager()) != null;
         if (anywhere && startSafely(Intent.createChooser(send, getString(R.string.share_title, subject)))) return;
         android.content.ClipboardManager clip = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);

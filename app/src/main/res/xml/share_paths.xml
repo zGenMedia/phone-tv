@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The one folder other apps may be handed a file from: the picture attached to a share. -->
+<paths>
+    <cache-path name="share" path="share/" />
+</paths>

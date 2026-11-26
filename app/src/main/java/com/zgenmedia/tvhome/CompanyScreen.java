@@ -130,7 +130,7 @@ final class CompanyScreen implements Overlay {
         LinearLayout buttons = new LinearLayout(a);
         buttons.addView(save);
         TextView share = ui.pill(a.getString(R.string.share), Ui.SURFACE, Ui.TEXT);
-        share.setOnClickListener(v -> a.share(Share.link(company), company.name));
+        share.setOnClickListener(v -> a.share(Share.link(company), company.name, company.logo));
         LinearLayout.LayoutParams shareAt = new LinearLayout.LayoutParams(-2, -2);
         shareAt.leftMargin = ui.dp(10);
         buttons.addView(share, shareAt);

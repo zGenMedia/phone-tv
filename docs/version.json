@@ -1,7 +1,7 @@
 {
-  "versionCode": 36,
-  "versionName": "0.16.5",
+  "versionCode": 37,
+  "versionName": "0.16.6",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "04b271187576b44bb1626f3e9a374772368813a42d1b5cdea6c9d471f114e9e8",
-  "notes": "An Episodes list while watching a show, a preferred picture quality in Settings > Playback, and Back from the player returns to the title's page."
+  "sha256": "4e3361f5d8c7948d79fec447cd129671ce0c80e48abcd1fef24af0edcfe6f766",
+  "notes": "Shares now carry their picture (the artwork, the actor's face, the studio's logo), and the share page shows who or what was shared."
 }

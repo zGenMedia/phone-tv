@@ -219,7 +219,7 @@ final class PersonScreen implements Overlay {
             });
             actions.addView(save);
             TextView share = ui.pill(a.getString(R.string.share), 0x33FFFFFF, Ui.TEXT);
-            share.setOnClickListener(v -> a.share(Share.link(person), person.name));
+            share.setOnClickListener(v -> a.share(Share.link(person), person.name, person.photo.replaceAll("\\?width=\\d+$", "?width=720")));
             LinearLayout.LayoutParams shareAt = new LinearLayout.LayoutParams(-2, -2);
             shareAt.leftMargin = ui.dp(10);
             actions.addView(share, shareAt);

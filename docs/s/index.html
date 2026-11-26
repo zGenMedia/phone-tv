@@ -9,7 +9,14 @@
 <meta property="og:title" content="Shared from Phone TV">
 <meta property="og:description" content="Open it in Phone TV, or get Phone TV free.">
 <meta property="og:image" content="https://zgenmedia.github.io/phone-tv/assets/og.jpg">
-<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://zgenmedia.github.io/phone-tv/s/">
+<meta property="og:site_name" content="Phone TV">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Shared from Phone TV">
+<meta name="twitter:description" content="Open it in Phone TV, or get Phone TV free.">
+<meta name="twitter:image" content="https://zgenmedia.github.io/phone-tv/assets/og.jpg">
+<link rel="icon" href="https://zgenmedia.github.io/phone-tv/assets/icon.svg" type="image/svg+xml">
 <style>
 :root{--bg:#0b0c10;--card:#161922;--line:#242836;--text:#eef0f5;--dim:#a3a9b8;--mute:#6f7688;--amber:#ffb547}
 *{box-sizing:border-box}
@@ -18,6 +25,9 @@ body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:c
 .card{width:100%;max-width:440px;background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden}
 .art{position:relative;aspect-ratio:16/9;background:linear-gradient(135deg,#2f3d56,#1d2331 55%,#28223b)}
 .art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
+.art.face{aspect-ratio:4/3}.art.face img{object-position:50% 18%}
+.art.logo{background:#ecedf1}.art.logo img{object-fit:contain;padding:9% 16%}.art.logo::after{display:none}
+.about{color:var(--dim);font-size:14px;margin:-8px 0 18px;display:none}
 .art::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(22,25,34,0) 45%,var(--card))}
 .body{padding:4px 22px 24px}
 .eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);font-weight:700}
@@ -38,11 +48,12 @@ h1{margin:6px 0 4px;font-size:26px;line-height:1.2}
     <div class="eyebrow">Shared from Phone TV</div>
     <h1 id="name">Something to watch</h1>
     <p class="kind" id="kind"></p>
-    <a class="btn open" id="open" href="../">Open in Phone TV</a>
-    <a class="btn get" id="get" href="../downloads/PhoneTV.apk">Don't have it? Get Phone TV (free)</a>
+    <p class="about" id="about"></p>
+    <a class="btn open" id="open" href="https://zgenmedia.github.io/phone-tv/">Open in Phone TV</a>
+    <a class="btn get" id="get" href="https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk">Don't have it? Get Phone TV (free)</a>
     <p class="note" id="note">Phone TV is a free, open-source home screen for phones, TV boxes, PCs and Macs.
       <b>After installing, just open Phone TV:</b> it goes straight to what was shared.</p>
-    <p class="note bad" id="bad">This link is incomplete, so there's nothing to open. You can still <a href="../">see what Phone TV is</a>.</p>
+    <p class="note bad" id="bad">This link is incomplete, so there's nothing to open. You can still <a href="https://zgenmedia.github.io/phone-tv/">see what Phone TV is</a>.</p>
   </div>
 </main>
 <script>
@@ -64,11 +75,43 @@ h1{margin:6px 0 4px;font-size:26px;line-height:1.2}
   if (name) { document.getElementById('name').textContent = name; document.title = name + ' · shared from Phone TV'; }
   document.getElementById('kind').textContent = kinds[type];
 
-  // Artwork for titles comes from the same public image host the app uses.
+  var img = document.getElementById('art'), box = img.parentNode, about = document.getElementById('about');
+  img.onload = function () { img.style.display = 'block'; };
+  function say(text) { if (text) { about.textContent = text; about.style.display = 'block'; } }
+
   if (type === 'movie' || type === 'series') {
-    var img = document.getElementById('art');
-    img.onload = function () { img.style.display = 'block'; };
+    // Artwork for titles comes from the same public image host the app uses,
+    // and the year and a line about it from the open catalog.
     img.src = 'https://images.metahub.space/background/medium/' + id + '/img';
+    fetch('https://v3-cinemeta.strem.io/meta/' + type + '/' + id + '.json').then(function (r) { return r.json(); }).then(function (d) {
+      var m = d.meta || {};
+      if (m.releaseInfo) document.getElementById('kind').textContent = kinds[type] + ' · ' + m.releaseInfo;
+      if (m.description) say(m.description.length > 180 ? m.description.slice(0, 177) + '…' : m.description);
+    }).catch(function () {});
+  }
+  // A face or a logo sent along with the link, from one of the image hosts the app uses.
+  var sent = q.get('i') || '', sentOk = false;
+  try {
+    var u = new URL(sent);
+    sentOk = u.protocol === 'https:' && ['commons.wikimedia.org', 'upload.wikimedia.org', 'static.tvmaze.com', 'images.metahub.space'].indexOf(u.hostname) >= 0;
+  } catch (e) {}
+  if (sentOk && type !== 'movie' && type !== 'series') {
+    box.className = 'art ' + (type === 'person' ? 'face' : 'logo');
+    img.src = sent;
+  }
+  if (id && type !== 'movie' && type !== 'series') {
+    // Anything not sent along (and a line about them) is looked up on Wikidata.
+    var ask = 'SELECT ?img ?logo ?d WHERE { OPTIONAL { wd:' + id + ' wdt:P18 ?img } OPTIONAL { wd:' + id + ' wdt:P154 ?logo } '
+          + 'OPTIONAL { wd:' + id + ' schema:description ?d. FILTER(LANG(?d)="en") } } LIMIT 1';
+    fetch('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(ask)).then(function (r) { return r.json(); }).then(function (d) {
+      var row = (d.results.bindings || [])[0] || {};
+      var pic = type === 'person' ? row.img : (row.logo || row.img);
+      if (!sentOk && pic && /^https?:\/\/commons\.wikimedia\.org\//.test(pic.value)) {
+        box.className = 'art ' + (type === 'person' ? 'face' : 'logo');
+        img.src = pic.value.replace('http://', 'https://') + '?width=720';
+      }
+      if (row.d) say(row.d.value.charAt(0).toUpperCase() + row.d.value.slice(1));
+    }).catch(function () {});
   }
 
   // The app answers to phonetv://open with the same parameters.

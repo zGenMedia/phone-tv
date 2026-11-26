@@ -272,7 +272,7 @@ final class DetailsScreen implements Overlay {
                 addAction(row, first ? a.getString(R.string.details_watch_on, name) : name, first, installed, () -> a.openWith(player, item, null));
             }
             addAction(row, a.getString(R.string.details_trailer), false, true, () -> a.openTrailer(item, details == null ? null : details.trailerId));
-            if (item.id != null && item.id.startsWith("tt")) addAction(row, a.getString(R.string.share), false, true, () -> a.share(Share.link(item), item.title));
+            if (item.id != null && item.id.startsWith("tt")) addAction(row, a.getString(R.string.share), false, true, () -> a.share(Share.link(item), item.title, item.backdrop(1280)));
         }
         HorizontalScrollView strip = new HorizontalScrollView(a);
         strip.setHorizontalScrollBarEnabled(false);

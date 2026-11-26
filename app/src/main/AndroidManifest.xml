@@ -83,6 +83,15 @@
 
         <!-- Kept for upgrade continuity: versions up to 0.4 shipped this component
              name, and the phone's "default Home app" setting points at it. -->
+        <!-- Lends the picture attached to a share (a poster, a face) to the app it's shared with. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.share"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/share_paths" />
+        </provider>
+
         <activity-alias
             android:name="com.kinglifer.tvlauncher.MainActivity"
             android:exported="true"

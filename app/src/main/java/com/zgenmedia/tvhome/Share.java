@@ -25,18 +25,35 @@ final class Share {
 
     private Share() {}
 
-    static String link(MediaItem m) { return build(m.isShow() ? SERIES : MOVIE, m.id, m.title, null); }
+    static String link(MediaItem m) { return build(m.isShow() ? SERIES : MOVIE, m.id, m.title, null, null); }
 
-    static String link(Library.Person p) { return build(PERSON, p.id, p.name, null); }
+    static String link(Library.Person p) { return build(PERSON, p.id, p.name, null, p.photo); }
 
-    static String link(Library.Company c) { return build(COMPANY, c.id, c.name, c.kind); }
+    static String link(Library.Company c) { return build(COMPANY, c.id, c.name, c.kind, c.logo); }
 
-    private static String build(String type, String id, String name, String kind) {
+    /**
+     * @param picture the face or logo to put on the card. A title needs none (its artwork is found
+     *                from its id); for a person or company it rides along so the page and any
+     *                social card can show it without looking anything up. Only pictures from the
+     *                public image hosts Phone TV already uses are passed on.
+     */
+    private static String build(String type, String id, String name, String kind, String picture) {
         Uri.Builder b = Uri.parse(PAGE).buildUpon().appendQueryParameter("t", type);
         if (id != null && !id.isEmpty()) b.appendQueryParameter("id", id);
         b.appendQueryParameter("n", name == null ? "" : name);
         if (kind != null && !kind.isEmpty()) b.appendQueryParameter("k", kind);
+        if (picture != null && fromKnownHost(picture)) {
+            // The app keeps thumbnails; a card wants the same picture larger.
+            b.appendQueryParameter("i", picture.replace("http://", "https://").replaceAll("\\?width=\\d+$", "?width=720"));
+        }
         return b.build().toString();
+    }
+
+    /** The image hosts a link may point a card at. The share page and the card service hold the same list. */
+    static boolean fromKnownHost(String url) {
+        String host = Uri.parse(url.replace("http://", "https://")).getHost();
+        return host != null && (host.equals("commons.wikimedia.org") || host.equals("upload.wikimedia.org")
+                || host.equals("static.tvmaze.com") || host.equals("images.metahub.space"));
     }
 
     /** True for text that is (or contains) one of these links: what the clipboard check looks for. */

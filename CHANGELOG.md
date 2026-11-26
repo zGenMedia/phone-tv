@@ -3,6 +3,21 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.16.6 — 2026-11-26
+
+### Improved
+- **Shares carry their picture.** Sharing a movie, show, actor, network or
+  studio now attaches its picture (the artwork, the face, the logo) to the
+  message or post, next to the link.
+- **The share page shows who or what was shared.** An actor's link opens on
+  their photo and a line about them; a studio's on its logo; a title's on its
+  artwork, year and description.
+
+### Added
+- `tools/share-cards`: a small Cloudflare Worker that gives each share link
+  its own preview card on Facebook, X and messaging apps. Not yet live; see
+  its README.
+
 ## 0.16.5 — 2026-11-25
 
 ### Added
