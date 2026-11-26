@@ -3,6 +3,19 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.16.4 — 2026-11-25
+
+### Fixed
+- **4K sources that played sound over a black screen.** The player used to
+  drop a picture the device didn't advertise support for and carry on with the
+  sound alone. It now tries the picture anyway (many chips decode more than
+  they claim). When the device truly can't show it, a message names the format
+  (for example "4K HDR (HEVC)") and offers another source, instead of silence
+  about it.
+- **The sources page warns in advance.** A source labelled 4K or Dolby Vision
+  on a device without a decoder for it is marked "May play without picture on
+  this device", and auto-play passes over those for one that will show.
+
 ## 0.16.3 — 2026-11-25
 
 ### Fixed

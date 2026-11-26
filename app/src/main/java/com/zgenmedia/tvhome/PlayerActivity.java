@@ -267,6 +267,17 @@ public final class PlayerActivity extends Activity {
                 .setPreferredTextLanguage(prefs.subtitleLanguage())
                 .setPreferredAudioLanguage(prefs.audioLanguage())
                 .build());
+        // A device often decodes more than it advertises (4K on a chip that claims 1080p).
+        // Without this the player quietly drops such a picture and plays the sound alone;
+        // with it the picture is tried, and only a real failure is reported.
+        if (player.getTrackSelector() instanceof androidx.media3.exoplayer.trackselection.DefaultTrackSelector) {
+            androidx.media3.exoplayer.trackselection.DefaultTrackSelector selector =
+                    (androidx.media3.exoplayer.trackselection.DefaultTrackSelector) player.getTrackSelector();
+            selector.setParameters(selector.buildUponParameters()
+                    .setExceedRendererCapabilitiesIfNecessary(true)
+                    .setExceedVideoConstraintsIfNecessary(true)
+                    .clearViewportSizeConstraints());
+        }
         player.addListener(new Player.Listener() {
             @Override public void onVideoSizeChanged(VideoSize size) {
                 if (size.width > 0 && size.height > 0) { videoAspect = size.width * size.pixelWidthHeightRatio / size.height; fitVideo(); }
@@ -297,6 +308,16 @@ public final class PlayerActivity extends Activity {
                     status.setText(R.string.player_no_sound_format);
                     main.postDelayed(() -> status.setText(""), 8000);
                 }
+                // The same for the picture: a film with sound and a black screen needs explaining.
+                String unplayed = null;
+                boolean hasVideo = false, showing = false;
+                for (androidx.media3.common.Tracks.Group g : tracks.getGroups()) {
+                    if (g.getType() != C.TRACK_TYPE_VIDEO) continue;
+                    hasVideo = true;
+                    showing |= g.isSelected();
+                    if (unplayed == null && g.length > 0) unplayed = describeVideo(g.getTrackFormat(0));
+                }
+                if (hasVideo && !showing && !toldNoPicture) { toldNoPicture = true; noPicture(unplayed); }
             }
             @Override public void onPlayerError(PlaybackException e) { failed(e); }
         });
@@ -331,6 +352,30 @@ public final class PlayerActivity extends Activity {
         if (u.contains(".ass") || u.contains(".ssa")) return MimeTypes.TEXT_SSA;
         if (u.contains(".ttml") || u.contains(".dfxp")) return MimeTypes.APPLICATION_TTML;
         return MimeTypes.APPLICATION_SUBRIP; // what subtitle add-ons almost always serve, often without an extension
+    }
+
+    private boolean toldNoPicture;
+
+    /** "4K HDR (Dolby Vision)", "4K (HEVC)": the picture format in the words on the box. */
+    private static String describeVideo(androidx.media3.common.Format f) {
+        String mime = f.sampleMimeType == null ? "" : f.sampleMimeType;
+        String codec = mime.contains("dolby-vision") ? "Dolby Vision" : mime.contains("hevc") ? "HEVC" : mime.contains("av01") ? "AV1"
+                : mime.contains("avc") ? "H.264" : mime.contains("vp9") ? "VP9" : mime.replace("video/", "");
+        String size = f.height >= 2000 || f.width >= 3800 ? "4K" : f.height >= 1000 ? "1080p" : f.height > 0 ? f.height + "p" : "";
+        boolean hdr = f.colorInfo != null && (f.colorInfo.colorTransfer == C.COLOR_TRANSFER_ST2084 || f.colorInfo.colorTransfer == C.COLOR_TRANSFER_HLG);
+        return (size + (hdr && !mime.contains("dolby-vision") ? " HDR" : "") + " (" + codec + ")").trim();
+    }
+
+    /** The sound is playing but this device has no way to show the picture: say which format, and offer the way out. */
+    private void noPicture(String format) {
+        if (isFinishing()) return;
+        new AlertDialog.Builder(this, R.style.PhoneTvDialog)
+                .setTitle(R.string.player_no_picture)
+                .setMessage(getString(R.string.player_no_picture_body, format == null || format.isEmpty() ? "?" : format))
+                .setPositiveButton(plex != null ? R.string.player_open_plex : R.string.player_try_other, (d, w) -> leave(RESULT_OTHER_SOURCE))
+                .setNeutralButton(R.string.player_open_elsewhere, (d, w) -> openElsewhere())
+                .setNegativeButton(R.string.player_keep_listening, null)
+                .show();
     }
 
     private void failed(PlaybackException e) {

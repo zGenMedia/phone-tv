@@ -69,7 +69,16 @@ final class StreamScreen implements Overlay {
             a.main.post(() -> {
                 streams = found;
                 if (a.prefs.autoPlayFirst()) {
-                    for (Addons.Stream s : found) if (s.playable()) { a.closeOverlay(); play(s); return; }
+                    // Auto-play takes the first source this device can show; one it likely can't comes last.
+                    Addons.Stream first = null, fallback = null;
+                    for (Addons.Stream s : found) {
+                        if (!s.playable()) continue;
+                        boolean fine = VideoSupport.likelyToShow(s.name + " " + s.title + " " + (s.filename == null ? "" : s.filename));
+                        if (fine && first == null) first = s;
+                        if (fallback == null) fallback = s;
+                    }
+                    if (first == null) first = fallback;
+                    if (first != null) { a.closeOverlay(); play(first); return; }
                 }
                 View f = a.focused();
                 boolean had = f != null && HomeActivity.isInside(f, root);
@@ -218,6 +227,7 @@ final class StreamScreen implements Overlay {
         facts.add(s.addon);
         if (s.size > 0) facts.add(Addons.sizeLabel(s.size));
         if (!s.playable()) facts.add(a.getString(s.infoHash != null ? R.string.sources_torrent : s.ytId != null ? R.string.sources_youtube : R.string.sources_web));
+        else if (!VideoSupport.likelyToShow(s.name + " " + s.title + " " + (s.filename == null ? "" : s.filename))) facts.add(a.getString(R.string.sources_may_not_show));
         TextView meta = ui.label(TextUtils.join("  ·  ", facts), 12, Ui.MUTED, Ui.MEDIUM);
         meta.setPadding(0, ui.dp(6), 0, 0);
         text.addView(meta);

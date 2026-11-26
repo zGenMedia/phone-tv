@@ -1,7 +1,7 @@
 {
-  "versionCode": 34,
-  "versionName": "0.16.3",
+  "versionCode": 35,
+  "versionName": "0.16.4",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "215e948aaa673e1e45568cc55e102f5c087b135a658c638f421404793affa4e0",
-  "notes": "Sound now plays on streams with Dolby or DTS audio: Phone TV's player carries its own audio decoder. The download is about 7 MB."
+  "sha256": "ffda28c6cc0478236f4ad9a8b9752003dbe9070f7a91413616389bf3eec5881f",
+  "notes": "4K sources: the picture is now tried even when the device doesn't advertise it, a black screen is explained, and sources this device can't show are marked on the sources page."
 }

@@ -659,4 +659,8 @@
     <string name="browser_setup_offline">This device isn\'t on a network, so no phone can reach it yet.</string>
     <string name="browser_setup_emulator">This copy of Phone TV runs inside an emulator (such as BlueStacks), which phones can\'t connect to. On a PC, paste straight into Phone TV instead: Settings › Add-ons.</string>
     <string name="player_no_sound_format">This source\'s sound is in a format this device can\'t play. Try another source, or Audio for another track.</string>
+    <string name="player_no_picture">Sound, but no picture</string>
+    <string name="player_no_picture_body">This source\'s video is %1$s, which this device can\'t decode, so only the sound is playing. Phones and PC players usually stop at 1080p; TV boxes such as the Shield show 4K and Dolby Vision.\n\nPick a 1080p source for this device.</string>
+    <string name="player_keep_listening">Keep listening</string>
+    <string name="sources_may_not_show">May play without picture on this device</string>
 </resources>
