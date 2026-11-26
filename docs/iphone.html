@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Phone TV for iPhone — coming soon</title>
+<meta name="description" content="Phone TV is a free TV-style home screen for movies and shows. It runs on Android, TV boxes, PCs and Macs today. Want it on iPhone? Join the list.">
+<meta name="theme-color" content="#0b0c10">
+<link rel="canonical" href="https://zgenmedia.github.io/phone-tv/iphone.html">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Phone TV by zGenMedia">
+<meta property="og:title" content="Phone TV for iPhone — coming soon">
+<meta property="og:description" content="A TV-style home screen for movies and shows. Join the list and help decide when the iPhone version gets built.">
+<meta property="og:url" content="https://zgenmedia.github.io/phone-tv/iphone.html">
+<meta property="og:image" content="https://zgenmedia.github.io/phone-tv/assets/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+:root{--bg:#0b0c10;--card:#161922;--line:#242836;--text:#eef0f5;--dim:#a3a9b8;--mute:#6f7688;--amber:#ffb547;--green:#5ee6a8;--pink:#ff7a90}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--text)}
+.wrap{max-width:640px;margin:0 auto;padding:0 20px}
+header{padding:18px 0;border-bottom:1px solid var(--line)}
+.brand{display:inline-flex;align-items:center;gap:10px;font-weight:700;text-decoration:none}
+.brand svg{width:28px;height:28px}
+.hero{padding:44px 0 8px}
+.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);font-weight:700;margin:0}
+h1{font-size:34px;line-height:1.15;margin:12px 0 14px;letter-spacing:-.01em}
+h2{font-size:21px;margin:0 0 14px}
+.lead{color:var(--dim);font-size:17px;margin:0}
+.shot{margin:28px 0 0;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--card)}
+.shot img{display:block;width:100%;height:auto}
+.join{margin:28px 0;padding:22px;background:var(--card);border:1px solid var(--line);border-radius:20px}
+.join p{margin:0 0 16px;color:var(--dim);font-size:15px}
+label{display:block;font-size:13px;color:var(--dim);margin-bottom:6px}
+input[type=email]{width:100%;padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit;font-size:16px}
+input[type=email]:focus{outline:2px solid var(--amber);outline-offset:1px}
+.trap{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+button{display:block;width:100%;margin-top:12px;padding:14px 18px;border:0;border-radius:999px;background:var(--text);color:#0b0c10;font:inherit;font-weight:700;cursor:pointer}
+button[disabled]{opacity:.6;cursor:default}
+.fine{font-size:13px;color:var(--mute);margin:14px 0 0}
+.fine button{display:inline;width:auto;margin:0;padding:0;background:none;color:var(--dim);font-weight:400;font-size:13px;text-decoration:underline;border-radius:0}
+.msg{margin:14px 0 0;font-size:15px;display:none}
+.msg.good{color:var(--green)}.msg.bad{color:var(--pink)}
+section{padding:14px 0 26px}
+.points{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.points li{padding:16px 18px;background:var(--card);border:1px solid var(--line);border-radius:14px}
+.points b{display:block;margin-bottom:2px}
+.points span{color:var(--dim);font-size:15px}
+.today{color:var(--dim);font-size:15px}
+footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--mute);font-size:13px}
+footer a{color:var(--dim)}
+@media (min-width:700px){h1{font-size:42px}.hero{padding-top:64px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="./" aria-label="Phone TV home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="7" width="28" height="18" rx="4" fill="none" stroke="#ffb547" stroke-width="2.4"/><path d="M13 12l7 4-7 4z" fill="#ffb547"/></svg>
+      Phone TV
+    </a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <p class="eyebrow">Coming soon to iPhone</p>
+    <h1>Phone TV isn't on iPhone yet. Want it?</h1>
+    <p class="lead">Phone TV is a free home screen for movies and shows that looks and works like a smart TV. It runs on Android phones, TV boxes, PCs and Macs today. The iPhone version gets built when 1,000 people ask for it.</p>
+  </div>
+
+  <form class="join" id="join" novalidate>
+    <h2>Tell me when it's ready</h2>
+    <p>Leave your email to be counted, and to hear how the iPhone version is coming along and the day it's out.</p>
+    <label for="email">Email address</label>
+    <input type="email" id="email" name="email" autocomplete="email" inputmode="email" placeholder="you@example.com" required>
+    <div class="trap" aria-hidden="true"><label for="website">Leave this empty</label><input type="text" id="website" name="website" tabindex="-1" autocomplete="off"></div>
+    <button type="submit" id="send">Count me in</button>
+    <p class="msg good" id="good" role="status"></p>
+    <p class="msg bad" id="bad" role="alert"></p>
+    <p class="fine">Only news about Phone TV for iPhone. No ads, never shared. <a href="privacy.html">Privacy</a> · Changed your mind? <button type="button" id="leave">Take my email off the list</button></p>
+  </form>
+
+  <section>
+    <h2>What Phone TV does</h2>
+    <ul class="points">
+      <li><b>One home screen for everything you watch</b><span>Movies, shows and your apps on one TV-style screen, with a featured banner up top and rows you can arrange.</span></li>
+      <li><b>Find something fast</b><span>Browse by genre, network or studio, follow an actor through everything they've been in, or let <i>Pick for me</i> choose from what you've liked before.</span></li>
+      <li><b>Channels you can tune in to</b><span>A guide of always-on movie and show channels, for when you'd rather drop in than choose.</span></li>
+      <li><b>Your library, your history</b><span>Save titles, actors and studios, keep your place in what you're watching, and bring your Plex and Trakt along.</span></li>
+      <li><b>Share anything</b><span>Send a movie, show or actor to a friend. That's probably how you got here.</span></li>
+      <li><b>Free, with no ads and no account</b><span>Open source, with no tracking of what you watch.</span></li>
+    </ul>
+    <div class="shot"><img src="assets/screens/phone-portrait.jpg" alt="Phone TV's home screen on a phone" loading="lazy"></div>
+  </section>
+
+  <section>
+    <h2>Have another device?</h2>
+    <p class="today">Phone TV already runs on Android phones and tablets, Shield, Google TV and Fire TV boxes, and on Windows PCs and Macs. <a href="./">See it and get it there</a>.</p>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">Phone TV by <a href="https://zgenmedia.com">zGenMedia</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/zGenMedia/phone-tv">Source</a></div>
+</footer>
+
+<script>
+// The list lives on zgenmedia.com. This page sends it one thing: the address typed above.
+(function () {
+  var LIST = 'https://zgenmedia.com/tv/notify';
+  var form = document.getElementById('join'), email = document.getElementById('email'), send = document.getElementById('send');
+  var good = document.getElementById('good'), bad = document.getElementById('bad');
+
+  function show(el, text) { good.style.display = bad.style.display = 'none'; el.textContent = text; el.style.display = 'block'; }
+
+  function post(leaving) {
+    var address = email.value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) { show(bad, 'That doesn\'t look like an email address.'); email.focus(); return; }
+    var body = new URLSearchParams({ email: address, website: document.getElementById('website').value });
+    if (leaving) body.set('leave', '1');
+    send.disabled = true;
+    fetch(LIST, { method: 'POST', body: body })
+      .then(function (r) { return r.json().then(function (j) { return { status: r.status, json: j }; }); })
+      .then(function (r) {
+        if (r.json.ok) {
+          show(good, leaving ? 'Done. That address is off the list.' : 'You\'re on the list. We\'ll email you news about the iPhone version.');
+          if (!leaving) email.value = '';
+        } else if (r.status === 429) show(bad, 'Too many tries from here. Please try again in an hour.');
+        else show(bad, 'That address wasn\'t accepted. Check it and try again.');
+      })
+      .catch(function () { show(bad, 'Couldn\'t reach the list just now. Please try again in a minute.'); })
+      .then(function () { send.disabled = false; });
+  }
+
+  form.addEventListener('submit', function (e) { e.preventDefault(); post(false); });
+  document.getElementById('leave').addEventListener('click', function () { post(true); });
+})();
+</script>
+</body>
+</html>

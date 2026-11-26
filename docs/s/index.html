@@ -7,14 +7,14 @@
 <meta name="robots" content="noindex">
 <meta name="description" content="Someone shared this with you from Phone TV, the free Google TV-style home screen for phones, TV boxes, PCs and Macs.">
 <meta property="og:title" content="Shared from Phone TV">
-<meta property="og:description" content="Open it in Phone TV, or get Phone TV free.">
+<meta property="og:description" content="Open it in Phone TV, or see what Phone TV is.">
 <meta property="og:image" content="https://zgenmedia.github.io/phone-tv/assets/og.jpg">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://zgenmedia.github.io/phone-tv/s/">
 <meta property="og:site_name" content="Phone TV">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Shared from Phone TV">
-<meta name="twitter:description" content="Open it in Phone TV, or get Phone TV free.">
+<meta name="twitter:description" content="Open it in Phone TV, or see what Phone TV is.">
 <meta name="twitter:image" content="https://zgenmedia.github.io/phone-tv/assets/og.jpg">
 <link rel="icon" href="https://zgenmedia.github.io/phone-tv/assets/icon.svg" type="image/svg+xml">
 <style>
@@ -50,9 +50,11 @@ h1{margin:6px 0 4px;font-size:26px;line-height:1.2}
     <p class="kind" id="kind"></p>
     <p class="about" id="about"></p>
     <a class="btn open" id="open" href="https://zgenmedia.github.io/phone-tv/">Open in Phone TV</a>
-    <a class="btn get" id="get" href="https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk">Don't have it? Get Phone TV (free)</a>
+    <a class="btn get" id="get" href="https://zgenmedia.github.io/phone-tv/">New here? See what Phone TV is</a>
     <p class="note" id="note">Phone TV is a free, open-source home screen for phones, TV boxes, PCs and Macs.
-      <b>After installing, just open Phone TV:</b> it goes straight to what was shared.</p>
+      <b>If you install it, just open Phone TV:</b> it goes straight to what was shared.</p>
+    <p class="note" id="ios" style="display:none">Phone TV is a free TV-style home screen for movies and shows. It runs on Android, TV boxes, PCs and Macs,
+      but <b>not on iPhone yet</b>. Enough people asking is what gets it built.</p>
     <p class="note bad" id="bad">This link is incomplete, so there's nothing to open. You can still <a href="https://zgenmedia.github.io/phone-tv/">see what Phone TV is</a>.</p>
   </div>
 </main>
@@ -120,9 +122,24 @@ h1{margin:6px 0 4px;font-size:26px;line-height:1.2}
   if (type === 'company') params.set('k', kind === 'network' ? 'network' : 'studio');
   document.getElementById('open').href = 'phonetv://open?' + params.toString();
 
-  // Getting the app first: leave this link on the clipboard so the freshly installed
-  // app can land on what was shared. The download starts either way.
-  document.getElementById('get').addEventListener('click', function () {
+  // There is no Phone TV for iPhone or iPad yet. Say so, and point at the page where
+  // people can ask for it, rather than offering a button that can't do anything.
+  var apple = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var get = document.getElementById('get');
+  if (apple) {
+    document.getElementById('open').style.display = 'none';
+    document.getElementById('note').style.display = 'none';
+    document.getElementById('ios').style.display = 'block';
+    get.className = 'btn open';
+    get.textContent = 'Coming soon to iPhone: join the list';
+    get.href = 'https://zgenmedia.github.io/phone-tv/iphone.html';
+    return;
+  }
+
+  // New here: the button goes to the page that explains Phone TV, not straight to a
+  // download. This link is left on the clipboard on the way, so if they do install,
+  // the app can still land on what was shared.
+  get.addEventListener('click', function () {
     try { if (navigator.clipboard) navigator.clipboard.writeText(location.href); } catch (e) {}
   });
 })();

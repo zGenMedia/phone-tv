@@ -266,6 +266,11 @@ footer{border-top:1px solid var(--line);padding:40px 0 56px;color:var(--mute);fo
 </head>
 <body>
 
+<a id="ios-strip" href="iphone.html" style="display:none;background:#ffb547;color:#0b0c10;text-align:center;font-weight:700;font-size:14px;padding:10px 16px;text-decoration:none">On an iPhone? Phone TV for iPhone is coming. Join the list →</a>
+<script>
+// iPhones and iPads can't install Phone TV yet: point them at the waiting list.
+if (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) document.getElementById('ios-strip').style.display = 'block';
+</script>
 <header>
   <div class="wrap nav">
     <a class="brand" href="#top" aria-label="Phone TV home">
