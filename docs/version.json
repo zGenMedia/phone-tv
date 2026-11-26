@@ -1,7 +1,7 @@
 {
-  "versionCode": 33,
-  "versionName": "0.16.2",
+  "versionCode": 34,
+  "versionName": "0.16.3",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "7419cbdbbf272eb2d1186950d3888d042dec14f4cf1813639dd2bb9621576bb2",
-  "notes": "Set up a TV from any phone's browser, iPhone included (Settings > System). Trakt errors are retried and explained. After a setup transfer, Phone TV says which sign-ins to redo."
+  "sha256": "215e948aaa673e1e45568cc55e102f5c087b135a658c638f421404793affa4e0",
+  "notes": "Sound now plays on streams with Dolby or DTS audio: Phone TV's player carries its own audio decoder. The download is about 7 MB."
 }

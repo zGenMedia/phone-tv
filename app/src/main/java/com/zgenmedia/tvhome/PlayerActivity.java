@@ -250,9 +250,18 @@ public final class PlayerActivity extends Activity {
                 .setAllowCrossProtocolRedirects(true)
                 .setConnectTimeoutMs(20_000).setReadTimeoutMs(30_000)
                 .setDefaultRequestProperties(headers);
-        player = new ExoPlayer.Builder(this)
+        // Sound: the device's own decoders first; for formats it lacks (Dolby and DTS on most phones
+        // and PC emulators) the bundled software decoder takes over, so a film is never silent.
+        androidx.media3.exoplayer.DefaultRenderersFactory renderers = new androidx.media3.exoplayer.DefaultRenderersFactory(this)
+                .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+                .setEnableDecoderFallback(true);
+        player = new ExoPlayer.Builder(this, renderers)
                 .setMediaSourceFactory(new DefaultMediaSourceFactory(this).setDataSourceFactory(http))
                 .build();
+        // Tell Android this is a film: it takes audio focus and gets the movie sound profile.
+        player.setAudioAttributes(new androidx.media3.common.AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true);
+        player.setVolume(1f);
         player.setVideoSurfaceView(surface);
         player.setTrackSelectionParameters(player.getTrackSelectionParameters().buildUpon()
                 .setPreferredTextLanguage(prefs.subtitleLanguage())
@@ -275,6 +284,19 @@ public final class PlayerActivity extends Activity {
             @Override public void onIsPlayingChanged(boolean playing) {
                 playButton.setText(playing ? "❚❚" : "▶");
                 if (!playing) { saveProgress(); showBar(); } else keepBar();
+            }
+            @Override public void onTracksChanged(androidx.media3.common.Tracks tracks) {
+                // Sound that exists but can't be decoded here would otherwise just be silence. Say so.
+                boolean hasAudio = false, playable = false;
+                for (androidx.media3.common.Tracks.Group g : tracks.getGroups()) {
+                    if (g.getType() != C.TRACK_TYPE_AUDIO) continue;
+                    hasAudio = true;
+                    playable |= g.isSupported();
+                }
+                if (hasAudio && !playable) {
+                    status.setText(R.string.player_no_sound_format);
+                    main.postDelayed(() -> status.setText(""), 8000);
+                }
             }
             @Override public void onPlayerError(PlaybackException e) { failed(e); }
         });

@@ -10,7 +10,7 @@ A free, open-source, TV-style home screen that turns any Android phone — espec
 
 ![Build](https://github.com/zGenMedia/phone-tv/actions/workflows/build.yml/badge.svg)
 ![Android 7.1+](https://img.shields.io/badge/Android-7.1%2B-3ddc84)
-![APK size](https://img.shields.io/badge/APK-~150%20KB-informational)
+![APK size](https://img.shields.io/badge/APK-~7%20MB-informational)
 ![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)
 
 </div>
@@ -50,7 +50,7 @@ Plenty of us have a 2–6 year old phone that still has a great screen, Wi-Fi, H
 | **Discover** | Search titles and actors; browse popular, top rated, by year or by streaming service (with a TMDB key), by genre |
 | **Profiles** | Separate saved titles, actors, history and Continue watching for each person in the house |
 | **Make it yours** | Accent colors, pure black, card size and corners, banner layout, and a switch for each row |
-| **Made for old hardware** | One dependency (the video player), under 1 MB APK, lazy image loading, downsized disk cache, background-priority threads, spring scrolling |
+| **Made for old hardware** | The video player and an audio decoder are the only dependencies, about 7 MB APK, lazy image loading, downsized disk cache, background-priority threads, spring scrolling |
 | **Fullscreen** | Hides status and navigation bars; portrait and landscape layouts |
 | **Private** | No accounts, analytics or ads. Network calls: the public catalog and image CDN, Wikidata, Wikimedia Commons, Wikipedia and TVmaze (banner tuning, actors, casts), and your Plex server, Trakt, TMDB or add-ons if you set them up |
 

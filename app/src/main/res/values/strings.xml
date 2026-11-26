@@ -658,4 +658,5 @@
     </plurals>
     <string name="browser_setup_offline">This device isn\'t on a network, so no phone can reach it yet.</string>
     <string name="browser_setup_emulator">This copy of Phone TV runs inside an emulator (such as BlueStacks), which phones can\'t connect to. On a PC, paste straight into Phone TV instead: Settings › Add-ons.</string>
+    <string name="player_no_sound_format">This source\'s sound is in a format this device can\'t play. Try another source, or Audio for another track.</string>
 </resources>

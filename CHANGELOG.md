@@ -3,6 +3,20 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.16.3 — 2026-11-25
+
+### Fixed
+- **No sound on many streams.** Phones and PC emulators have no decoder of
+  their own for Dolby (AC-3, E-AC-3), DTS or TrueHD, so those streams played
+  silently while the picture and captions were fine. Phone TV's player now
+  carries a software audio decoder and falls back to it whenever the device
+  can't decode the sound itself. If a track still can't be played, the player
+  says so instead of staying quiet.
+
+### Changed
+- The download is about 7 MB (it was under 1 MB): the audio decoder, for four
+  processor types, is most of that.
+
 ## 0.16.2 — 2026-11-25
 
 ### Added
