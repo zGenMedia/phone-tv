@@ -17,7 +17,12 @@ import java.util.Map;
 /**
  * The sources for one movie or episode, from the user's add-ons, the way Nuvio
  * lists them: the title's artwork behind, a chip per add-on to narrow the list,
- * and each source as a card with the add-on's own quality line and details.
+ * and each source as a card.
+ *
+ * A card answers "which one?" at a glance: the picture quality large on the left with
+ * any extras under it (HDR, Atmos), then the file's name, where it comes from and how
+ * big it is. Anything unusual is said in words: a source that opens in another app, or
+ * one this device probably can't show. The one most likely to play well here is marked.
  *
  * A direct link plays in Phone TV's player. A torrent can't, so it offers Stremio
  * instead; a web page or YouTube video opens where it belongs. Long-press any
@@ -67,7 +72,7 @@ final class StreamScreen implements Overlay {
         new Thread(() -> {
             List<Addons.Stream> found = Addons.of(a).streams(type, id);
             // The quality chosen in Settings goes to the top; everything else stays, underneath.
-            VideoSupport.sortByPreference(found, s -> s.name + " " + s.title + " " + (s.filename == null ? "" : s.filename), a.prefs.preferredQuality());
+            VideoSupport.sortByPreference(found, StreamScreen::describe, a.prefs.preferredQuality());
             a.main.post(() -> {
                 streams = found;
                 if (a.prefs.autoPlayFirst()) {
@@ -75,7 +80,7 @@ final class StreamScreen implements Overlay {
                     Addons.Stream first = null, fallback = null;
                     for (Addons.Stream s : found) {
                         if (!s.playable()) continue;
-                        boolean fine = VideoSupport.likelyToShow(s.name + " " + s.title + " " + (s.filename == null ? "" : s.filename));
+                        boolean fine = VideoSupport.likelyToShow(describe(s));
                         if (fine && first == null) first = s;
                         if (fallback == null) fallback = s;
                     }
@@ -136,10 +141,16 @@ final class StreamScreen implements Overlay {
             column.addView(note(a.getString(R.string.sources_none)));
         } else {
             column.addView(filterChips());
-            for (Addons.Stream s : streams) {
-                if (onlyAddon != null && !onlyAddon.equals(s.addon)) continue;
-                column.addView(card(s));
-            }
+            List<Addons.Stream> showing = new ArrayList<>();
+            for (Addons.Stream s : streams) if (onlyAddon == null || onlyAddon.equals(s.addon)) showing.add(s);
+            TextView how = ui.label(a.getResources().getQuantityString(a.usingRemote() ? R.plurals.sources_how_remote : R.plurals.sources_how_touch,
+                    showing.size(), showing.size()), 12, Ui.MUTED, null);
+            how.setPadding(0, 0, 0, ui.dp(10));
+            column.addView(how);
+            // The same pick auto-play would make: the first one that plays here and should show a picture.
+            Addons.Stream best = null;
+            for (Addons.Stream s : showing) if (s.playable() && VideoSupport.likelyToShow(describe(s))) { best = s; break; }
+            for (Addons.Stream s : showing) column.addView(card(s, s == best && showing.size() > 1));
         }
 
         TextView back = ui.label("←", 17, Ui.TEXT, Ui.BOLD);
@@ -198,7 +209,13 @@ final class StreamScreen implements Overlay {
         return null;
     }
 
-    private View card(Addons.Stream s) {
+    /** Everything an add-on said about a source, in one string, for reading its quality from. */
+    private static String describe(Addons.Stream s) {
+        return s.name + " " + s.title + " " + (s.filename == null ? "" : s.filename);
+    }
+
+    private View card(Addons.Stream s, boolean best) {
+        SourceLabel facts = SourceLabel.of(s);
         LinearLayout card = new LinearLayout(a);
         card.setOrientation(LinearLayout.HORIZONTAL);
         card.setPadding(ui.dp(16), ui.dp(12), ui.dp(16), ui.dp(12));
@@ -212,28 +229,66 @@ final class StreamScreen implements Overlay {
         card.setBackground(ui.ripple(fill));
         ui.focusRing(card, 14);
 
-        TextView quality = ui.label(s.name, 14, Ui.ACCENT, Ui.BOLD);
-        quality.setMaxLines(3);
+        // Left: the quality, large. An add-on that doesn't state one keeps its own first line there.
+        LinearLayout badge = new LinearLayout(a);
+        badge.setOrientation(LinearLayout.VERTICAL);
+        boolean known = !facts.quality.isEmpty();
+        TextView quality = ui.label(known ? facts.quality : s.name.split("\\n")[0].trim(), known ? 20 : 14, Ui.ACCENT, Ui.BOLD);
+        quality.setMaxLines(2);
+        badge.addView(quality);
+        if (!facts.extras.isEmpty()) {
+            TextView extras = ui.label(TextUtils.join(" · ", facts.extras), 11, Ui.TEXT_DIM, Ui.MEDIUM);
+            extras.setMaxLines(2);
+            extras.setPadding(0, ui.dp(2), 0, 0);
+            badge.addView(extras);
+        }
         LinearLayout.LayoutParams qlp = new LinearLayout.LayoutParams(ui.dp(a.land() ? 150 : 96), -2);
         qlp.rightMargin = ui.dp(14);
-        card.addView(quality, qlp);
+        card.addView(badge, qlp);
 
         LinearLayout text = new LinearLayout(a);
         text.setOrientation(LinearLayout.VERTICAL);
-        TextView details = ui.label(s.title.isEmpty() ? (s.filename == null ? s.addon : s.filename) : s.title, 13, Ui.TEXT, null);
-        details.setMaxLines(4);
-        details.setEllipsize(TextUtils.TruncateAt.END);
-        details.setLineSpacing(0, 1.15f);
-        text.addView(details);
-        List<String> facts = new ArrayList<>();
-        facts.add(s.addon);
-        if (s.size > 0) facts.add(Addons.sizeLabel(s.size));
-        if (!s.playable()) facts.add(a.getString(s.infoHash != null ? R.string.sources_torrent : s.ytId != null ? R.string.sources_youtube : R.string.sources_web));
-        else if (!VideoSupport.likelyToShow(s.name + " " + s.title + " " + (s.filename == null ? "" : s.filename))) facts.add(a.getString(R.string.sources_may_not_show));
-        TextView meta = ui.label(TextUtils.join("  ·  ", facts), 12, Ui.MUTED, Ui.MEDIUM);
+        if (best) {
+            TextView tag = ui.label(a.getString(R.string.sources_best), 11, Ui.ACCENT, Ui.BOLD);
+            tag.setLetterSpacing(0.04f);
+            tag.setPadding(0, 0, 0, ui.dp(4));
+            text.addView(tag);
+        }
+        TextView name = ui.label(facts.name.isEmpty() ? s.addon : facts.name, 13, Ui.TEXT, null);
+        name.setMaxLines(2);
+        name.setEllipsize(TextUtils.TruncateAt.END);
+        name.setLineSpacing(0, 1.15f);
+        text.addView(name);
+        if (!facts.more.isEmpty()) {
+            TextView more = ui.label(facts.more, 12, Ui.MUTED, null);
+            more.setMaxLines(2);
+            more.setEllipsize(TextUtils.TruncateAt.END);
+            more.setPadding(0, ui.dp(3), 0, 0);
+            text.addView(more);
+        }
+
+        // Where it comes from and how big it is; the add-on's own label is kept whole, on one line.
+        List<String> from = new ArrayList<>();
+        String label = s.name.replaceAll("\\s+", " ").trim();
+        from.add(label.isEmpty() ? s.addon : label.toLowerCase(java.util.Locale.ROOT).contains(s.addon.toLowerCase(java.util.Locale.ROOT)) ? label : s.addon + " · " + label);
+        if (facts.size > 0) from.add(Addons.sizeLabel(facts.size));
+        TextView meta = ui.label(TextUtils.join("  ·  ", from), 12, Ui.MUTED, Ui.MEDIUM);
+        meta.setMaxLines(1);
+        meta.setEllipsize(TextUtils.TruncateAt.END);
         meta.setPadding(0, ui.dp(6), 0, 0);
         text.addView(meta);
+
+        // Only the exceptions are spelled out: a source that plays right here needs no label.
+        String note = !s.playable() ? a.getString(s.infoHash != null ? R.string.sources_torrent : s.ytId != null ? R.string.sources_youtube : R.string.sources_web)
+                : !VideoSupport.likelyToShow(describe(s)) ? a.getString(R.string.sources_may_not_show) : null;
+        if (note != null) {
+            TextView warn = ui.label(note, 12, s.playable() ? 0xFFFFB547 : Ui.TEXT_DIM, Ui.MEDIUM);
+            warn.setPadding(0, ui.dp(4), 0, 0);
+            text.addView(warn);
+        }
         card.addView(text, new LinearLayout.LayoutParams(0, -2, 1));
+        card.setContentDescription(TextUtils.join(", ", nonEmpty(best ? a.getString(R.string.sources_best) : "", facts.quality,
+                TextUtils.join(", ", facts.extras), facts.name, TextUtils.join(", ", from), note == null ? "" : note)));
 
         card.setOnClickListener(v -> choose(s));
         card.setOnLongClickListener(v -> { if (s.playable()) a.playElsewhere(s.url, item.title); return true; });
@@ -242,6 +297,12 @@ final class StreamScreen implements Overlay {
         card.setLayoutParams(lp);
         if (firstFocus == null) firstFocus = card;
         return card;
+    }
+
+    private static List<String> nonEmpty(String... parts) {
+        List<String> out = new ArrayList<>();
+        for (String p : parts) if (p != null && !p.isEmpty()) out.add(p);
+        return out;
     }
 
     private void choose(Addons.Stream s) {

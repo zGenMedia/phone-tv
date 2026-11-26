@@ -1317,22 +1317,44 @@ public class HomeActivity extends Activity {
         }
     }
 
+    /**
+     * "Update ready", at the top of the home screen. Under the remote the whole box
+     * answers, not just its button: it lights up, gains a bright edge and says what OK
+     * will do. A button changing shade alone was too easy to miss.
+     */
     private View updateCard() {
-        LinearLayout c = new LinearLayout(this);
+        final LinearLayout c = new LinearLayout(this);
         c.setOrientation(LinearLayout.VERTICAL);
         c.setPadding(ui.dp(16), ui.dp(14), ui.dp(16), ui.dp(14));
-        c.setBackground(ui.round(0xFF1F2B3D, 14));
+        final android.graphics.drawable.GradientDrawable resting = ui.round(0xFF1F2B3D, 14);
+        final android.graphics.drawable.GradientDrawable lit = ui.round(0xFF2F4668, 14);
+        lit.setStroke(Math.max(4, ui.dp(3f)), Ui.RING);
+        c.setBackground(resting);
         c.addView(ui.label(getString(R.string.update_ready, readyUpdate.versionName), 14, Ui.TEXT, Ui.MEDIUM));
         if (!readyUpdate.notes.isEmpty()) {
             TextView notes = ui.label(readyUpdate.notes, 12, Ui.TEXT_DIM, null);
             notes.setPadding(0, ui.dp(4), 0, 0);
             c.addView(notes);
         }
-        TextView install = ui.primary(getString(R.string.update_install));
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        final TextView install = ui.primary(getString(R.string.update_install));
         install.setOnClickListener(v -> installUpdate());
-        LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(-2, -2);
+        row.addView(install);
+        final TextView hint = ui.label(getString(R.string.update_press_ok), 13, Ui.TEXT, Ui.MEDIUM);
+        hint.setPadding(ui.dp(14), 0, 0, 0);
+        hint.setVisibility(View.INVISIBLE); // keeps its room, so the box doesn't change size on focus
+        row.addView(hint);
+        LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(-1, -2);
         ilp.topMargin = ui.dp(10);
-        c.addView(install, ilp);
+        c.addView(row, ilp);
+        // The button keeps its own focus look (see Ui.pill); the box around it joins in.
+        final View.OnFocusChangeListener own = install.getOnFocusChangeListener();
+        install.setOnFocusChangeListener((v, has) -> {
+            if (own != null) own.onFocusChange(v, has);
+            c.setBackground(has ? lit : resting);
+            hint.setVisibility(has && usingRemote() ? View.VISIBLE : View.INVISIBLE);
+        });
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
         lp.setMargins(gutter(), ui.dp(18), insetRight + ui.dp(20), 0);
         c.setLayoutParams(lp);

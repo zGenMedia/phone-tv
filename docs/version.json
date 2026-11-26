@@ -1,7 +1,7 @@
 {
-  "versionCode": 38,
-  "versionName": "0.16.7",
+  "versionCode": 39,
+  "versionName": "0.17.0",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "384bd7171b4c87f804de987b9cee348680e4ea3995d34a1249a69558b68be2e2",
-  "notes": "Shared links now unfold into a preview card on Facebook, X and in chats: the artwork, the actor's face or the studio's logo."
+  "sha256": "7cb04ea990a68eea9daa0f5645c7807298ba6a3d332bff29564d1768f9471da2",
+  "notes": "Faster loading over several connections, a clearer sources list with the best match marked, and an update box you can't miss."
 }

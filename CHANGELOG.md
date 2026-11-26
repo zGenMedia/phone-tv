@@ -3,6 +3,28 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.17.0 — 2026-11-26
+
+### Added
+- **Faster loading over several connections.** Some hosts are slow over a
+  single connection even on a fast line. Phone TV's player can now load a
+  film over several at once. On *Automatic* (the default) it switches this on
+  by itself when a stream stops to load twice, picks up from the same moment,
+  and remembers that host for the rest of the sitting. *Always* and *Off* are
+  in Settings › Playback, with the number of connections (2 to 8). A host
+  that refuses extra connections is left alone: the film carries on over one.
+
+### Improved
+- **Sources are easier to choose from.** Each source now shows its picture
+  quality large (4K, 1080p, 720p), with HDR, Dolby Vision and surround sound
+  called out, then the file name, where it comes from and its size. The one
+  most likely to play well on this device is marked, and sources that open
+  in another app or may not show a picture here say so in words.
+- **The update box is obvious under the remote.** The whole box lights up
+  with a bright edge and says "Press OK to update".
+- **Quicker first launch and first scrolls.** The app's code is now compiled
+  when it is installed, where before the device warmed it up during use.
+
 ## 0.16.7 — 2026-11-26
 
 ### Improved

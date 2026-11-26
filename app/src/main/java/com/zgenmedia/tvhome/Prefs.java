@@ -116,6 +116,15 @@ final class Prefs {
     int preferredQuality() { return sp.getInt("preferredQuality", 0); }
     void setPreferredQuality(int lines) { sp.edit().putInt("preferredQuality", lines).apply(); }
 
+    // Loading a film over several connections at once (see ParallelSource).
+    static final int FAST_AUTO = 0, FAST_ALWAYS = 1, FAST_OFF = 2;
+    static final int[] CONNECTIONS = {2, 4, 6, 8};
+    /** Automatic: only when a stream keeps stopping to load. */
+    int fastBuffering() { return sp.getInt("fastBuffering", FAST_AUTO); }
+    void setFastBuffering(int mode) { sp.edit().putInt("fastBuffering", mode).apply(); }
+    int bufferConnections() { return sp.getInt("bufferConnections", 4); }
+    void setBufferConnections(int count) { sp.edit().putInt("bufferConnections", count).apply(); }
+
     // Which way up the screen is held: follow the device, or stay put.
     static final int TURN_AUTO = 0, TURN_LANDSCAPE = 1, TURN_PORTRAIT = 2;
     /** @param fixedByNature true on TVs and PC emulators, which start out held to landscape */

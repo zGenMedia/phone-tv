@@ -140,6 +140,7 @@
 
     <!-- Updates -->
     <string name="update_ready">Update ready: Phone TV %1$s</string>
+    <string name="update_press_ok">Press OK to update</string>
     <string name="update_install">Install update</string>
     <string name="update_allow">Allow Phone TV to install updates, then tap Install again</string>
     <string name="update_failed">Update didn\'t install: %1$s</string>
@@ -441,8 +442,17 @@
     <string name="sources_none">None of your add-ons have a source for this. Try again later, or add another add-on in Settings › Add-ons.</string>
     <string name="sources_all">All · %1$d</string>
     <string name="sources_torrent">Torrent · opens in Stremio</string>
-    <string name="sources_youtube">YouTube</string>
-    <string name="sources_web">Web page</string>
+    <string name="sources_youtube">Opens in YouTube</string>
+    <string name="sources_web">Opens a web page</string>
+    <string name="sources_best">BEST MATCH FOR THIS DEVICE</string>
+    <plurals name="sources_how_remote">
+        <item quantity="one">%1$d source. Press OK to play it, or hold OK to send it to another player.</item>
+        <item quantity="other">%1$d sources. Press OK to play one, or hold OK to send it to another player.</item>
+    </plurals>
+    <plurals name="sources_how_touch">
+        <item quantity="one">%1$d source. Tap to play it, or hold to send it to another player.</item>
+        <item quantity="other">%1$d sources. Tap to play one, or hold to send it to another player.</item>
+    </plurals>
     <string name="sources_no_addons_title">Add an add-on first</string>
     <string name="sources_no_addons_body">Phone TV\'s player plays what your Stremio add-ons find. Add one by its link, or bring over your Stremio account\'s add-ons, in Settings › Add-ons.</string>
     <string name="sources_open_addons">Open Add-ons</string>
@@ -662,6 +672,14 @@
     <string name="player_no_picture">Sound, but no picture</string>
     <string name="player_no_picture_body">This source\'s video is %1$s, which this device can\'t decode, so only the sound is playing. Phones and PC players usually stop at 1080p; TV boxes such as the Shield show 4K and Dolby Vision.\n\nPick a 1080p source for this device.</string>
     <string name="player_keep_listening">Keep listening</string>
+    <string name="set_fast_buffering">Faster loading</string>
+    <string name="set_fast_buffering_hint">Loads a film over several connections at once, for hosts that are slow over one. Automatic switches it on only when a stream keeps stopping to load.</string>
+    <string name="fast_auto">Automatic</string>
+    <string name="fast_always">Always</string>
+    <string name="fast_off">Off</string>
+    <string name="set_connections">Connections at once</string>
+    <string name="set_connections_hint">More can be faster on a quick line. Some hosts allow only a few; Phone TV goes back to one by itself if a host objects.</string>
+    <string name="player_more_connections">Loading over more connections to keep up</string>
     <string name="sources_may_not_show">May play without picture on this device</string>
     <string name="player_episodes">Episodes</string>
     <string name="set_quality">Preferred quality</string>

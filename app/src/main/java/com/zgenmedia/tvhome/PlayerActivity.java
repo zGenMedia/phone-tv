@@ -247,8 +247,48 @@ public final class PlayerActivity extends Activity {
 
     // ==================================================================== player
 
+    /** Hosts that couldn't keep up over one connection earlier in this sitting: start them on several. */
+    private static final java.util.Set<String> SLOW_HOSTS = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
+    private static final long SETTLE_MS = 8_000;
+    private boolean severalConnections, hasPlayed;
+    private int stalls;
+    private long noticeUntil;  // a message on screen that a state change shouldn't wipe
+    private long quietSince;   // the last start or seek: loading right after either isn't a stall
+
+    /** True for a plain video file. Playlists (HLS, DASH) already arrive in pieces and are left alone. */
+    private boolean plainFile() {
+        return androidx.media3.common.util.Util.inferContentType(Uri.parse(url)) == C.CONTENT_TYPE_OTHER;
+    }
+
+    /**
+     * Automatic mode: the film has stopped to load twice while simply playing, so one
+     * connection isn't keeping up. Start again from the same moment on several.
+     */
+    private void noteStall() {
+        if (severalConnections || prefs.fastBuffering() != Prefs.FAST_AUTO || !plainFile() || player == null) return;
+        if (android.os.SystemClock.uptimeMillis() - quietSince < SETTLE_MS) return;
+        if (++stalls < 2) return;
+        severalConnections = true;
+        String host = Uri.parse(url).getHost();
+        if (host != null) SLOW_HOSTS.add(host);
+        long at = Math.max(0, player.getCurrentPosition());
+        main.removeCallbacks(saver);
+        player.release();
+        player = null;
+        startPlayer(at);
+        // Said under the loading dots for a few seconds, so the short restart isn't a mystery.
+        noticeUntil = android.os.SystemClock.uptimeMillis() + 5000;
+        status.setTranslationY(ui.dp(44)); // under the dots, not through them
+        status.setText(R.string.player_more_connections);
+        main.postDelayed(() -> { status.setText(""); status.setTranslationY(0); }, 5000);
+    }
+
     private void startPlayer(long resumeMs) {
         if (url == null) { finish(); return; }
+        hasPlayed = false;
+        quietSince = android.os.SystemClock.uptimeMillis();
+        if (prefs.fastBuffering() == Prefs.FAST_ALWAYS
+                || (prefs.fastBuffering() == Prefs.FAST_AUTO && SLOW_HOSTS.contains(Uri.parse(url).getHost()))) severalConnections = true;
         DefaultHttpDataSource.Factory http = new DefaultHttpDataSource.Factory()
                 .setUserAgent(Http.USER_AGENT)
                 .setAllowCrossProtocolRedirects(true)
@@ -260,7 +300,8 @@ public final class PlayerActivity extends Activity {
                 .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
                 .setEnableDecoderFallback(true);
         player = new ExoPlayer.Builder(this, renderers)
-                .setMediaSourceFactory(new DefaultMediaSourceFactory(this).setDataSourceFactory(http))
+                .setMediaSourceFactory(new DefaultMediaSourceFactory(this).setDataSourceFactory(
+                        severalConnections && plainFile() ? new ParallelSource.Factory(http, Uri.parse(url), prefs.bufferConnections()) : http))
                 .build();
         // Tell Android this is a film: it takes audio focus and gets the movie sound profile.
         player.setAudioAttributes(new androidx.media3.common.AudioAttributes.Builder()
@@ -291,9 +332,14 @@ public final class PlayerActivity extends Activity {
                 for (Cue c : cues.cues) if (c.text != null) { if (text.length() > 0) text.append('\n'); text.append(c.text); }
                 captions.setText(text);
             }
+            @Override public void onPositionDiscontinuity(Player.PositionInfo from, Player.PositionInfo to, int reason) {
+                if (reason == Player.DISCONTINUITY_REASON_SEEK) quietSince = android.os.SystemClock.uptimeMillis();
+            }
             @Override public void onPlaybackStateChanged(int state) {
-                status.setText("");
+                if (android.os.SystemClock.uptimeMillis() >= noticeUntil) status.setText("");
                 buffering.setVisibility(state == Player.STATE_BUFFERING ? View.VISIBLE : View.GONE);
+                if (state == Player.STATE_READY) hasPlayed = true;
+                if (state == Player.STATE_BUFFERING && hasPlayed && player != null && player.getPlayWhenReady()) noteStall();
                 if (state == Player.STATE_ENDED) { markFinished(); if (nextEpisode != null) leave(RESULT_NEXT); else finish(); }
             }
             @Override public void onIsPlayingChanged(boolean playing) {

@@ -1,0 +1,6 @@
+# Compiled ahead of time when the app is installed, so the first launch and the first
+# scrolls don't wait on the device warming the code up.
+# H: hot, S: run at startup, P: run soon after. All of Phone TV's own code is small
+# enough to list whole; the player library is left to the device to profile.
+HSPLcom/zgenmedia/tvhome/**;->**(**)**
+Lcom/zgenmedia/tvhome/**;

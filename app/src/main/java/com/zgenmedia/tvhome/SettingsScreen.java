@@ -438,6 +438,16 @@ final class SettingsScreen implements Overlay {
         choice(here, "quality", R.string.set_quality, R.string.set_quality_hint,
                 new String[]{a.getString(R.string.quality_any), "4K", "1080p", "720p", "480p"}, wanted,
                 i -> { prefs.setPreferredQuality(Prefs.QUALITIES[i]); apply(PANE); });
+        choice(here, "fastBuffering", R.string.set_fast_buffering, R.string.set_fast_buffering_hint,
+                names(R.string.fast_auto, R.string.fast_always, R.string.fast_off),
+                prefs.fastBuffering(), i -> { prefs.setFastBuffering(i); apply(PANE); });
+        if (prefs.fastBuffering() != Prefs.FAST_OFF) {
+            int lanes = 1;
+            for (int i = 0; i < Prefs.CONNECTIONS.length; i++) if (Prefs.CONNECTIONS[i] == prefs.bufferConnections()) lanes = i;
+            choice(here, "bufferConnections", R.string.set_connections, R.string.set_connections_hint,
+                    new String[]{"2", "4", "6", "8"}, lanes,
+                    i -> { prefs.setBufferConnections(Prefs.CONNECTIONS[i]); apply(PANE); });
+        }
         final String[] langs = {"en", "es", "fr", "de", "it", "pt", "nl", "pl", "tr", "ru", "ar", "hi", "ja", "ko", "zh"};
         String[] langNames = new String[langs.length];
         int sub = 0, audio = 0;
