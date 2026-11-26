@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Phone TV Share Cards
  * Description: Gives every Phone TV share link its own preview card (title, picture, a line about it) on Facebook, X and messaging apps. Serves the share page at /tv/.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: zGenMedia
  * License: GPL-3.0-or-later
  *
@@ -13,6 +13,9 @@
  * the same card. This plugin answers yoursite.com/tv/?t=…&id=…&n=… with that same page,
  * after filling in the card for the thing being shared: a film's poster, an actor's face,
  * a studio's logo.
+ *
+ * /tv/about/ is the plain-language "what is Phone TV?" page. It is written and kept with
+ * the rest of Phone TV's site and shown here as is, so editing it never needs this site.
  *
  * It also keeps the iPhone waiting list. Phone TV's "coming to iPhone" page posts an email
  * address to /tv/notify; the address and the date go into one small table, and
@@ -27,6 +30,7 @@ if (!defined('ABSPATH')) {
 
 const PHONETV_SHARE_PATH  = 'tv';
 const PHONETV_SHARE_PAGE  = 'https://zgenmedia.github.io/phone-tv/s/index.html';
+const PHONETV_ABOUT_PAGE  = 'https://zgenmedia.github.io/phone-tv/intro/index.html';
 const PHONETV_SHARE_IMAGE = 'https://zgenmedia.github.io/phone-tv/assets/og.jpg';
 const PHONETV_LIST_GOAL   = 1000; // how many people asking makes the iPhone version worth building
 
@@ -47,11 +51,14 @@ function phonetv_share_maybe_serve() {
     if ($path === PHONETV_SHARE_PATH . '/notify') {
         phonetv_list_answer();
     }
+    if ($path === PHONETV_SHARE_PATH . '/about') {
+        phonetv_about_serve();
+    }
     if ($path !== PHONETV_SHARE_PATH) {
         return;
     }
 
-    $page = phonetv_share_page();
+    $page = phonetv_fetch_page(PHONETV_SHARE_PAGE, 'phonetv_share_page', 'og:title');
     $query = isset($_SERVER['QUERY_STRING']) ? $_SERVER['QUERY_STRING'] : '';
     if ($page === '') {
         // The page can't be fetched right now: send people to the original, which works without a card.
@@ -77,21 +84,38 @@ function phonetv_share_maybe_serve() {
     exit;
 }
 
-/** The share page itself, fetched from Phone TV's site and kept for ten minutes. */
-function phonetv_share_page() {
-    $cached = get_transient('phonetv_share_page');
+/** The "what is Phone TV?" page. The same for everyone, so caches are welcome to keep it for a while. */
+function phonetv_about_serve() {
+    $page = phonetv_fetch_page(PHONETV_ABOUT_PAGE, 'phonetv_about_page', 'Phone TV');
+    if ($page === '') {
+        wp_redirect('https://zgenmedia.github.io/phone-tv/', 302);
+        exit;
+    }
+    status_header(200);
+    header('Content-Type: text/html; charset=utf-8');
+    header('Cache-Control: public, max-age=600');
+    echo $page; // phpcs:ignore -- our own page, shown as written
+    exit;
+}
+
+/**
+ * One of Phone TV's pages, fetched from its site and kept for ten minutes.
+ * $proof is a piece of text the real page always has, so an error page is never kept or shown.
+ */
+function phonetv_fetch_page($url, $key, $proof) {
+    $cached = get_transient($key);
     if (is_string($cached) && $cached !== '') {
         return $cached;
     }
-    $reply = wp_remote_get(PHONETV_SHARE_PAGE, array('timeout' => 8));
+    $reply = wp_remote_get($url, array('timeout' => 8));
     if (is_wp_error($reply) || wp_remote_retrieve_response_code($reply) !== 200) {
         return '';
     }
     $html = (string) wp_remote_retrieve_body($reply);
-    if (strpos($html, 'og:title') === false) {
+    if (strpos($html, $proof) === false) {
         return '';
     }
-    set_transient('phonetv_share_page', $html, 10 * MINUTE_IN_SECONDS);
+    set_transient($key, $html, 10 * MINUTE_IN_SECONDS);
     return $html;
 }
 

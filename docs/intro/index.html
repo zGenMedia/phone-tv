@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>What is Phone TV? The TV home screen for the devices you already own</title>
+<meta name="description" content="Phone TV gives your phone, tablet, TV box or computer the home screen a smart TV has: all your streaming apps and everything you're watching, in one place. Free. It is not a streaming service.">
+<meta name="theme-color" content="#0b0c10">
+<link rel="canonical" href="https://zgenmedia.com/tv/about/">
+<link rel="icon" href="https://zgenmedia.github.io/phone-tv/assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="https://zgenmedia.github.io/phone-tv/assets/icon-192.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Phone TV by zGenMedia">
+<meta property="og:title" content="What is Phone TV?">
+<meta property="og:description" content="The home screen a smart TV has, on the phone, tablet, TV box or computer you already own. All your apps and everything you're watching, in one place. Free.">
+<meta property="og:url" content="https://zgenmedia.com/tv/about/">
+<meta property="og:image" content="https://zgenmedia.github.io/phone-tv/assets/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="What is Phone TV?">
+<meta name="twitter:description" content="The home screen a smart TV has, on the devices you already own. Free.">
+<meta name="twitter:image" content="https://zgenmedia.github.io/phone-tv/assets/og.jpg">
+<style>
+:root{--bg:#0b0c10;--bg2:#111319;--card:#161922;--line:#242836;--text:#eef0f5;--dim:#a3a9b8;--mute:#6f7688;--amber:#ffb547;--green:#5ee6a8;--pink:#ff7a90}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--text)}
+img{max-width:100%;display:block}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+.narrow{max-width:720px}
+
+header{position:sticky;top:0;z-index:5;background:rgba(11,12,16,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;justify-content:space-between;height:60px}
+.brand{display:inline-flex;align-items:center;gap:10px;font-weight:700;text-decoration:none}
+.brand svg{width:28px;height:28px}
+
+.btn{display:inline-block;text-decoration:none;font-weight:700;border-radius:999px;padding:14px 26px;font-size:16px;text-align:center}
+.primary{background:var(--amber);color:#0b0c10}
+.ghost{border:1px solid var(--line);color:var(--text)}
+.small{padding:9px 18px;font-size:14px}
+
+.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);font-weight:700;margin:0 0 12px}
+h1{font-size:38px;line-height:1.08;letter-spacing:-.02em;margin:0 0 18px}
+h2{font-size:28px;line-height:1.15;letter-spacing:-.01em;margin:0 0 14px}
+h3{font-size:18px;margin:0 0 6px}
+.lead{color:var(--dim);font-size:19px;margin:0}
+section{padding:56px 0;border-top:1px solid var(--line)}
+
+.hero{border-top:0;padding:48px 0 56px}
+.hero-grid{display:grid;gap:36px;align-items:center}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
+.free{color:var(--mute);font-size:14px;margin:14px 0 0}
+.phone{max-width:300px;margin:0 auto;border:1px solid var(--line);border-radius:28px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.55)}
+
+/* The one thing people get wrong about Phone TV, said plainly and early. */
+.straight{background:var(--bg2)}
+.two{display:grid;gap:16px;margin-top:26px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px}
+.box ul{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:10px;color:var(--dim);font-size:16px}
+.box li{padding-left:28px;position:relative}
+.box li::before{position:absolute;left:0;top:0;font-weight:700}
+.is li::before{content:"✓";color:var(--green)}
+.isnt li::before{content:"✕";color:var(--pink)}
+
+.moments{display:grid;gap:16px;margin-top:26px}
+.moment{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px}
+.moment .before{color:var(--mute);font-size:15px;margin:0 0 10px}
+.moment p{margin:0;color:var(--dim);font-size:16px}
+
+.wide{margin-top:30px;border:1px solid var(--line);border-radius:18px;overflow:hidden}
+
+.steps{counter-reset:n;list-style:none;margin:26px 0 0;padding:0;display:grid;gap:16px}
+.steps li{counter-increment:n;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px 22px 22px 70px;position:relative}
+.steps li::before{content:counter(n);position:absolute;left:22px;top:22px;width:32px;height:32px;border-radius:50%;background:var(--amber);color:#0b0c10;font-weight:700;display:flex;align-items:center;justify-content:center}
+.steps p{margin:0;color:var(--dim);font-size:16px}
+
+.devices{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0 0;padding:0;list-style:none}
+.devices li{border:1px solid var(--line);border-radius:999px;padding:8px 16px;font-size:15px;color:var(--dim)}
+.devices .soon{border-color:var(--amber);color:var(--amber)}
+.devices a{color:inherit;text-decoration:none}
+
+details{border-bottom:1px solid var(--line);padding:16px 0}
+summary{cursor:pointer;font-weight:700;list-style:none;display:flex;justify-content:space-between;gap:16px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";color:var(--amber);font-weight:400;font-size:22px;line-height:1}
+details[open] summary::after{content:"–"}
+details p{margin:10px 0 0;color:var(--dim);font-size:16px}
+
+.end{text-align:center}
+.end .cta{justify-content:center}
+footer{border-top:1px solid var(--line);padding:24px 0 44px;color:var(--mute);font-size:14px}
+footer a{color:var(--dim)}
+
+@media (min-width:760px){
+  h1{font-size:54px} h2{font-size:34px}
+  .hero{padding:80px 0}
+  .hero-grid{grid-template-columns:1.25fr .75fr}
+  .two{grid-template-columns:1fr 1fr}
+  .moments{grid-template-columns:1fr 1fr}
+  .steps{grid-template-columns:repeat(3,1fr)}
+  .steps li{padding:70px 22px 22px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="#top" aria-label="Phone TV">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="7" width="28" height="18" rx="4" fill="none" stroke="#ffb547" stroke-width="2.4"/><path d="M13 12l7 4-7 4z" fill="#ffb547"/></svg>
+      Phone TV
+    </a>
+    <a class="btn primary small" data-get href="https://zgenmedia.github.io/phone-tv/">Get it free</a>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <p class="eyebrow">Free · No ads · No account</p>
+        <h1>Your TV has a home screen. Your phone should too.</h1>
+        <p class="lead">Phone TV gives the phone, tablet, TV box or computer you already own the kind of home screen a smart TV has: every streaming app you use and everything you're in the middle of watching, on one big, calm screen.</p>
+        <div class="cta">
+          <a class="btn primary" data-get href="https://zgenmedia.github.io/phone-tv/">See it and get it free</a>
+          <a class="btn ghost" href="#what">What is it, exactly?</a>
+        </div>
+        <p class="free" data-free>For Android phones and tablets, TV boxes, Windows PCs and Macs.</p>
+      </div>
+      <div class="phone"><img src="https://zgenmedia.github.io/phone-tv/assets/screens/phone-portrait.jpg" alt="Phone TV's home screen on a phone: a featured title up top, then rows of apps, movies and shows" width="720" height="1280"></div>
+    </div>
+  </section>
+
+  <section class="straight" id="what">
+    <div class="wrap">
+      <p class="eyebrow">Let's be straight</p>
+      <h2>Phone TV doesn't give you movies. It gives you one place for them.</h2>
+      <p class="lead narrow">It isn't another streaming service, and nothing to watch comes with it. Think of it as the front door: the apps and libraries you already have, behind one screen that's built for leaning back.</p>
+      <div class="two">
+        <div class="box is">
+          <h3>What it is</h3>
+          <ul>
+            <li>A home screen, like the one on a Google TV or Fire TV</li>
+            <li>A launcher for the streaming apps you already use</li>
+            <li>A guide to movies and shows: what's popular, who's in it, what to watch next</li>
+            <li>A place that remembers what you saved and where you left off</li>
+          </ul>
+        </div>
+        <div class="box isnt">
+          <h3>What it isn't</h3>
+          <ul>
+            <li>A streaming service or a subscription</li>
+            <li>A source of free movies or shows</li>
+            <li>A replacement for Netflix, Disney+, Plex or anything else you have</li>
+            <li>Something that needs your email, a card or an account</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <p class="eyebrow">Sound familiar?</p>
+      <h2>You didn't know you needed it. Then this happens.</h2>
+      <div class="moments">
+        <div class="moment">
+          <p class="before">"There's an old phone in a drawer doing nothing."</p>
+          <h3>It becomes a streaming box</h3>
+          <p>A phone from a few years ago is as capable as a streaming stick. Give it a TV-style screen, prop it up or plug it into a TV, and it's the bedroom or kitchen TV you didn't buy.</p>
+        </div>
+        <div class="moment">
+          <p class="before">"I spend longer choosing than watching."</p>
+          <h3>One screen instead of six apps</h3>
+          <p>Your apps sit side by side with what you're watching and what you saved. Can't decide? <b>Pick for me</b> chooses something based on what you've liked before.</p>
+        </div>
+        <div class="moment">
+          <p class="before">"I miss just turning on the TV and something being on."</p>
+          <h3>Channels you can drop in on</h3>
+          <p>A guide of always-on movie and show channels, the way cable used to feel. Tune in, and you might end up watching something you'd never have picked.</p>
+        </div>
+        <div class="moment">
+          <p class="before">"Who was that actor? What else were they in?"</p>
+          <h3>Follow anyone, anywhere</h3>
+          <p>Tap an actor to see everything they've been in. Browse by network or studio. Save people and titles to your own library.</p>
+        </div>
+        <div class="moment">
+          <p class="before">"Hotel TVs are terrible and my tablet is right here."</p>
+          <h3>Your setup travels with you</h3>
+          <p>Same home screen, same library, same place in every show, on whatever device you brought.</p>
+        </div>
+        <div class="moment">
+          <p class="before">"You have to see this."</p>
+          <h3>Send it to a friend</h3>
+          <p>Share a movie, a show or an actor as a link. It opens with the picture and the details, whether or not they have Phone TV.</p>
+        </div>
+      </div>
+      <div class="wide"><img src="https://zgenmedia.github.io/phone-tv/assets/screens/pc-bluestacks-landscape.jpg" alt="Phone TV on a wide screen" width="1600" height="900" loading="lazy"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <p class="eyebrow">How it works</p>
+      <h2>Three minutes, start to finish.</h2>
+      <ol class="steps">
+        <li><h3>Get Phone TV</h3><p>It's a free download for Android. No store account, no sign-up.</p></li>
+        <li><h3>Open it</h3><p>The streaming apps already on your device show up as big TV-style tiles, ready to open.</p></li>
+        <li><h3>Make it yours</h3><p>Save what you like, arrange the rows, and link Plex or Trakt if you use them. All optional.</p></li>
+      </ol>
+      <ul class="devices" aria-label="Where Phone TV runs">
+        <li>Android phones</li><li>Android tablets</li><li>Shield, Google TV and Fire TV</li><li>Windows PCs</li><li>Macs</li>
+        <li class="soon"><a href="https://zgenmedia.github.io/phone-tv/iphone.html">iPhone: coming soon, join the list</a></li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap narrow">
+      <p class="eyebrow">Fair questions</p>
+      <h2>Before you try it</h2>
+      <details><summary>Is it really free?</summary><p>Yes. No ads, no subscription, no account, and no paid tier. It's open source, so anyone can read the code.</p></details>
+      <details><summary>So where do the movies come from?</summary><p>From what you already have: your streaming apps, and your own libraries like Plex. Phone TV shows you what's out there and keeps track of what you're watching. It doesn't host, sell or supply anything to watch.</p></details>
+      <details><summary>Do I still need my Netflix or other subscriptions?</summary><p>Yes. Phone TV opens those apps for you. It doesn't replace them or get around them.</p></details>
+      <details><summary>Why isn't it in the app store?</summary><p>Phone TV is an independent project, downloaded straight from its own site. The step-by-step guide there walks you through installing it.</p></details>
+      <details><summary>Does it change my phone?</summary><p>No. It's an app. Open it when you want the TV screen, close it when you don't, and remove it like any other app.</p></details>
+      <details><summary>Do I need a remote?</summary><p>No. It works by touch. It also works with a TV remote, a game controller or a keyboard if you have one.</p></details>
+      <details><summary>What about iPhone?</summary><p>Not yet. The iPhone version gets built when enough people ask for it. <a href="https://zgenmedia.github.io/phone-tv/iphone.html">Add your name to the list</a>.</p></details>
+    </div>
+  </section>
+
+  <section class="end">
+    <div class="wrap narrow">
+      <h2>Give the device you already own a TV screen.</h2>
+      <p class="lead">Free, and it takes about three minutes.</p>
+      <div class="cta">
+        <a class="btn primary" data-get href="https://zgenmedia.github.io/phone-tv/">See it and get it free</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">Phone TV by <a href="https://zgenmedia.com">zGenMedia</a> · <a href="https://zgenmedia.github.io/phone-tv/">Phone TV site</a> · <a href="https://zgenmedia.github.io/phone-tv/guide.html">Guide</a> · <a href="https://zgenmedia.github.io/phone-tv/privacy.html">Privacy</a></div>
+</footer>
+
+<script>
+// There's nothing to install on an iPhone or iPad yet, so the buttons there lead to the waiting list.
+if (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+  document.querySelectorAll('[data-get]').forEach(function (b) {
+    b.href = 'https://zgenmedia.github.io/phone-tv/iphone.html';
+    b.textContent = b.classList.contains('small') ? 'iPhone list' : 'Coming to iPhone: join the list';
+  });
+  document.querySelector('[data-free]').textContent = 'On Android, TV boxes, Windows PCs and Macs today. iPhone is next.';
+}
+</script>
+</body>
+</html>

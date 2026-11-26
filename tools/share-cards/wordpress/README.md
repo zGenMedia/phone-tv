@@ -8,6 +8,9 @@ Facebook, X and messaging apps read when a link is posted.
 Install: zip the `phone-tv-share-cards` folder, then in WordPress go to
 Plugins › Add New › Upload Plugin, choose the zip and activate it. There is nothing to set up.
 
+`/tv/about/` shows the plain-language "what is Phone TV?" page, which is kept in
+`docs/intro/` with the rest of the site.
+
 It also keeps the iPhone waiting list: the "coming to iPhone" page posts an email address
 to `/tv/notify`, and Tools › Phone TV iPhone list shows the count and offers the list as
 a CSV. That is its one table (`wp_phonetv_iphone_list`: email and date).
