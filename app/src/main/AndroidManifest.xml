@@ -119,6 +119,12 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="zgenmedia.github.io" android:pathPrefix="/phone-tv/s" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="zgenmedia.com" android:pathPrefix="/tv" />
+            </intent-filter>
             <!-- Shows Phone TV in the apps row on Android TV, Google TV and Fire TV. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

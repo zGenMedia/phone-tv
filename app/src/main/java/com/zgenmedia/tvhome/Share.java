@@ -5,7 +5,8 @@ import android.net.Uri;
 /**
  * Links to one thing in Phone TV: a movie, a show, an actor, a network or a studio.
  *
- * A link is an ordinary web address on Phone TV's own site. Opened on a device that has
+ * A link is an ordinary web address on zGenMedia's site (older ones live on Phone TV's own
+ * pages and still work). Opened on a device that has
  * Phone TV, the page hands straight over to the app, which shows the thing. Opened
  * anywhere else, the page says what was shared and offers the download; it also leaves
  * the link on the clipboard, so the first time the freshly installed app opens it can
@@ -15,7 +16,10 @@ import android.net.Uri;
  * catalog id and its name. Nothing about the person sharing.
  */
 final class Share {
-    static final String PAGE = "https://zgenmedia.github.io/phone-tv/s/";
+    static final String PAGE = "https://zgenmedia.com/tv/";
+    /** Every address a link has ever had. Links already out in the world must keep opening. */
+    private static final java.util.regex.Pattern LINK = java.util.regex.Pattern.compile(
+            "https://(?:(?:www\\.)?zgenmedia\\.com/tv/|zgenmedia\\.github\\.io/phone-tv/s/)\\?\\S+");
     static final String MOVIE = "movie", SERIES = "series", PERSON = "person", COMPANY = "company";
 
     /** What a link points at, once it has been checked. */
@@ -58,17 +62,13 @@ final class Share {
 
     /** True for text that is (or contains) one of these links: what the clipboard check looks for. */
     static boolean looksLikeLink(CharSequence text) {
-        return text != null && text.toString().contains("zgenmedia.github.io/phone-tv/s/?");
+        return text != null && LINK.matcher(text).find();
     }
 
     /** Pulls the link out of a longer pasted message ("Watch this! https://…"). */
     static Uri firstLink(CharSequence text) {
-        String s = text.toString();
-        int at = s.indexOf("https://zgenmedia.github.io/phone-tv/s/?");
-        if (at < 0) return null;
-        int end = at;
-        while (end < s.length() && !Character.isWhitespace(s.charAt(end))) end++;
-        return Uri.parse(s.substring(at, end));
+        java.util.regex.Matcher m = LINK.matcher(text);
+        return m.find() ? Uri.parse(m.group()) : null;
     }
 
     /**

@@ -3,6 +3,15 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.16.7 — 2026-11-26
+
+### Improved
+- **Shared links show a preview card.** Post a link on Facebook, X or in a
+  chat and it now unfolds into a card for exactly what was shared: a movie or
+  show with its artwork, title and description, an actor with their face, a
+  network or studio with its logo. Links are now `zgenmedia.com/tv/…`; links
+  shared before still open.
+
 ## 0.16.6 — 2026-11-26
 
 ### Improved

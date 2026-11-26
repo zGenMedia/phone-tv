@@ -1,7 +1,7 @@
 {
-  "versionCode": 37,
-  "versionName": "0.16.6",
+  "versionCode": 38,
+  "versionName": "0.16.7",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "4e3361f5d8c7948d79fec447cd129671ce0c80e48abcd1fef24af0edcfe6f766",
-  "notes": "Shares now carry their picture (the artwork, the actor's face, the studio's logo), and the share page shows who or what was shared."
+  "sha256": "384bd7171b4c87f804de987b9cee348680e4ea3995d34a1249a69558b68be2e2",
+  "notes": "Shared links now unfold into a preview card on Facebook, X and in chats: the artwork, the actor's face or the studio's logo."
 }
