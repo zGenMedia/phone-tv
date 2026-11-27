@@ -69,6 +69,8 @@ public final class PlayerActivity extends Activity {
     /** With RESULT_OPEN_TITLE: the title chosen from the suggestions. */
     static final String X_OPEN_ID = "openId", X_OPEN_TYPE = "openType", X_OPEN_TITLE = "openTitle";
     private static final long SEEK_MS = 10_000, BAR_HIDE_MS = 4_000, SAVE_EVERY_MS = 10_000;
+    /** How long "More like this" stays up with nobody touching the remote. */
+    private static final long STRIP_HIDE_MS = 12_000;
 
     private ExoPlayer player;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -236,6 +238,7 @@ public final class PlayerActivity extends Activity {
             @Override public boolean barShowing() { return bar.getVisibility() == View.VISIBLE; }
             @Override public void holdBar() { keepBar(); }
             @Override public boolean usingRemote() { return remote; }
+            @Override public void focusControls() { if (!playButton.requestFocus()) playButton.requestFocusFromTouch(); }
         }, "series".equals(type), nextEpisode == null ? null : nz(getIntent().getStringExtra(X_NEXT_LABEL)), episodeTitle(nextEpisode),
                 MediaItem.catalog(nz(id), type, title, "").backdrop(ui.dp(112)));
         if (plex == null) WatchExtras.load(this, prefs, id, type, episodeId, main, extras -> { if (!isFinishing()) cards.setExtras(extras); });
@@ -705,8 +708,10 @@ public final class PlayerActivity extends Activity {
 
     private void keepBar() {
         main.removeCallbacks(hideBar);
-        // Looking along "More like this" takes longer than glancing at the time.
-        if (player != null && player.isPlaying()) main.postDelayed(hideBar, cards != null && cards.stripOpen() ? 5 * BAR_HIDE_MS : BAR_HIDE_MS);
+        // The controls go away by themselves unless the film is paused. That includes the moments
+        // it stops to load: a key pressed just then used to cancel the timer for good.
+        // Looking along "More like this" gets longer than a glance at the time, but it ends too.
+        if (player != null && player.getPlayWhenReady()) main.postDelayed(hideBar, cards != null && cards.stripOpen() ? STRIP_HIDE_MS : BAR_HIDE_MS);
     }
 
     private void hideBar() {

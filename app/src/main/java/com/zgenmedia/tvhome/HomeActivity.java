@@ -403,6 +403,16 @@ public class HomeActivity extends Activity {
     @Override
     public void onBackPressed() {
         if (overlay != null) { if (!overlay.onBack()) closeOverlay(); return; }
+        // Down a tab with the remote: Back goes up to that tab's place in the top menu, the way
+        // it does on a TV. From the menu, Back carries on to For you as before.
+        View at = focused();
+        View menu = focusTargets.get("tab:" + tab);
+        if (usingRemote() && at != null && menu != null && menu.isShown() && !isInside(at, topBar)) {
+            if (scroll != null) Motion.glideY(scroll, 0);
+            setTopBarVisible(true);
+            menu.requestFocus();
+            return;
+        }
         boolean atTop = tab == TAB_FOR_YOU && (scroll == null || scroll.getScrollY() == 0);
         if (atTop && !isTvInstance() && !isDefaultHome() && !homeKeeperEnabled()) { moveTaskToBack(true); return; }
         goHome();
@@ -542,7 +552,7 @@ public class HomeActivity extends Activity {
     static View nextFocus(ViewGroup page, View focused, int direction) {
         android.view.FocusFinder finder = android.view.FocusFinder.getInstance();
         if (direction == View.FOCUS_UP || direction == View.FOCUS_DOWN) {
-            View next = finder.findNextFocus(page, focused, direction);
+            View next = nextInContent(page, focused, direction);
             // Arriving at a strip of chips from another row: land on the chosen chip, not the nearest one.
             if (next != null && next.getParent() instanceof View) {
                 View strip = (View) next.getParent();
@@ -557,6 +567,27 @@ public class HomeActivity extends Activity {
         }
         if (group == null && focused.getParent() instanceof ViewGroup) group = (ViewGroup) focused.getParent();
         return group == null ? null : finder.findNextFocus(group, focused, direction);
+    }
+
+    /**
+     * The next thing above or below, looking through the scrolling part of a page first.
+     *
+     * A page's fixed pieces (the top menu, a title page's back arrow) sit over the
+     * content and never move, so once the page has scrolled they are always "nearest
+     * above". Left to plain geometry, Up from a row kept landing on the back arrow, one
+     * press for the arrow and one for each row, and could stop there. So the row above
+     * in the content wins; the fixed pieces are reached only when the content has
+     * nothing further that way.
+     */
+    private static View nextInContent(ViewGroup page, View focused, int direction) {
+        android.view.FocusFinder finder = android.view.FocusFinder.getInstance();
+        for (android.view.ViewParent p = focused.getParent(); p instanceof ViewGroup && p != page; p = p.getParent()) {
+            if (!(p instanceof ScrollView)) continue;
+            View next = finder.findNextFocus((ViewGroup) p, focused, direction);
+            if (next != null) return next;
+            break;
+        }
+        return finder.findNextFocus(page, focused, direction);
     }
 
     /** @return true if the key was used (even when there was nowhere further to go). */
@@ -585,7 +616,7 @@ public class HomeActivity extends Activity {
             if (group != null) next = finder.findNextFocus(group, focused, direction);
             if (next == null && inTopBar) next = finder.findNextFocus((ViewGroup) topBar, focused, direction);
         } else {
-            next = finder.findNextFocus(home, focused, direction);
+            next = nextInContent(home, focused, direction);
             // Reaching the top menu from the page always lands on the current tab.
             if (next != null && isInside(next, topBar) && !isInside(focused, topBar)) {
                 View current = focusTargets.get("tab:" + tab);
@@ -596,6 +627,11 @@ public class HomeActivity extends Activity {
                 View strip = (View) next.getParent();
                 Object chosen = strip.getTag(R.id.selected_chip);
                 if (chosen instanceof View && focused.getParent() != strip) next = (View) chosen;
+            }
+            // Whatever the page looks like, Up with nothing above ends at the top menu. Never a dead end.
+            if (next == null && direction == View.FOCUS_UP && !isInside(focused, topBar)) {
+                View current = focusTargets.get("tab:" + tab);
+                if (current != null && current.isShown()) next = current;
             }
         }
         if (next != null && next != focused) next.requestFocus();
@@ -2014,6 +2050,9 @@ public class HomeActivity extends Activity {
             @Override public boolean onSingleTapUp(MotionEvent e) { return hero.performClick(); }
         });
         hero.setOnClickListener(v -> { MediaItem m = currentHero(); if (m != null) showDetails(m); });
+        // Tapping the banner is for fingers. Anything clickable is also focusable unless told otherwise,
+        // and the remote could land on the whole banner: nothing lit up, and no way up to the menu.
+        hero.setFocusable(false);
         hero.setOnTouchListener((v, e) -> gestures.onTouchEvent(e));
         return hero;
     }
@@ -2710,12 +2749,12 @@ public class HomeActivity extends Activity {
             }
             column.addView(emptyNote(historySources()));
             if (!traktWatchlist.isEmpty()) {
-                // The Trakt watchlist: what the user means to watch, above what they have.
-                column.addView(rowTitle(getString(R.string.library_watchlist, traktWatchlist.size())));
-                int[] plan = gridPlan(cardWidth(land() ? 116 : 104));
-                List<View> cells = new ArrayList<>();
-                for (MediaItem m : traktWatchlist) cells.add(posterCell(m, "lib:w:" + m.id, m.year, plan[1], () -> showDetails(m), "Trakt"));
-                addGrid(column, cells, plan);
+                // The Trakt watchlist: what the user means to watch, above what they have. One shelf,
+                // so the watched titles under it stay in view and the order chip visibly does something.
+                // By title it goes A to Z with them; otherwise it keeps Trakt's order, newest added first.
+                List<MediaItem> toWatch = new ArrayList<>(traktWatchlist);
+                if (sort == Library.HISTORY_TITLE) Library.sortTitles(toWatch, Library.SORT_TITLE);
+                posterRow(column, getString(R.string.library_watchlist, toWatch.size()), toWatch);
                 column.addView(rowTitle(getString(R.string.library_watched)));
             }
             List<Library.Watch> history = library.history(remoteHistory(), sort);

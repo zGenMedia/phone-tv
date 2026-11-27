@@ -3,6 +3,27 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.18.1 — 2026-11-27
+
+### Fixed
+- **The top menu can always be reached.** On Movies and Shows the remote
+  could land on the banner itself, where nothing lit up and Up went
+  nowhere. The banner no longer takes the remote; Up now goes row by row to
+  the menu, and never dead-ends.
+- **Back goes to the top menu.** From anywhere down a tab, Back returns to
+  that tab's place in the menu. Back again goes to For you, as before.
+- **Title pages:** Up no longer detours through the back arrow on its way up
+  the page.
+- **Library › History:** changing the order now visibly changes the page. The
+  Trakt watchlist is one shelf above the watched titles, and goes A to Z
+  with them when sorting by title.
+- **Skip intro is unmistakable.** When OK will skip, the button turns solid
+  white, grows, and shows an "OK" key beside the words. With the controls
+  up, it rests.
+- **More like this goes away by itself** after twelve seconds without a
+  press, along with the controls. Controls also no longer stay up if a key
+  is pressed while the film is loading.
+
 ## 0.18.0 — 2026-11-27
 
 ### Added

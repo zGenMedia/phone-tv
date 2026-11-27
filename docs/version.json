@@ -1,7 +1,7 @@
 {
-  "versionCode": 40,
-  "versionName": "0.18.0",
+  "versionCode": 41,
+  "versionName": "0.18.1",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "0d124cfe934c36f601764d0075b11b73f19c012443ececb67c5d4c320af7042b",
-  "notes": "Skip intro, the next episode at the credits, more from a film's lead actor, and a More like this row while you watch."
+  "sha256": "3148ee3a55fc4fae324087104566f6d90ae6a4af091a6d8e2d50748366688ce5",
+  "notes": "Fixes: the top menu can always be reached, Back goes straight to it, Skip intro clearly shows when OK will skip, and More like this hides by itself."
 }

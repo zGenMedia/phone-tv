@@ -38,6 +38,8 @@ final class PlayerCards {
         boolean barShowing();
         /** Keeps the controls on screen a while longer. */
         void holdBar();
+        /** Puts the remote back on the row of control buttons. */
+        void focusControls();
         /** The viewer is using a remote or keys, so something should always hold the focus. */
         boolean usingRemote();
     }
@@ -56,7 +58,10 @@ final class PlayerCards {
     private final String nextLabel, nextTitle, backdrop;
 
     private WatchExtras extras;
-    private TextView skip;
+    private LinearLayout skip;
+    private TextView skipLabel, skipKey;
+    private GradientDrawable skipResting, skipChosen;
+    private boolean skipArmed;
     private WatchExtras.Span skipping;
     private LinearLayout opening, end, strip, stripRow;
     private View endPrimary;
@@ -109,11 +114,12 @@ final class PlayerCards {
         if (now != skipping) {
             skipping = now;
             if (now != null) {
-                skip.setText(now == extras.intro ? R.string.player_skip_intro : R.string.player_skip_recap);
+                skipLabel.setText(now == extras.intro ? R.string.player_skip_intro : R.string.player_skip_recap);
                 Motion.fadeIn(skip, Motion.FAST);
             }
             skip.setVisibility(now != null ? View.VISIBLE : View.GONE);
         }
+        if (skipping != null) armSkip(host.usingRemote() && !host.barShowing());
 
         // Only a real film or episode gets an ending card; a two-minute clip doesn't.
         if (!endDone && prefs.endCard() && duration > 5 * 60_000 && position >= extras.endCardAt(duration, show) && position < duration) showEnd();
@@ -186,14 +192,48 @@ final class PlayerCards {
 
     // ------------------------------------------------------------------ skip intro
 
+    /**
+     * The button has two looks, the same two every button in the app has. Resting: dark and
+     * outlined, for a finger or while the remote is on the controls. Chosen: solid white,
+     * larger, ringed, with an "OK" key drawn beside the words. That is how it looks whenever
+     * pressing OK would skip, so there is never a doubt about what OK will do.
+     */
     private void buildSkip() {
-        // Always drawn in its "chosen" colours: while it shows, OK is its button.
-        skip = ui.pill("", 0xF2FFFFFF, 0xFF111318);
+        skip = new LinearLayout(a);
+        skip.setGravity(Gravity.CENTER_VERTICAL);
+        skip.setPadding(ui.dp(10), ui.dp(9), ui.dp(18), ui.dp(9));
+        skipResting = ui.round(0xD916181F, 24);
+        skipResting.setStroke(ui.dp(1), 0x80FFFFFF);
+        skipChosen = ui.round(0xFFFFFFFF, 24);
+        skipChosen.setStroke(Math.max(4, ui.dp(3)), Ui.RING);
+        skipKey = ui.label("OK", 11, Color.WHITE, Ui.BOLD);
+        skipKey.setBackground(ui.round(0xFF111318, 6));
+        skipKey.setPadding(ui.dp(7), ui.dp(3), ui.dp(7), ui.dp(3));
+        skip.addView(skipKey);
+        skipLabel = ui.label("", 14, Color.WHITE, Ui.MEDIUM);
+        skipLabel.setPadding(ui.dp(8), 0, 0, 0);
+        skip.addView(skipLabel);
         skip.setVisibility(View.GONE);
+        skip.setClickable(true);
         skip.setOnClickListener(v -> { if (skipping != null) host.seekTo(skipping.endMs); });
+        skipArmed = true;
+        armSkip(false);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.END);
-        lp.setMargins(0, 0, ui.dp(36), ui.dp(44));
+        lp.setMargins(0, 0, ui.dp(40), ui.dp(48));
         root.addView(skip, lp);
+    }
+
+    private void armSkip(boolean chosen) {
+        if (chosen == skipArmed) return;
+        skipArmed = chosen;
+        skip.setBackground(chosen ? skipChosen : skipResting);
+        skipLabel.setTextColor(chosen ? 0xFF111318 : Color.WHITE);
+        skipLabel.setTypeface(chosen ? Ui.BOLD : Ui.MEDIUM);
+        skipKey.setVisibility(chosen ? View.VISIBLE : View.GONE);
+        skip.setPadding(ui.dp(chosen ? 10 : 18), ui.dp(9), ui.dp(18), ui.dp(9));
+        skip.setPivotX(skip.getWidth());   // grow away from the screen's edge, not into it
+        skip.setPivotY(skip.getHeight());
+        Motion.scale(skip, chosen ? 1.12f : 1f);
     }
 
     // -------------------------------------------------------------- the ending card
@@ -323,6 +363,8 @@ final class PlayerCards {
         strip.setVisibility(View.VISIBLE);
         Motion.fadeIn(strip, Motion.FAST);
         fillStrip();
+        // Opened a second time, the titles are already there: the remote still goes to the first.
+        if (stripFilled && stripRow.getChildCount() > 0 && stripRow.getChildAt(0).isFocusable() && host.usingRemote()) focus(stripRow.getChildAt(0));
         host.holdBar();
     }
 
@@ -330,7 +372,7 @@ final class PlayerCards {
         if (!stripOpen()) return;
         boolean hadFocus = strip.hasFocus();
         strip.setVisibility(View.GONE);
-        if (hadFocus) bar.requestFocus();
+        if (hadFocus) host.focusControls(); // back where Down was pressed, so Down opens it again
     }
 
     /** Puts the titles in once they're known; until then, three dots say they're on their way. */
