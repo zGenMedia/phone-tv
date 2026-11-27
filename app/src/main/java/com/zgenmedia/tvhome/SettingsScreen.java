@@ -438,6 +438,12 @@ final class SettingsScreen implements Overlay {
         choice(here, "quality", R.string.set_quality, R.string.set_quality_hint,
                 new String[]{a.getString(R.string.quality_any), "4K", "1080p", "720p", "480p"}, wanted,
                 i -> { prefs.setPreferredQuality(Prefs.QUALITIES[i]); apply(PANE); });
+        toggle(here, "skipButton", R.string.set_skip_button, R.string.set_skip_button_hint, prefs.skipButton(),
+                () -> { prefs.setSkipButton(!prefs.skipButton()); apply(PANE); });
+        toggle(here, "openingCard", R.string.set_opening_card, R.string.set_opening_card_hint, prefs.openingCard(),
+                () -> { prefs.setOpeningCard(!prefs.openingCard()); apply(PANE); });
+        toggle(here, "endCard", R.string.set_end_card, R.string.set_end_card_hint, prefs.endCard(),
+                () -> { prefs.setEndCard(!prefs.endCard()); apply(PANE); });
         choice(here, "fastBuffering", R.string.set_fast_buffering, R.string.set_fast_buffering_hint,
                 names(R.string.fast_auto, R.string.fast_always, R.string.fast_off),
                 prefs.fastBuffering(), i -> { prefs.setFastBuffering(i); apply(PANE); });

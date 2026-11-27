@@ -701,6 +701,13 @@ public class HomeActivity extends Activity {
                 else returnToTitle(fromPlex);
                 return;
             }
+            if (data != null && resultCode == PlayerActivity.RESULT_OPEN_TITLE) {
+                // Chosen from the player's suggestions: straight to that title's page.
+                while (overlay instanceof StreamScreen) closeOverlay();
+                showDetails(MediaItem.catalog(data.getStringExtra(PlayerActivity.X_OPEN_ID), data.getStringExtra(PlayerActivity.X_OPEN_TYPE),
+                        data.getStringExtra(PlayerActivity.X_OPEN_TITLE), ""));
+                return;
+            }
             if (data == null || (resultCode != PlayerActivity.RESULT_NEXT && resultCode != PlayerActivity.RESULT_OTHER_SOURCE)) {
                 // Back out of the player lands on the title's own page, wherever playback was started from.
                 if (watched != null) returnToTitle(watched);

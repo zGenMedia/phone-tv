@@ -49,7 +49,9 @@ import java.util.Map;
  * Plain framework views around Media3's ExoPlayer: a surface sized to the video,
  * subtitles drawn as text, and a bar with the few controls a remote needs.
  * The remote: OK shows the bar and pauses or plays, left and right seek, up and
- * down show the bar, Back hides it and then leaves.
+ * down show the bar, Back hides it and then leaves. Down again from the buttons opens
+ * "More like this". What comes and goes over the film (the opening line, Skip intro,
+ * the card at the credits) lives in {@link PlayerCards}.
  *
  * Position is saved to {@link Progress} as it plays; past 90 % the title counts as
  * watched. Leaving with "Next episode" or "Other source" hands back to the home
@@ -63,7 +65,9 @@ public final class PlayerActivity extends Activity {
             X_TITLE = "title", X_LABEL = "label", X_POSTER = "poster", X_BACKDROP = "backdrop", X_LOGO = "logo",
             X_RESUME = "resume", X_ADDON = "addon", X_NEXT_EPISODE = "nextEpisode", X_NEXT_LABEL = "nextLabel",
             X_PLEX = "plex", X_EPISODES = "episodes";
-    static final int RESULT_NEXT = 2, RESULT_OTHER_SOURCE = 3;
+    static final int RESULT_NEXT = 2, RESULT_OTHER_SOURCE = 3, RESULT_OPEN_TITLE = 4;
+    /** With RESULT_OPEN_TITLE: the title chosen from the suggestions. */
+    static final String X_OPEN_ID = "openId", X_OPEN_TYPE = "openType", X_OPEN_TITLE = "openTitle";
     private static final long SEEK_MS = 10_000, BAR_HIDE_MS = 4_000, SAVE_EVERY_MS = 10_000;
 
     private ExoPlayer player;
@@ -74,7 +78,10 @@ public final class PlayerActivity extends Activity {
     private SurfaceView surface;
     private TextView captions, timeNow, timeLeft, status, playButton, nextButton;
     private View buffering;
-    private LinearLayout bar;
+    private LinearLayout bar, buttons;
+    PlayerCards cards;
+    /** The last thing the viewer used was a remote or a key, not a finger. A TV starts out that way. */
+    private boolean remote;
     private SeekBar seek;
     private float videoAspect;
     private boolean finishedMarked, seeking;
@@ -104,6 +111,8 @@ public final class PlayerActivity extends Activity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         // Video is landscape unless the user has held the whole app to portrait (Settings › Look).
         if (prefs.orientationChosen() == Prefs.TURN_PORTRAIT) setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
+        remote = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_TYPE_MASK)
+                == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION;
         readIntent(getIntent());
         buildViews();
         setContentView(root);
@@ -202,7 +211,7 @@ public final class PlayerActivity extends Activity {
         line.addView(timeLeft);
         bar.addView(line);
 
-        LinearLayout buttons = new LinearLayout(this);
+        buttons = new LinearLayout(this);
         buttons.setGravity(Gravity.CENTER_VERTICAL);
         buttons.setPadding(0, ui.dp(10), 0, 0);
         playButton = button(buttons, "❚❚", this::togglePlay);
@@ -213,11 +222,41 @@ public final class PlayerActivity extends Activity {
         if (plex == null) button(buttons, getString(R.string.player_sources), () -> leave(RESULT_OTHER_SOURCE));
         if (nextEpisode != null) nextButton = button(buttons, getString(R.string.player_next), () -> leave(RESULT_NEXT));
         if (episodes != null && episodes.size() > 1) button(buttons, getString(R.string.player_episodes), this::pickEpisode);
+        if (plex == null && id != null && id.startsWith("tt")) button(buttons, getString(R.string.player_more_like), () -> { if (cards.stripOpen()) cards.closeStrip(); else cards.openStrip(); });
         android.widget.HorizontalScrollView strip = new android.widget.HorizontalScrollView(this);
         strip.setHorizontalScrollBarEnabled(false);
         strip.addView(buttons);
         bar.addView(strip);
         root.addView(bar, new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM));
+
+        cards = new PlayerCards(this, ui, prefs, root, bar, new PlayerCards.Host() {
+            @Override public void seekTo(long positionMs) { if (player != null) { player.seekTo(positionMs); updateTimes(); } }
+            @Override public void playNext() { leave(RESULT_NEXT); }
+            @Override public void openTitle(MediaItem chosen) { PlayerActivity.this.openTitle(chosen); }
+            @Override public boolean barShowing() { return bar.getVisibility() == View.VISIBLE; }
+            @Override public void holdBar() { keepBar(); }
+            @Override public boolean usingRemote() { return remote; }
+        }, "series".equals(type), nextEpisode == null ? null : nz(getIntent().getStringExtra(X_NEXT_LABEL)), episodeTitle(nextEpisode),
+                MediaItem.catalog(nz(id), type, title, "").backdrop(ui.dp(112)));
+        if (plex == null) WatchExtras.load(this, prefs, id, type, episodeId, main, extras -> { if (!isFinishing()) cards.setExtras(extras); });
+    }
+
+    /** The name of an episode from the list the show brought along, or "". */
+    private String episodeTitle(String wanted) {
+        if (wanted == null || episodes == null) return "";
+        for (String row : episodes) {
+            String[] parts = row.split("\t", 3);
+            if (parts[0].equals(wanted)) return parts.length > 2 ? parts[2] : "";
+        }
+        return "";
+    }
+
+    /** A suggestion was chosen: keep the place in this film and hand the choice to the home screen. */
+    private void openTitle(MediaItem chosen) {
+        saveProgress();
+        setResult(RESULT_OPEN_TITLE, new Intent().putExtra(X_ID, id).putExtra(X_TYPE, type).putExtra(X_TITLE, title)
+                .putExtra(X_OPEN_ID, chosen.id).putExtra(X_OPEN_TYPE, chosen.isShow() ? "series" : "movie").putExtra(X_OPEN_TITLE, chosen.title));
+        finish();
     }
 
     private TextView button(LinearLayout row, String text, Runnable run) {
@@ -338,7 +377,7 @@ public final class PlayerActivity extends Activity {
             @Override public void onPlaybackStateChanged(int state) {
                 if (android.os.SystemClock.uptimeMillis() >= noticeUntil) status.setText("");
                 buffering.setVisibility(state == Player.STATE_BUFFERING ? View.VISIBLE : View.GONE);
-                if (state == Player.STATE_READY) hasPlayed = true;
+                if (state == Player.STATE_READY) { hasPlayed = true; cards.onStarted(); }
                 if (state == Player.STATE_BUFFERING && hasPlayed && player != null && player.getPlayWhenReady()) noteStall();
                 if (state == Player.STATE_ENDED) { markFinished(); if (nextEpisode != null) leave(RESULT_NEXT); else finish(); }
             }
@@ -604,6 +643,8 @@ public final class PlayerActivity extends Activity {
         int code = e.getKeyCode();
         boolean barUp = bar.getVisibility() == View.VISIBLE;
         if (e.getAction() != KeyEvent.ACTION_DOWN) return super.dispatchKeyEvent(e);
+        if (code != KeyEvent.KEYCODE_BACK) remote = true;
+        if (e.getRepeatCount() == 0 && cards.onKey(code, barUp, !seek.isFocused())) return true;
         switch (code) {
             case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE: case KeyEvent.KEYCODE_SPACE: togglePlay(); showBar(); return true;
             case KeyEvent.KEYCODE_MEDIA_PLAY: if (player != null) player.play(); return true;
@@ -615,6 +656,8 @@ public final class PlayerActivity extends Activity {
                 return super.dispatchKeyEvent(e);
             default: break;
         }
+        // On a suggestion card the arrows move along it; they don't seek the film behind.
+        if (cards.hasFocus()) { keepBar(); return super.dispatchKeyEvent(e); }
         if (!barUp) {
             switch (code) {
                 case KeyEvent.KEYCODE_DPAD_LEFT: seekBy(-SEEK_MS); showBar(); return true;
@@ -627,6 +670,12 @@ public final class PlayerActivity extends Activity {
         }
         keepBar();
         return super.dispatchKeyEvent(e);
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(android.view.MotionEvent e) {
+        remote = false;
+        return super.dispatchTouchEvent(e);
     }
 
     private void togglePlay() {
@@ -656,13 +705,16 @@ public final class PlayerActivity extends Activity {
 
     private void keepBar() {
         main.removeCallbacks(hideBar);
-        if (player != null && player.isPlaying()) main.postDelayed(hideBar, BAR_HIDE_MS);
+        // Looking along "More like this" takes longer than glancing at the time.
+        if (player != null && player.isPlaying()) main.postDelayed(hideBar, cards != null && cards.stripOpen() ? 5 * BAR_HIDE_MS : BAR_HIDE_MS);
     }
 
     private void hideBar() {
         main.removeCallbacks(hideBar);
+        if (cards != null) cards.closeStrip();
         bar.animate().alpha(0f).setDuration(Motion.FAST).withEndAction(() -> bar.setVisibility(View.GONE)).start();
         root.requestFocus();
+        if (cards != null) cards.onBarHidden();
     }
 
     private void updateTimes() {
@@ -673,6 +725,7 @@ public final class PlayerActivity extends Activity {
         timeLeft.setText(known ? "−" + clock(d - p) : "");
         if (known && !seeking && !seek.isFocused()) seek.setProgress((int) (1000 * p / d));
         if (known && nextButton != null && d - p < 90_000) nextButton.setVisibility(View.VISIBLE);
+        cards.onTick(p, known ? d : 0);
     }
 
     static String clock(long ms) {

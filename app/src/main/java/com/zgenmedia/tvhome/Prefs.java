@@ -116,6 +116,14 @@ final class Prefs {
     int preferredQuality() { return sp.getInt("preferredQuality", 0); }
     void setPreferredQuality(int lines) { sp.edit().putInt("preferredQuality", lines).apply(); }
 
+    // What comes up over a film while it plays (see PlayerCards). All on unless switched off.
+    boolean skipButton() { return sp.getBoolean("skipButton", true); }
+    void setSkipButton(boolean on) { sp.edit().putBoolean("skipButton", on).apply(); }
+    boolean openingCard() { return sp.getBoolean("openingCard", true); }
+    void setOpeningCard(boolean on) { sp.edit().putBoolean("openingCard", on).apply(); }
+    boolean endCard() { return sp.getBoolean("endCard", true); }
+    void setEndCard(boolean on) { sp.edit().putBoolean("endCard", on).apply(); }
+
     // Loading a film over several connections at once (see ParallelSource).
     static final int FAST_AUTO = 0, FAST_ALWAYS = 1, FAST_OFF = 2;
     static final int[] CONNECTIONS = {2, 4, 6, 8};

@@ -3,6 +3,25 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.18.0 — 2026-11-27
+
+### Added
+- **Skip intro.** When a show's intro or recap is playing, a "Skip intro"
+  button appears at the bottom right for as long as it runs. Press OK (or tap
+  it) to jump past. Timings come from IntroDB, an open, community-kept
+  database, so not every episode has them yet.
+- **Details as a title starts.** For a few seconds the top left shows the
+  score, year, length and genres, and the age rating (TV-MA, PG-13…) if you
+  have added a TMDB key.
+- **Up next, and "If you love…".** As the credits start, a card offers the
+  next episode. At the end of a film it offers a few others its lead actor is
+  in, or titles like it. OK plays or opens; Back puts the card away.
+- **More like this, without stopping the film.** Press Down for the controls
+  and Down again for a row of similar titles. The film keeps playing while
+  you look; choosing one opens its page and keeps your place.
+
+Each of the first three has its own switch in Settings › Playback.
+
 ## 0.17.0 — 2026-11-26
 
 ### Added
