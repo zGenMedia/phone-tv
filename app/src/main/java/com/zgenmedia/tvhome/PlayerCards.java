@@ -88,6 +88,9 @@ final class PlayerCards {
         buildStrip();
     }
 
+    /** The player is closing: stop fetching artwork. */
+    void release() { images.shutdown(); }
+
     /** More facts have arrived. */
     void setExtras(WatchExtras x) {
         extras = x;

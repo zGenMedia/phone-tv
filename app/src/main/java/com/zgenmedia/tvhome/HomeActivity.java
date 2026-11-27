@@ -754,7 +754,8 @@ public class HomeActivity extends Activity {
             MediaItem m = watched != null && watched.id.equals(data.getStringExtra(PlayerActivity.X_ID)) ? watched
                     : MediaItem.catalog(data.getStringExtra(PlayerActivity.X_ID), data.getStringExtra(PlayerActivity.X_TYPE),
                     data.getStringExtra(PlayerActivity.X_TITLE), "");
-            showStreams(m, data.getStringExtra(PlayerActivity.X_EPISODE));
+            // Asked for another source: show the list. (Auto-play would only pick the same one again.)
+            showStreams(m, data.getStringExtra(PlayerActivity.X_EPISODE), resultCode != PlayerActivity.RESULT_OTHER_SOURCE);
             return;
         }
         if (requestCode == REQUEST_VOICE) {
@@ -2424,7 +2425,7 @@ public class HomeActivity extends Activity {
                 else page = CatalogRepository.browse(type, by == BY_RATING ? "imdbRating" : "top", pick < 0 ? null : GENRES[pick], skip);
             } catch (IOException | JSONException | RuntimeException e) {
                 page = new ArrayList<>();
-                problem = getString(R.string.discover_failed, CatalogRepository.describe(e instanceof IOException || e instanceof JSONException ? (Exception) e : new IOException(e.getMessage())));
+                problem = getString(R.string.discover_failed, CatalogRepository.describe(e instanceof IOException || e instanceof JSONException ? e : new IOException(e.getMessage())));
             }
             final List<MediaItem> got = page;
             final String err = problem;
@@ -4577,7 +4578,10 @@ public class HomeActivity extends Activity {
      * The sources for a movie or episode from the user's add-ons. With none installed,
      * says so and offers the add-on settings instead of an empty list.
      */
-    void showStreams(MediaItem m, String episodeId) {
+    void showStreams(MediaItem m, String episodeId) { showStreams(m, episodeId, true); }
+
+    /** @param mayAutoPlay false when the viewer wants to choose, whatever "Play the first source" says */
+    void showStreams(MediaItem m, String episodeId, boolean mayAutoPlay) {
         if (!hasStreamAddon()) {
             showNotice(getString(R.string.sources_no_addons_title), getString(R.string.sources_no_addons_body),
                     new String[]{getString(R.string.sources_open_addons), getString(R.string.cancel)},
@@ -4592,7 +4596,7 @@ public class HomeActivity extends Activity {
             if (after != null) { next = after.id; nextLabel = Library.episodeLabel(after.season, after.number); }
             for (CatalogRepository.Episode e : d.episodes) if (e.id.equals(episodeId) && !e.title.isEmpty()) label += "  ·  " + e.title;
         }
-        openOverlay(new StreamScreen(this, m, episodeId, label, next, nextLabel));
+        openOverlay(new StreamScreen(this, m, episodeId, label, next, nextLabel, mayAutoPlay));
     }
 
     /** The episode after this one, in viewing order, skipping specials; null at the end. */
@@ -4605,8 +4609,19 @@ public class HomeActivity extends Activity {
 
     void startPlayer(MediaItem m, String episodeId, String label, String url, Map<String, String> headers, String addon,
                      long resumeMs, String nextEpisodeId, String nextLabel) {
+        startPlayer(m, episodeId, label, url, headers, addon, resumeMs, nextEpisodeId, nextLabel, null);
+    }
+
+    private static Bundle asBundle(Map<String, String> headers) {
         Bundle h = new Bundle();
         for (Map.Entry<String, String> e : headers.entrySet()) h.putString(e.getKey(), e.getValue());
+        return h;
+    }
+
+    /** @param spares other sources for the same thing, in order, for the player to fall back on; may be null */
+    void startPlayer(MediaItem m, String episodeId, String label, String url, Map<String, String> headers, String addon,
+                     long resumeMs, String nextEpisodeId, String nextLabel, List<Addons.Stream> spares) {
+        Bundle h = asBundle(headers);
         Intent i = new Intent(this, PlayerActivity.class)
                 .putExtra(PlayerActivity.X_URL, url).putExtra(PlayerActivity.X_HEADERS, h)
                 .putExtra(PlayerActivity.X_ID, m.id).putExtra(PlayerActivity.X_TYPE, m.isShow() ? "series" : "movie")
@@ -4624,6 +4639,17 @@ public class HomeActivity extends Activity {
                 list.add(e.id + "\t" + Library.episodeLabel(e.season, e.number) + "\t" + (e.title == null ? "" : e.title.replace('\t', ' ')));
             }
             i.putExtra(PlayerActivity.X_EPISODES, list);
+        }
+        if (spares != null && !spares.isEmpty()) {
+            ArrayList<Bundle> others = new ArrayList<>();
+            for (Addons.Stream s : spares) {
+                Bundle b = new Bundle();
+                b.putString(PlayerActivity.X_URL, s.url);
+                b.putString(PlayerActivity.X_ADDON, s.addon);
+                b.putBundle(PlayerActivity.X_HEADERS, asBundle(s.headers));
+                others.add(b);
+            }
+            i.putParcelableArrayListExtra(PlayerActivity.X_SPARES, others);
         }
         playerItem = m;
         try {
@@ -4687,7 +4713,7 @@ public class HomeActivity extends Activity {
                 try { added.add(Addons.of(this).install(link).name); }
                 catch (IOException | org.json.JSONException | RuntimeException e) {
                     String host = Uri.parse(link.replace("stremio://", "https://")).getHost();
-                    failed.add((host == null ? link : host) + ": " + CatalogRepository.describe(e instanceof Exception ? (Exception) e : new IOException()));
+                    failed.add((host == null ? link : host) + ": " + CatalogRepository.describe(e instanceof Exception ? e : new IOException()));
                 }
             }
             main.post(() -> {

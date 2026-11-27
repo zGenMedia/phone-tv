@@ -91,6 +91,7 @@ final class ParallelSource implements DataSource {
 
     /** The host said no in a way that retrying won't fix. */
     private static final class Refused extends IOException {
+        private static final long serialVersionUID = 1L;
         Refused(String why) { super(why); }
     }
 

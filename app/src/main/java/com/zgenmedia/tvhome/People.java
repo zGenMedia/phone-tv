@@ -406,9 +406,11 @@ final class People {
             String role = !value(r, "role").isEmpty() ? value(r, "role") : !value(r, "roleMul").isEmpty() ? value(r, "roleMul") : value(r, "roleName");
             int order;
             try { order = Integer.parseInt(value(r, "order")); } catch (NumberFormatException e) { order = Integer.MAX_VALUE; }
+            int fame = 0; // an odd value from the service must not lose the whole cast
+            try { if (r.has("fame")) fame = Integer.parseInt(value(r, "fame")); } catch (NumberFormatException e) { /* stays 0 */ }
             people.add(new JSONObject().put("id", value(r, "p").substring(value(r, "p").lastIndexOf('/') + 1)).put("name", name)
                     .put("photo", image.isEmpty() ? "" : image.replaceFirst("^http:", "https:") + "?width=" + PHOTO_WIDTH)
-                    .put("role", role).put("order", order).put("fame", r.has("fame") ? Integer.parseInt(value(r, "fame")) : 0));
+                    .put("role", role).put("order", order).put("fame", fame));
         }
         // Billed first, in order. Wikidata rarely records billing, so the rest go best known
         // first (how many Wikipedias have an article on them), which puts the stars ahead of

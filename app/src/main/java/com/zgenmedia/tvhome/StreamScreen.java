@@ -35,12 +35,17 @@ final class StreamScreen implements Overlay {
     private final MediaItem item;
     private final String episodeId, episodeLabel;
     private final String nextEpisodeId, nextLabel;
+    /** "Play the first source" may act on this page. False when the viewer asked to see the list. */
+    private final boolean mayAutoPlay;
+    /** How many other sources ride along with an auto-played one, to fall back on. */
+    private static final int SPARES = 5;
 
     private List<Addons.Stream> streams;  // null while loading
     private String onlyAddon;             // null: all add-ons
     private View firstFocus;
 
-    StreamScreen(HomeActivity activity, MediaItem item, String episodeId, String episodeLabel, String nextEpisodeId, String nextLabel) {
+    StreamScreen(HomeActivity activity, MediaItem item, String episodeId, String episodeLabel, String nextEpisodeId, String nextLabel, boolean mayAutoPlay) {
+        this.mayAutoPlay = mayAutoPlay;
         a = activity;
         ui = activity.ui;
         this.item = item;
@@ -75,17 +80,21 @@ final class StreamScreen implements Overlay {
             VideoSupport.sortByPreference(found, StreamScreen::describe, a.prefs.preferredQuality());
             a.main.post(() -> {
                 streams = found;
-                if (a.prefs.autoPlayFirst()) {
-                    // Auto-play takes the first source this device can show; one it likely can't comes last.
-                    Addons.Stream first = null, fallback = null;
+                if (mayAutoPlay && a.prefs.autoPlayFirst()) {
+                    // Auto-play takes the first source this device can show, and brings the next few
+                    // along: if the first turns out to be dead, the player moves on by itself.
+                    // Sources this device likely can't show a picture for go to the back of the line.
+                    List<Addons.Stream> line = new ArrayList<>(), doubtful = new ArrayList<>();
                     for (Addons.Stream s : found) {
                         if (!s.playable()) continue;
-                        boolean fine = VideoSupport.likelyToShow(describe(s));
-                        if (fine && first == null) first = s;
-                        if (fallback == null) fallback = s;
+                        (VideoSupport.likelyToShow(describe(s)) ? line : doubtful).add(s);
                     }
-                    if (first == null) first = fallback;
-                    if (first != null) { a.closeOverlay(); play(first); return; }
+                    line.addAll(doubtful);
+                    if (!line.isEmpty()) {
+                        a.closeOverlay();
+                        play(line.get(0), line.subList(1, Math.min(line.size(), 1 + SPARES)));
+                        return;
+                    }
                 }
                 View f = a.focused();
                 boolean had = f != null && HomeActivity.isInside(f, root);
@@ -306,7 +315,7 @@ final class StreamScreen implements Overlay {
     }
 
     private void choose(Addons.Stream s) {
-        if (s.playable()) { play(s); return; }
+        if (s.playable()) { play(s, null); return; } // chosen by hand: play exactly that one
         if (s.infoHash != null) {
             // Torrents need a torrent engine; Stremio has one. Its detail link opens the same title.
             a.openWith(Prefs.PLAY_STREMIO, item, episodeId);
@@ -317,11 +326,11 @@ final class StreamScreen implements Overlay {
         }
     }
 
-    private void play(Addons.Stream s) {
+    private void play(Addons.Stream s, List<Addons.Stream> spares) {
         // Tuned in from a channel: join where the channel is. Otherwise pick up where the viewer left off.
         long live = a.liveOffset(item.id, episodeId);
         a.startPlayer(item, episodeId, episodeLabel, s.url, s.headers, s.addon,
-                live > 0 ? live : Progress.of(a).resumeAt(item.id, episodeId), nextEpisodeId, nextLabel);
+                live > 0 ? live : Progress.of(a).resumeAt(item.id, episodeId), nextEpisodeId, nextLabel, spares);
     }
 
     private TextView note(String text) {

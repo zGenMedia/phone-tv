@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Phone TV's own lookups (the catalog, Trakt, Plex, updates) all use https addresses written
+  into the app, and that doesn't change here.
+
+  What this allows is what the viewer brings: an add-on or a stream whose address starts with
+  http://. Plenty do, a media server on the home network above all. With plain http refused,
+  those sources were listed as playable and then failed every time in the player.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

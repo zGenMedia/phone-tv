@@ -264,6 +264,7 @@ section{padding:72px 0}
       <h2 style="margin-top:40px">Where Phone TV connects</h2>
       <ul class="lead" style="margin-top:18px">
         <li><b>Cinemeta and Metahub</b> (Stremio's public catalog and artwork) for the movies and shows on the home screen.</li>
+        <li><b>Encryption:</b> every lookup Phone TV makes for itself uses an encrypted (https) connection. An add-on or stream you add with an http:// address is fetched as given, which on a shared network others could see, as with any video player.</li>
         <li><b>IntroDB</b>, when you play something in Phone TV's own player: to ask where its intro, recap and credits fall, for the Skip intro button. The request contains the title's IMDb id and, for a show, the season and episode number. Nothing about you is sent. Switch off both the Skip intro button and the suggestions at the credits in Settings › Playback and the request isn't made.</li>
         <li><b>TVmaze</b> for the cast of TV shows (these requests contain the show's IMDb id) and for today's premiere schedule on the Channels tab (the same request for everyone: just the date).</li>
         <li><b>Wikidata, Wikimedia Commons and Wikipedia</b> for banner suggestions, cast lists, actor photos and short biographies. These requests contain the titles and names you look at.</li>

@@ -100,7 +100,7 @@ final class PlexClient {
                 boolean local = c.optBoolean("local"), relay = c.optBoolean("relay");
                 boolean wanted = pass == 0 ? local && !relay : pass == 1 ? !local && !relay : relay;
                 String uri = c.optString("uri");
-                // Cleartext is disabled app-wide; Plex offers https (plex.direct) for every connection.
+                // Plex offers https (plex.direct) for every connection, so a token never travels in the clear.
                 if (!wanted || !uri.startsWith("https://")) continue;
                 Server s = new Server();
                 s.name = best.optString("name", "Plex");

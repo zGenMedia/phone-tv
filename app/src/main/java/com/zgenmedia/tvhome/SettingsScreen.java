@@ -458,7 +458,7 @@ final class SettingsScreen implements Overlay {
         String[] langNames = new String[langs.length];
         int sub = 0, audio = 0;
         for (int i = 0; i < langs.length; i++) {
-            langNames[i] = new java.util.Locale(langs[i]).getDisplayLanguage();
+            langNames[i] = java.util.Locale.forLanguageTag(langs[i]).getDisplayLanguage();
             if (langs[i].equals(prefs.subtitleLanguage())) sub = i;
             if (langs[i].equals(prefs.audioLanguage())) audio = i;
         }

@@ -270,6 +270,7 @@ final class SetupTransfer {
     }
 
     static final class WrongCode extends IOException {
+        private static final long serialVersionUID = 1L;
         WrongCode() { super("wrong code"); }
     }
 

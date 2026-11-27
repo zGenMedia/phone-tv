@@ -1,7 +1,7 @@
 {
-  "versionCode": 41,
-  "versionName": "0.18.1",
+  "versionCode": 42,
+  "versionName": "0.18.2",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "3148ee3a55fc4fae324087104566f6d90ae6a4af091a6d8e2d50748366688ce5",
-  "notes": "Fixes: the top menu can always be reached, Back goes straight to it, Skip intro clearly shows when OK will skip, and More like this hides by itself."
+  "sha256": "e89e8c1aadc322913d0b245fc7de4d7319366e849721a1410038e5b7adff605a",
+  "notes": "Play the first source now moves on to the next when one is dead. Fixes: http sources play, and Sources in the player shows the list."
 }

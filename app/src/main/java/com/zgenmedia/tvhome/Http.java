@@ -20,6 +20,7 @@ final class Http {
 
     /** Thrown for any non-2xx response so callers can surface the status code. */
     static final class StatusException extends IOException {
+        private static final long serialVersionUID = 1L;
         final int code;
         StatusException(int code, String url) { super("HTTP " + code + " for " + url); this.code = code; }
     }

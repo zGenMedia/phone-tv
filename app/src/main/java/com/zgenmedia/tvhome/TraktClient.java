@@ -49,6 +49,7 @@ final class TraktClient {
 
     /** The user said no at trakt.tv, or the code ran out. */
     static final class SignInEnded extends IOException {
+        private static final long serialVersionUID = 1L;
         SignInEnded(String why) { super(why); }
     }
     private static final Pattern LIST_URL =

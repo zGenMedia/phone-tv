@@ -66,6 +66,8 @@ public final class PlayerActivity extends Activity {
             X_RESUME = "resume", X_ADDON = "addon", X_NEXT_EPISODE = "nextEpisode", X_NEXT_LABEL = "nextLabel",
             X_PLEX = "plex", X_EPISODES = "episodes";
     static final int RESULT_NEXT = 2, RESULT_OTHER_SOURCE = 3, RESULT_OPEN_TITLE = 4;
+    /** Other sources for the same film, in order (bundles of X_URL, X_ADDON, X_HEADERS), to move on to if this one fails. */
+    static final String X_SPARES = "spares";
     /** With RESULT_OPEN_TITLE: the title chosen from the suggestions. */
     static final String X_OPEN_ID = "openId", X_OPEN_TYPE = "openType", X_OPEN_TITLE = "openTitle";
     private static final long SEEK_MS = 10_000, BAR_HIDE_MS = 4_000, SAVE_EVERY_MS = 10_000;
@@ -97,6 +99,7 @@ public final class PlayerActivity extends Activity {
             main.postDelayed(this, 500);
         }
     };
+    private int starts;
     private final Runnable saver = new Runnable() {
         @Override public void run() {
             saveProgress();
@@ -128,7 +131,11 @@ public final class PlayerActivity extends Activity {
     /** Every episode of the show being watched, one per entry as "id, tab, S1 · E3, tab, title"; null for a movie. */
     private ArrayList<String> episodes;
 
+    @SuppressWarnings("deprecation") // the typed getter arrived in Android 13; this one reads the same list on every version
     private void readIntent(Intent i) {
+        ArrayList<Bundle> others = i.getParcelableArrayListExtra(X_SPARES);
+        if (others != null) spares.addAll(others);
+        sourceCount = 1 + spares.size();
         url = i.getStringExtra(X_URL);
         id = i.getStringExtra(X_ID);
         type = i.getStringExtra(X_TYPE);
@@ -186,7 +193,7 @@ public final class PlayerActivity extends Activity {
         name.setEllipsize(TextUtils.TruncateAt.END);
         bar.addView(name);
         if (!label.isEmpty() || !addon.isEmpty()) {
-            TextView sub = ui.label(TextUtils.join("  ·  ", nonEmpty(label, addon)), 13, Ui.TEXT_DIM, null);
+            TextView sub = sourceLine = ui.label(TextUtils.join("  ·  ", nonEmpty(label, addon)), 13, Ui.TEXT_DIM, null);
             sub.setPadding(0, ui.dp(2), 0, ui.dp(10));
             bar.addView(sub);
         }
@@ -329,6 +336,8 @@ public final class PlayerActivity extends Activity {
         if (url == null) { finish(); return; }
         hasPlayed = false;
         quietSince = android.os.SystemClock.uptimeMillis();
+        main.removeCallbacks(slowStart);
+        if (!spares.isEmpty()) main.postDelayed(slowStart, START_PATIENCE_MS);
         if (prefs.fastBuffering() == Prefs.FAST_ALWAYS
                 || (prefs.fastBuffering() == Prefs.FAST_AUTO && SLOW_HOSTS.contains(Uri.parse(url).getHost()))) severalConnections = true;
         DefaultHttpDataSource.Factory http = new DefaultHttpDataSource.Factory()
@@ -380,7 +389,7 @@ public final class PlayerActivity extends Activity {
             @Override public void onPlaybackStateChanged(int state) {
                 if (android.os.SystemClock.uptimeMillis() >= noticeUntil) status.setText("");
                 buffering.setVisibility(state == Player.STATE_BUFFERING ? View.VISIBLE : View.GONE);
-                if (state == Player.STATE_READY) { hasPlayed = true; cards.onStarted(); }
+                if (state == Player.STATE_READY) { hasPlayed = true; main.removeCallbacks(slowStart); cards.onStarted(); }
                 if (state == Player.STATE_BUFFERING && hasPlayed && player != null && player.getPlayWhenReady()) noteStall();
                 if (state == Player.STATE_ENDED) { markFinished(); if (nextEpisode != null) leave(RESULT_NEXT); else finish(); }
             }
@@ -415,11 +424,14 @@ public final class PlayerActivity extends Activity {
         });
         buffering.setVisibility(View.VISIBLE);
         // Subtitles from add-ons are fetched first (a few seconds at most), then playback starts.
+        // The player can be started over (another source, more connections, Plex converting the file).
+        // Only the latest start may set things going; an earlier one's subtitles arriving late are dropped.
+        final int thisStart = ++starts;
         new Thread(() -> {
             List<Addons.Subtitle> subs = id == null ? new ArrayList<>()
                     : Addons.of(this).subtitles(type, episodeId != null ? episodeId : id);
             main.post(() -> {
-                if (isFinishing() || player == null) return;
+                if (isFinishing() || player == null || thisStart != starts) return;
                 androidx.media3.common.MediaItem.Builder item = new androidx.media3.common.MediaItem.Builder().setUri(Uri.parse(url));
                 List<SubtitleConfiguration> configs = new ArrayList<>();
                 for (Addons.Subtitle s : subs.subList(0, Math.min(subs.size(), 40))) {
@@ -431,6 +443,9 @@ public final class PlayerActivity extends Activity {
                 player.setMediaItem(item.build(), Math.max(0, resumeMs));
                 player.prepare();
                 player.play();
+                // One clock and one saver, however many times the player has been started over.
+                main.removeCallbacks(tick);
+                main.removeCallbacks(saver);
                 main.post(tick);
                 main.postDelayed(saver, SAVE_EVERY_MS);
             });
@@ -461,6 +476,7 @@ public final class PlayerActivity extends Activity {
     /** The sound is playing but this device has no way to show the picture: say which format, and offer the way out. */
     private void noPicture(String format) {
         if (isFinishing()) return;
+        if (nextSource()) return; // sound without a picture isn't what "play it for me" meant
         new AlertDialog.Builder(this, R.style.PhoneTvDialog)
                 .setTitle(R.string.player_no_picture)
                 .setMessage(getString(R.string.player_no_picture_body, format == null || format.isEmpty() ? "?" : format))
@@ -468,6 +484,49 @@ public final class PlayerActivity extends Activity {
                 .setNeutralButton(R.string.player_open_elsewhere, (d, w) -> openElsewhere())
                 .setNegativeButton(R.string.player_keep_listening, null)
                 .show();
+    }
+
+    // ------------------------------------------------------------ the next source
+
+    private final java.util.ArrayDeque<Bundle> spares = new java.util.ArrayDeque<>();
+    private int sourceNumber = 1, sourceCount = 1;
+    private TextView sourceLine;
+    /** A source that hasn't shown a frame after this long is treated as dead, when there's another to try. */
+    private static final long START_PATIENCE_MS = 30_000;
+    private final Runnable slowStart = () -> { if (!hasPlayed) nextSource(); };
+
+    /**
+     * "Play the first source" picked this one, and it didn't play. The viewer asked not to be
+     * shown a list, so don't hand them an error either: move on to the next source, from the
+     * same moment, and say so in a line under the loading dots.
+     *
+     * @return false when there is nothing left to try (or this isn't an auto-played film)
+     */
+    private boolean nextSource() {
+        if (plex != null || spares.isEmpty() || isFinishing()) return false;
+        Bundle next = spares.poll();
+        long at = player == null ? 0 : Math.max(0, player.getCurrentPosition());
+        if (at == 0) at = getIntent().getLongExtra(X_RESUME, 0);
+        url = next.getString(X_URL);
+        addon = nz(next.getString(X_ADDON));
+        headers.clear();
+        Bundle h = next.getBundle(X_HEADERS);
+        if (h != null) for (String k : h.keySet()) headers.put(k, h.getString(k));
+        sourceNumber++;
+        // A new source starts with a clean slate: what was learned about the last one doesn't carry over.
+        severalConnections = false;
+        stalls = 0;
+        toldNoPicture = false;
+        main.removeCallbacks(saver);
+        main.removeCallbacks(slowStart);
+        if (player != null) { player.release(); player = null; }
+        if (sourceLine != null) sourceLine.setText(TextUtils.join("  ·  ", nonEmpty(label, addon)));
+        startPlayer(at);
+        noticeUntil = android.os.SystemClock.uptimeMillis() + 6000;
+        status.setTranslationY(ui.dp(44)); // under the dots, not through them
+        status.setText(getString(R.string.player_next_source, sourceNumber, sourceCount));
+        main.postDelayed(() -> { status.setText(""); status.setTranslationY(0); }, 6000);
+        return true;
     }
 
     private void failed(PlaybackException e) {
@@ -482,6 +541,8 @@ public final class PlayerActivity extends Activity {
             startPlayer(at);
             return;
         }
+        if (nextSource()) return;
+        main.removeCallbacks(slowStart);
         saveProgress();
         buffering.setVisibility(View.GONE);
         String why = e.getErrorCodeName().replace("ERROR_CODE_", "").replace('_', ' ').toLowerCase(Locale.ROOT);
@@ -571,7 +632,7 @@ public final class PlayerActivity extends Activity {
 
     private static String language(String code) {
         if (code == null || code.isEmpty()) return "";
-        String name = new Locale(code).getDisplayLanguage();
+        String name = Locale.forLanguageTag(code).getDisplayLanguage();
         return name.isEmpty() || name.equalsIgnoreCase(code) ? code : name;
     }
 
@@ -805,6 +866,7 @@ public final class PlayerActivity extends Activity {
     protected void onDestroy() {
         main.removeCallbacksAndMessages(null);
         if (player != null) { player.release(); player = null; }
+        if (cards != null) cards.release();
         super.onDestroy();
     }
 

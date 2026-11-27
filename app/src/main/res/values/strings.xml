@@ -426,7 +426,6 @@
     <string name="player_subtitles">Subtitles</string>
     <string name="player_sources">Sources</string>
     <string name="player_next">Next episode</string>
-    <string name="player_loading">Loading…</string>
     <string name="player_off">Off</string>
     <string name="player_track_unnamed">Track</string>
     <string name="player_no_subtitles">No subtitles for this one</string>
@@ -480,8 +479,6 @@
     <string name="addon_link_help">Paste the add-on\'s link. Several links at once work too, one per line.</string>
     <string name="addon_install">Install</string>
     <string name="addon_installing">Installing %1$d add-ons…</string>
-    <string name="addon_installed">Add-ons installed: %1$d</string>
-    <string name="addon_some_failed">Installed %1$d. Couldn\'t install %2$d (check the links).</string>
     <string name="stremio_link_help">Scan this with your phone\'s camera and sign in to Stremio there. Or open link.stremio.com on any phone or computer and enter the code. Phone TV only reads your add-on list.</string>
     <string name="stremio_connected">Connected to Stremio. Reading your add-ons…</string>
     <string name="stremio_no_addons">Connected, but this Stremio account has no add-ons beyond the ones Stremio includes itself. Add some in Stremio, or paste their links here.</string>
@@ -498,7 +495,7 @@
     <string name="stremio_link_expired">The Stremio code ran out. Try again.</string>
     <string name="set_group_player">Phone TV player</string>
     <string name="set_autoplay">Play the first source</string>
-    <string name="set_autoplay_hint">Skip the list of sources and start the first one that plays here.</string>
+    <string name="set_autoplay_hint">Skip the list of sources and start the first one that plays here. If it doesn\'t play, the next one is tried by itself.</string>
     <string name="set_sub_lang">Subtitle language</string>
     <string name="set_sub_lang_hint">Chosen first when a source has it.</string>
     <string name="set_audio_lang">Audio language</string>
@@ -616,7 +613,6 @@
         <item quantity="other">%1$d min left</item>
     </plurals>
     <string name="channels_next">Next %1$s  ·  %2$s</string>
-    <string name="channels_tune">Tune in</string>
     <string name="channels_from_start">Watch from the start</string>
     <string name="channels_about_title">About this title</string>
     <string name="channels_everything">Everything from %1$s</string>
@@ -693,6 +689,7 @@
     <string name="fast_off">Off</string>
     <string name="set_connections">Connections at once</string>
     <string name="set_connections_hint">More can be faster on a quick line. Some hosts allow only a few; Phone TV goes back to one by itself if a host objects.</string>
+    <string name="player_next_source">That source didn\'t play. Trying the next one (%1$d of %2$d)</string>
     <string name="player_more_connections">Loading over more connections to keep up</string>
     <string name="sources_may_not_show">May play without picture on this device</string>
     <string name="player_episodes">Episodes</string>

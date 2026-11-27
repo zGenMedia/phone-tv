@@ -3,6 +3,27 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.18.2 — 2026-11-27
+
+### Improved
+- **"Play the first source" moves on when a source is dead.** If the source
+  it picked fails, shows no picture, or hasn't started after 30 seconds,
+  the player goes to the next one by itself, from the same moment, and says
+  so in a line on screen ("Trying the next one (2 of 5)"). Up to five
+  others are tried before it gives up and offers the list.
+
+### Fixed
+- **"Sources" in the player now shows the list** when "Play the first
+  source" is on. It used to start the same source again.
+- **Sources and add-ons with http:// addresses work.** They were listed as
+  playable and then refused every time; a media server on the home network
+  is the usual case. Phone TV's own lookups still use https only.
+- Starting the player over (another source, more connections, Plex
+  converting a file) no longer leaves extra timers running.
+- The player stops loading artwork when it closes.
+- Housekeeping from a full pass with every compiler and lint warning on:
+  unused text removed, and a few old calls replaced.
+
 ## 0.18.1 — 2026-11-27
 
 ### Fixed
