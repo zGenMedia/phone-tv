@@ -1,7 +1,7 @@
 {
-  "versionCode": 43,
-  "versionName": "0.19.0",
+  "versionCode": 44,
+  "versionName": "0.20.0",
   "apkUrl": "https://zgenmedia.github.io/phone-tv/downloads/PhoneTV.apk",
-  "sha256": "8cdbc661a2ffc379025ebbe4993af1094fdc7e81196064b77232b1cc3d003c5d",
-  "notes": "A newer video engine, more dependable next-episode and suggestion cards at the credits, and optional playback details on screen."
+  "sha256": "af804c68a4775e5fae8932464b03fa6a5c5513e8004679d04f0df41830bb8291",
+  "notes": "Eight picture modes, including Panorama for old 4:3 shows, playback speed, and player buttons that show what is chosen."
 }

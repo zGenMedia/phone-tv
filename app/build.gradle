@@ -17,8 +17,8 @@ android {
         // 25 = Android 7.1, which covers Fire OS 6 devices (Fire TV Stick 4K 1st gen, Cube)
         minSdk 25
         targetSdk 35
-        versionCode 43
-        versionName '0.19.0'
+        versionCode 44
+        versionName '0.20.0'
     }
 
     signingConfigs {

@@ -42,6 +42,7 @@ Plenty of us have a 2–6 year old phone that still has a great screen, Wi-Fi, H
 | **Title pages** | Every movie and show opens full screen: artwork, cast, seasons and episodes |
 | **Library** | Save movies and shows, save actors with everything they've been in, and keep a watch history that folds in Plex and Trakt. All of it sortable |
 | **A player that knows the show** | Skip intro, the next episode at the credits, "if you love this actor" at the end of a film, and a More like this row you can browse while the film plays |
+| **Picture modes** | Fit, fill, stretch, zooms, and Panorama: old 4:3 shows fill a widescreen TV with the middle of the picture kept in its true shape |
 | **Faster loading** | The built-in player can load a film over several connections at once when one can't keep up, and backs off by itself if a host objects |
 | **Your choice of player** | Play here with the built-in player, or open titles in Stremio or Nuvio, search them in Plex, or watch the trailer. A missing app says so instead of doing nothing |
 | **Channels** | A guide of always-on line-ups (networks, studios, genres) to tune in to at the live point. Phone TV's own schedules built from each catalog, not the networks' broadcasts |

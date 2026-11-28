@@ -12,6 +12,7 @@ import android.os.Looper;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.KeyEvent;
+import android.view.Surface;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
@@ -222,20 +223,35 @@ public final class PlayerActivity extends Activity {
         line.addView(timeLeft);
         bar.addView(line);
 
+        // The buttons, in three groups a thumb can find without reading: playing (play, back, forward),
+        // how it looks and sounds (each button showing what's chosen now, so nothing has to be opened to
+        // find out), and where to go next.
         buttons = new LinearLayout(this);
         buttons.setGravity(Gravity.CENTER_VERTICAL);
-        buttons.setPadding(0, ui.dp(10), 0, 0);
+        buttons.setPadding(ui.dp(4), ui.dp(12), 0, ui.dp(4));
+        buttons.setClipChildren(false);
         playButton = button(buttons, "❚❚", this::togglePlay);
+        ui.text(playButton, 16);
+        playButton.setMinWidth(ui.dp(64));
+        playButton.setGravity(Gravity.CENTER);
         button(buttons, "−10", () -> seekBy(-SEEK_MS));
         button(buttons, "+30", () -> seekBy(3 * SEEK_MS));
-        button(buttons, getString(R.string.player_audio), () -> pickTrack(C.TRACK_TYPE_AUDIO));
-        button(buttons, getString(R.string.player_subtitles), () -> pickTrack(C.TRACK_TYPE_TEXT));
-        if (plex == null) button(buttons, getString(R.string.player_sources), () -> leave(RESULT_OTHER_SOURCE));
+
+        gap(buttons);
+        audioButton = option(buttons, R.string.player_audio, () -> pickTrack(C.TRACK_TYPE_AUDIO));
+        subtitleButton = option(buttons, R.string.player_subtitles, () -> pickTrack(C.TRACK_TYPE_TEXT));
+        pictureButton = option(buttons, R.string.player_picture, this::pickPicture);
+        speedButton = option(buttons, R.string.player_speed, this::pickSpeed);
+
+        gap(buttons);
         if (nextEpisode != null) nextButton = button(buttons, getString(R.string.player_next), () -> leave(RESULT_NEXT));
         if (episodes != null && episodes.size() > 1) button(buttons, getString(R.string.player_episodes), this::pickEpisode);
         if (plex == null && id != null && id.startsWith("tt")) button(buttons, getString(R.string.player_more_like), () -> { if (cards.stripOpen()) cards.closeStrip(); else cards.openStrip(); });
+        if (plex == null) button(buttons, getString(R.string.player_sources), () -> leave(RESULT_OTHER_SOURCE));
+        refreshOptions();
         android.widget.HorizontalScrollView strip = new android.widget.HorizontalScrollView(this);
         strip.setHorizontalScrollBarEnabled(false);
+        strip.setClipChildren(false);
         strip.addView(buttons);
         bar.addView(strip);
         root.addView(bar, new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM));
@@ -316,6 +332,66 @@ public final class PlayerActivity extends Activity {
         finish();
     }
 
+    private TextView audioButton, subtitleButton, pictureButton, speedButton;
+
+    /** A little air and a hairline between groups of buttons. */
+    private void gap(LinearLayout row) {
+        View line = new View(this);
+        line.setBackgroundColor(0x33FFFFFF);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ui.dp(1), ui.dp(26));
+        lp.setMargins(ui.dp(8), 0, ui.dp(16), 0);
+        row.addView(line, lp);
+    }
+
+    /** A button for a choice: its name small on top, what's chosen now beneath. {@link #refreshOptions} fills the second line. */
+    private TextView option(LinearLayout row, int name, Runnable run) {
+        TextView b = button(row, getString(name), () -> { run.run(); refreshOptions(); });
+        b.setTag(getString(name));
+        b.setPadding(ui.dp(16), ui.dp(6), ui.dp(16), ui.dp(6));
+        b.setLineSpacing(0, 1.05f);
+        return b;
+    }
+
+    private void setOption(TextView button, String chosen) {
+        if (button == null) return;
+        String name = (String) button.getTag();
+        android.text.SpannableString text = new android.text.SpannableString(name + "\n" + chosen);
+        // The name is the smaller of the two: what's chosen is what the eye is after.
+        text.setSpan(new android.text.style.RelativeSizeSpan(0.78f), 0, name.length(), 0);
+        text.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD), name.length() + 1, text.length(), 0);
+        button.setText(text);
+        button.setContentDescription(name + ", " + chosen);
+    }
+
+    /** Writes what's chosen now onto the Audio, Subtitles, Picture and Speed buttons. */
+    private void refreshOptions() {
+        if (pictureButton == null) return;
+        setOption(pictureButton, getString(Picture.name(prefs.pictureMode())));
+        setOption(speedButton, player == null ? getString(R.string.player_speed_normal) : speedName(player.getPlaybackParameters().speed));
+        setOption(audioButton, chosenTrack(C.TRACK_TYPE_AUDIO));
+        setOption(subtitleButton, chosenTrack(C.TRACK_TYPE_TEXT));
+    }
+
+    /** The track playing now, briefly: "English · 5.1", or "Off" for subtitles. */
+    private String chosenTrack(int trackType) {
+        if (player != null) {
+            if (trackType == C.TRACK_TYPE_TEXT && player.getTrackSelectionParameters().disabledTrackTypes.contains(C.TRACK_TYPE_TEXT)) return getString(R.string.player_off);
+            for (Tracks.Group g : player.getCurrentTracks().getGroups()) {
+                if (g.getType() != trackType) continue;
+                for (int i = 0; i < g.length; i++) {
+                    if (!g.isTrackSelected(i)) continue;
+                    Format f = g.getMediaTrackGroup().getFormat(i);
+                    List<String> parts = new ArrayList<>();
+                    if (f.language != null && !"und".equals(f.language)) parts.add(language(f.language));
+                    else if (f.label != null && !f.label.isEmpty()) parts.add(f.label);
+                    if (trackType == C.TRACK_TYPE_AUDIO && f.channelCount > 0) parts.add(f.channelCount >= 6 ? (f.channelCount - 1) + ".1" : f.channelCount == 2 ? "Stereo" : f.channelCount + " ch");
+                    return parts.isEmpty() ? getString(R.string.player_track_unnamed) : TextUtils.join(" · ", parts);
+                }
+            }
+        }
+        return getString(trackType == C.TRACK_TYPE_TEXT ? R.string.player_off : R.string.player_track_default);
+    }
+
     private TextView button(LinearLayout row, String text, Runnable run) {
         TextView b = ui.pill(text, 0x33FFFFFF, Color.WHITE);
         b.setOnClickListener(v -> { run.run(); keepBar(); });
@@ -325,20 +401,112 @@ public final class PlayerActivity extends Activity {
         return b;
     }
 
-    /** Letterboxes the surface to the video's shape. */
+    // =================================================================== picture
+
+    private PanoramaView panorama;
+    private Surface panoramaSurface;
+    private boolean bending, panoramaFailed;
+
+    /**
+     * Fits the picture to the screen the way the viewer chose (see {@link Picture}). Every mode
+     * but one is the ordinary video surface at a different size. Panorama needs the picture
+     * bent, which a plain surface can't do, so for that one the player draws through
+     * {@link PanoramaView} instead, and goes back to the plain surface when it's switched away.
+     */
     private void fitVideo() {
         int w = root.getWidth(), h = root.getHeight();
         if (w == 0 || h == 0) return;
-        int vw = w, vh = h;
-        if (videoAspect > 0) {
-            if (w / (float) h > videoAspect) vw = Math.round(h * videoAspect); else vh = Math.round(w / videoAspect);
+        int mode = prefs.pictureMode();
+        float widen = videoAspect > 0 ? (w / (float) h) / videoAspect : 1f;
+        boolean bend = mode == Picture.PANORAMA && widen > Picture.WORTH_BENDING && !panoramaFailed;
+        if (bend) {
+            if (panorama == null) {
+                panorama = new PanoramaView(this, new PanoramaView.Listener() {
+                    @Override public void onSurface(Surface made) {
+                        panoramaSurface = made;
+                        if (bending && player != null) { player.setVideoSurface(made); surface.setVisibility(View.INVISIBLE); }
+                    }
+                    @Override public void onFailed() {
+                        // No shader on this device: an even stretch is the nearest thing, and it says so.
+                        panoramaFailed = true;
+                        prefs.setPictureMode(Picture.STRETCH);
+                        say(getString(R.string.picture_panorama_unavailable), 4000);
+                        fitVideo();
+                        refreshOptions();
+                    }
+                });
+                videoBox.addView(panorama, new FrameLayout.LayoutParams(-1, -1));
+            }
+            panorama.setVisibility(View.VISIBLE);
+            panorama.shape(widen);
+            if (!bending) {
+                bending = true;
+                if (panoramaSurface != null && player != null) { player.setVideoSurface(panoramaSurface); surface.setVisibility(View.INVISIBLE); }
+            }
+            return;
         }
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(vw, vh, Gravity.CENTER);
+        if (bending) {
+            bending = false;
+            surface.setVisibility(View.VISIBLE);
+            if (player != null) player.setVideoSurfaceView(surface);
+            if (panorama != null) panorama.setVisibility(View.GONE);
+        }
+        // Panorama on a picture that already fills the screen is just the picture.
+        int[] size = Picture.size(mode == Picture.PANORAMA ? Picture.FIT : mode, videoAspect, w, h);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(size[0], size[1], Gravity.CENTER);
         if (surface.getLayoutParams() instanceof FrameLayout.LayoutParams) {
             FrameLayout.LayoutParams old = (FrameLayout.LayoutParams) surface.getLayoutParams();
-            if (old.width == vw && old.height == vh && old.gravity == Gravity.CENTER) return;
+            if (old.width == size[0] && old.height == size[1] && old.gravity == Gravity.CENTER) return;
         }
         surface.setLayoutParams(lp);
+    }
+
+    /** Points a (new) player at whichever surface is showing. */
+    private void attachVideo() {
+        if (bending && panoramaSurface != null) player.setVideoSurface(panoramaSurface);
+        else player.setVideoSurfaceView(surface);
+    }
+
+    private void pickPicture() {
+        String[] names = new String[Picture.MODES.length];
+        int chosen = 0;
+        for (int i = 0; i < names.length; i++) {
+            names[i] = getString(Picture.name(Picture.MODES[i]));
+            if (Picture.MODES[i] == prefs.pictureMode()) chosen = i;
+        }
+        new AlertDialog.Builder(this, R.style.PhoneTvDialog).setTitle(R.string.player_picture)
+                .setSingleChoiceItems(names, chosen, (d, which) -> {
+                    prefs.setPictureMode(Picture.MODES[which]);
+                    fitVideo();
+                    refreshOptions();
+                    d.dismiss();
+                }).show();
+    }
+
+    private static final float[] SPEEDS = {0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f};
+
+    private void pickSpeed() {
+        if (player == null) return;
+        String[] names = new String[SPEEDS.length];
+        int chosen = 2;
+        for (int i = 0; i < SPEEDS.length; i++) {
+            names[i] = speedName(SPEEDS[i]);
+            if (Math.abs(SPEEDS[i] - player.getPlaybackParameters().speed) < 0.01f) chosen = i;
+        }
+        new AlertDialog.Builder(this, R.style.PhoneTvDialog).setTitle(R.string.player_speed)
+                .setSingleChoiceItems(names, chosen, (d, which) -> { player.setPlaybackSpeed(SPEEDS[which]); refreshOptions(); d.dismiss(); }).show();
+    }
+
+    private String speedName(float speed) {
+        return speed == 1f ? getString(R.string.player_speed_normal) : (speed == Math.round(speed) ? String.valueOf(Math.round(speed)) : String.valueOf(speed)) + "×";
+    }
+
+    /** A line under the loading dots for a few seconds. */
+    private void say(String text, long forMs) {
+        noticeUntil = android.os.SystemClock.uptimeMillis() + forMs;
+        status.setTranslationY(ui.dp(44)); // under the dots, not through them
+        status.setText(text);
+        main.postDelayed(() -> { status.setText(""); status.setTranslationY(0); }, forMs);
     }
 
     // ==================================================================== player
@@ -373,10 +541,7 @@ public final class PlayerActivity extends Activity {
         player = null;
         startPlayer(at);
         // Said under the loading dots for a few seconds, so the short restart isn't a mystery.
-        noticeUntil = android.os.SystemClock.uptimeMillis() + 5000;
-        status.setTranslationY(ui.dp(44)); // under the dots, not through them
-        status.setText(R.string.player_more_connections);
-        main.postDelayed(() -> { status.setText(""); status.setTranslationY(0); }, 5000);
+        say(getString(R.string.player_more_connections), 5000);
     }
 
     private void startPlayer(long resumeMs) {
@@ -405,7 +570,7 @@ public final class PlayerActivity extends Activity {
         player.setAudioAttributes(new androidx.media3.common.AudioAttributes.Builder()
                 .setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true);
         player.setVolume(1f);
-        player.setVideoSurfaceView(surface);
+        attachVideo();
         player.setTrackSelectionParameters(player.getTrackSelectionParameters().buildUpon()
                 .setPreferredTextLanguage(prefs.subtitleLanguage())
                 .setPreferredAudioLanguage(prefs.audioLanguage())
@@ -445,6 +610,7 @@ public final class PlayerActivity extends Activity {
                 if (!playing) { saveProgress(); showBar(); } else keepBar();
             }
             @Override public void onTracksChanged(androidx.media3.common.Tracks tracks) {
+                refreshOptions();
                 // Sound that exists but can't be decoded here would otherwise just be silence. Say so.
                 boolean hasAudio = false, playable = false;
                 for (androidx.media3.common.Tracks.Group g : tracks.getGroups()) {
@@ -569,10 +735,7 @@ public final class PlayerActivity extends Activity {
         if (player != null) { player.release(); player = null; }
         if (sourceLine != null) sourceLine.setText(TextUtils.join("  ·  ", nonEmpty(label, addon)));
         startPlayer(at);
-        noticeUntil = android.os.SystemClock.uptimeMillis() + 6000;
-        status.setTranslationY(ui.dp(44)); // under the dots, not through them
-        status.setText(getString(R.string.player_next_source, sourceNumber, sourceCount));
-        main.postDelayed(() -> { status.setText(""); status.setTranslationY(0); }, 6000);
+        say(getString(R.string.player_next_source, sourceNumber, sourceCount), 6000);
         return true;
     }
 
@@ -809,6 +972,7 @@ public final class PlayerActivity extends Activity {
             bar.setVisibility(View.VISIBLE);
             bar.setAlpha(0f);
             bar.animate().alpha(1f).setDuration(Motion.FAST).start();
+            refreshOptions();
             playButton.requestFocus();
         }
         keepBar();
@@ -908,6 +1072,13 @@ public final class PlayerActivity extends Activity {
         super.onPause();
         saveProgress();
         if (player != null) player.pause();
+        if (panorama != null) panorama.onPause();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (panorama != null) panorama.onResume();
     }
 
     @Override
@@ -915,6 +1086,7 @@ public final class PlayerActivity extends Activity {
         main.removeCallbacksAndMessages(null);
         if (player != null) { player.release(); player = null; }
         if (cards != null) cards.release();
+        if (panorama != null) panorama.release();
         super.onDestroy();
     }
 

@@ -3,6 +3,25 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.20.0 — 2026-11-28
+
+### Added
+- **Picture modes.** A Picture button in the player fits the picture eight
+  ways: Fit, Fill the screen (crop), Stretch, Slight zoom, Cinema zoom, Fit
+  height, Fit width, and Panorama. The choice is remembered.
+- **Panorama**, for old 4:3 shows on a widescreen TV, the mode Windows Media
+  Center had as "Zoom 4". The middle of the picture keeps its true shape, so
+  faces look right; the stretch is pushed out toward the sides, and a little
+  is trimmed from the top and bottom. On a picture that already fills the
+  screen it does nothing.
+- **Playback speed**, from half speed to double.
+
+### Improved
+- **The controls while watching are regrouped.** Play, back and forward
+  first; then Audio, Subtitles, Picture and Speed, each showing what is
+  chosen now ("Subtitles: Off", "Audio: English · 5.1") without opening
+  anything; then Next episode, Episodes, More like this and Sources.
+
 ## 0.19.0 — 2026-11-28
 
 ### Changed
