@@ -55,7 +55,8 @@ final class PlayerCards {
     private final Host host;
     private final ImageLoader images;
     private final boolean show;
-    private final String nextLabel, nextTitle, backdrop;
+    private final String backdrop;
+    private String nextLabel, nextTitle;
 
     private WatchExtras extras;
     private LinearLayout skip;
@@ -86,6 +87,48 @@ final class PlayerCards {
         this.images = new ImageLoader(activity);
         buildSkip();
         buildStrip();
+    }
+
+    /** The next episode has been worked out after the player opened. */
+    void setNext(String label, String title) {
+        nextLabel = label;
+        nextTitle = title == null ? "" : title;
+    }
+
+    /**
+     * Why the ending card is or isn't up, in a sentence. For the playback details a viewer can
+     * switch on: when something doesn't appear, this says which link in the chain is missing.
+     */
+    String endCardState(long position, long duration) {
+        if (!prefs.endCard()) return a.getString(R.string.diag_end_off);
+        if (end != null) return a.getString(R.string.diag_end_showing);
+        if (extras == null) return a.getString(R.string.diag_end_waiting);
+        if (duration <= 5 * 60_000) return a.getString(R.string.diag_end_short);
+        if (show && nextLabel == null) return a.getString(extras.aboutTried ? R.string.diag_end_no_next : R.string.diag_end_waiting);
+        if (!show && extras.related.isEmpty() && extras.starTitles.isEmpty()) return a.getString(extras.relatedTried ? R.string.diag_end_nothing : R.string.diag_end_waiting);
+        if (endDone) return a.getString(R.string.diag_end_done);
+        long at = extras.endCardAt(duration, show);
+        return a.getString(R.string.diag_end_due, PlayerActivity.clock(at), PlayerActivity.clock(Math.max(0, at - position)));
+    }
+
+    /** What is known about this title's extras, one fact per line. */
+    String factsState() {
+        if (extras == null) return a.getString(R.string.diag_facts_none);
+        StringBuilder s = new StringBuilder();
+        s.append(a.getString(R.string.diag_skip)).append(' ');
+        if (extras.intro == null && extras.recap == null && extras.credits == null) s.append(a.getString(!extras.segmentsTried ? R.string.diag_loading : extras.segmentsUnreachable ? R.string.diag_skip_unreachable : R.string.diag_skip_none));
+        else {
+            List<String> spans = new ArrayList<>();
+            if (extras.intro != null) spans.add("intro " + PlayerActivity.clock(extras.intro.startMs) + "–" + PlayerActivity.clock(extras.intro.endMs));
+            if (extras.recap != null) spans.add("recap " + PlayerActivity.clock(extras.recap.startMs) + "–" + PlayerActivity.clock(extras.recap.endMs));
+            if (extras.credits != null) spans.add("credits " + PlayerActivity.clock(extras.credits.startMs));
+            s.append(TextUtils.join(", ", spans));
+        }
+        if (show) s.append('\n').append(a.getString(R.string.diag_next)).append(' ').append(nextLabel != null ? nextLabel : a.getString(extras.aboutTried ? R.string.diag_none : R.string.diag_loading));
+        s.append('\n').append(a.getString(R.string.diag_similar)).append(' ')
+                .append(extras.relatedTried ? String.valueOf(extras.related.size()) : a.getString(R.string.diag_loading));
+        if (!extras.star.isEmpty()) s.append("  ·  ").append(extras.star).append(" (").append(extras.starTitles.size()).append(')');
+        return s.toString();
     }
 
     /** The player is closing: stop fetching artwork. */

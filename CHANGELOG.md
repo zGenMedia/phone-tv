@@ -3,6 +3,30 @@
 All notable changes to Phone TV. Versions follow `MAJOR.MINOR.PATCH`; the
 version is shown in the app's footer and at the top of Settings.
 
+## 0.19.0 — 2026-11-28
+
+### Changed
+- **The video player library is now Media3 1.11.1** (from 1.5.1): six
+  releases of fixes to formats, HDR, streaming and seeking. The software
+  audio decoder moves to its newest build (1.9.0).
+
+### Improved
+- **The card at the credits is more dependable.**
+  - It comes up earlier when the credits' start isn't known: the last
+    minute of an episode (was 40 seconds) and the last twentieth of a film
+    (six minutes of a two-hour one).
+  - "Next episode" no longer depends on having opened the show's page
+    first: the player works out what follows by itself.
+  - If Trakt can't be reached, suggestions come from the catalog's most
+    popular titles in the same genre, so a film nearly always has something
+    to offer.
+  - Skip times are asked for up to three times when the service doesn't
+    answer.
+- **Playback details on screen** (Settings › Playback, off by default): a
+  small panel showing the source, picture and sound formats, skip times,
+  the next episode, and exactly when the card at the credits is due or why
+  it isn't coming.
+
 ## 0.18.2 — 2026-11-27
 
 ### Improved

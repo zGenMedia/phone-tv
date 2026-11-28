@@ -48,6 +48,12 @@ final class WatchExtras {
     volatile List<MediaItem> related = new ArrayList<>(), starTitles = new ArrayList<>();
     /** True once the titles like this one have been asked for, found or not. */
     volatile boolean relatedTried;
+    /** The episode after this one, worked out here for when the player wasn't told ("tt…:1:3", "S1 · E3", its name). */
+    volatile String nextId, nextLabel = "", nextTitle = "";
+    /** Which parts have come back, for the on-screen playback details. */
+    volatile boolean segmentsTried, aboutTried;
+    /** The skip-times service couldn't be reached at all (as opposed to having nothing for this title). */
+    volatile boolean segmentsUnreachable;
 
     /** Empty: the parts are filled in as they arrive. */
     WatchExtras() {}
@@ -65,8 +71,21 @@ final class WatchExtras {
         // The skip times matter in the first seconds, so they don't queue behind anything else.
         // They serve the Skip button and the timing of the ending card; with both off, nobody is asked.
         if (prefs.skipButton() || prefs.endCard()) new Thread(() -> {
-            try { x.readSegments(text(SEGMENTS + "?imdb_id=" + id + episodeQuery(episodeId, show))); }
-            catch (IOException | JSONException none) { /* no skip times for this one */ }
+            // The service sometimes doesn't answer the first time. "Not found" is an answer; silence gets two more tries.
+            for (int attempt = 0; attempt < 3; attempt++) {
+                try {
+                    x.readSegments(text(SEGMENTS + "?imdb_id=" + id + episodeQuery(episodeId, show)));
+                    x.segmentsUnreachable = false;
+                    break;
+                } catch (Http.StatusException answered) {
+                    if (answered.code < 500 && answered.code != 429) break; // no skip times for this one
+                    x.segmentsUnreachable = true;
+                } catch (IOException | JSONException silence) {
+                    x.segmentsUnreachable = true;
+                }
+                try { Thread.sleep(attempt == 0 ? 2_000 : 5_000); } catch (InterruptedException stop) { break; }
+            }
+            x.segmentsTried = true;
             tell.run();
         }, "phonetv-skip-times").start();
 
@@ -78,8 +97,10 @@ final class WatchExtras {
                 if (meta != null) {
                     lead = x.readAbout(meta);
                     tmdbId = meta.optInt("moviedb_id", 0);
+                    if (show && episodeId != null) x.findNext(meta.optJSONArray("videos"), episodeId);
                 }
             } catch (IOException | JSONException none) { /* the opening line goes without */ }
+            x.aboutTried = true;
             tell.run();
 
             String key = prefs.tmdbKey();
@@ -93,7 +114,13 @@ final class WatchExtras {
 
             MediaItem playing = MediaItem.catalog(id, type, "", "");
             try { x.related = new TraktClient(app, prefs).related(playing); }
-            catch (IOException | JSONException | RuntimeException none) { /* nothing to suggest */ }
+            catch (IOException | JSONException | RuntimeException none) { /* try the catalog instead */ }
+            // Trakt can refuse or be down. The catalog's most popular in the same genre is a fair second best,
+            // and it means there is nearly always something to offer.
+            if (x.related.isEmpty() && !x.genres.isEmpty()) {
+                try { x.related = sameGenre(show ? "series" : "movie", x.genres.get(0), id); }
+                catch (IOException | JSONException none) { /* nothing to suggest */ }
+            }
             x.relatedTried = true;
             tell.run();
 
@@ -188,11 +215,51 @@ final class WatchExtras {
         return here.isEmpty() || here.equals("US") ? new String[]{"US"} : new String[]{here, "US"};
     }
 
-    /** Where the "up next" card should come up: at the credits when they're known, else near the very end. */
+    /**
+     * Where the ending card should come up: at the credits when their start is known. Otherwise
+     * a guess at where credits begin: the last minute of an episode, the last twentieth of a film
+     * (six minutes of a two-hour one). Early is better than late; a card that arrives after the
+     * viewer has reached for the remote is a card nobody sees.
+     */
     long endCardAt(long durationMs, boolean show) {
         Span c = credits;
         if (c != null && c.startMs > durationMs / 2 && c.startMs < durationMs) return c.startMs;
-        return show ? durationMs - 40_000 : Math.round(durationMs * 0.965);
+        return show ? durationMs - 60_000 : Math.round(durationMs * 0.95);
+    }
+
+    /** The episode that follows, in viewing order, from the catalog's own list. Specials (season 0) are skipped. */
+    void findNext(JSONArray videos, String episodeId) {
+        if (videos == null) return;
+        List<JSONObject> order = new ArrayList<>();
+        for (int i = 0; i < videos.length(); i++) {
+            JSONObject v = videos.optJSONObject(i);
+            if (v != null && v.optInt("season", 0) > 0 && !v.optString("id").isEmpty()) order.add(v);
+        }
+        java.util.Collections.sort(order, (a, b) -> a.optInt("season") != b.optInt("season")
+                ? Integer.compare(a.optInt("season"), b.optInt("season")) : Integer.compare(number(a), number(b)));
+        for (int i = 0; i < order.size() - 1; i++) {
+            if (!order.get(i).optString("id").equals(episodeId)) continue;
+            JSONObject after = order.get(i + 1);
+            nextTitle = after.optString("name", after.optString("title", ""));
+            nextLabel = Library.episodeLabel(after.optInt("season"), number(after));
+            nextId = after.optString("id");
+            return;
+        }
+    }
+
+    private static int number(JSONObject video) { return video.optInt("episode", video.optInt("number", 0)); }
+
+    /** The catalog's most popular titles in a genre, without the one that's playing. */
+    private static List<MediaItem> sameGenre(String type, String genre, String except) throws IOException, JSONException {
+        JSONArray metas = new JSONObject(text("https://v3-cinemeta.strem.io/catalog/" + type + "/top/genre=" + android.net.Uri.encode(genre) + ".json")).optJSONArray("metas");
+        List<MediaItem> out = new ArrayList<>();
+        for (int i = 0; metas != null && i < metas.length() && out.size() < 20; i++) {
+            JSONObject m = metas.optJSONObject(i);
+            if (m == null || !m.optString("id").startsWith("tt") || m.optString("id").equals(except)) continue;
+            String info = m.optString("releaseInfo", "");
+            out.add(MediaItem.catalog(m.optString("id"), type, m.optString("name"), info.length() >= 4 ? info.substring(0, 4) : ""));
+        }
+        return out;
     }
 
     private static String text(String url) throws IOException {

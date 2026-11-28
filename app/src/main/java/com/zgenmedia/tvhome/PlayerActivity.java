@@ -80,7 +80,8 @@ public final class PlayerActivity extends Activity {
     private Prefs prefs;
     private FrameLayout root, videoBox;
     private SurfaceView surface;
-    private TextView captions, timeNow, timeLeft, status, playButton, nextButton;
+    private TextView captions, timeNow, timeLeft, status, playButton, nextButton, details;
+    private String nextLabel;
     private View buffering;
     private LinearLayout bar, buttons;
     PlayerCards cards;
@@ -144,6 +145,7 @@ public final class PlayerActivity extends Activity {
         label = nz(i.getStringExtra(X_LABEL));
         addon = nz(i.getStringExtra(X_ADDON));
         nextEpisode = i.getStringExtra(X_NEXT_EPISODE);
+        nextLabel = i.getStringExtra(X_NEXT_LABEL);
         plex = i.getBundleExtra(X_PLEX);
         episodes = i.getStringArrayListExtra(X_EPISODES);
         Bundle h = i.getBundleExtra(X_HEADERS);
@@ -246,9 +248,54 @@ public final class PlayerActivity extends Activity {
             @Override public void holdBar() { keepBar(); }
             @Override public boolean usingRemote() { return remote; }
             @Override public void focusControls() { if (!playButton.requestFocus()) playButton.requestFocusFromTouch(); }
-        }, "series".equals(type), nextEpisode == null ? null : nz(getIntent().getStringExtra(X_NEXT_LABEL)), episodeTitle(nextEpisode),
+        }, "series".equals(type), nextEpisode == null ? null : nz(nextLabel), episodeTitle(nextEpisode),
                 MediaItem.catalog(nz(id), type, title, "").backdrop(ui.dp(112)));
-        if (plex == null) WatchExtras.load(this, prefs, id, type, episodeId, main, extras -> { if (!isFinishing()) cards.setExtras(extras); });
+        if (plex == null) WatchExtras.load(this, prefs, id, type, episodeId, main, extras -> {
+            if (isFinishing()) return;
+            // Started without the show's episode list to hand (from a channel, say): the catalog has
+            // now said what comes next, so "Next episode" and the card at the credits can exist after all.
+            if (nextEpisode == null && extras.nextId != null) {
+                nextEpisode = extras.nextId;
+                nextLabel = extras.nextLabel;
+                cards.setNext(nextLabel, extras.nextTitle);
+                if (nextButton == null) nextButton = button(buttons, getString(R.string.player_next), () -> leave(RESULT_NEXT));
+            }
+            cards.setExtras(extras);
+        });
+
+        // Playback details, for when something isn't behaving: off unless switched on in Settings › Playback.
+        if (prefs.playbackDetails()) {
+            details = ui.label("", 11, 0xFFE6E8EE, null);
+            details.setTypeface(android.graphics.Typeface.MONOSPACE);
+            details.setBackground(ui.round(0xB3000000, 8));
+            details.setPadding(ui.dp(10), ui.dp(8), ui.dp(10), ui.dp(8));
+            details.setLineSpacing(0, 1.15f);
+            FrameLayout.LayoutParams dlp = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
+            dlp.setMargins(ui.dp(16), ui.dp(16), ui.dp(16), 0);
+            root.addView(details, dlp);
+        }
+    }
+
+    /** Everything the player knows about what it's doing, as lines of plain text. */
+    private String describePlayback(long position, long duration) {
+        StringBuilder s = new StringBuilder();
+        Uri from = Uri.parse(nz(url));
+        s.append(getString(R.string.diag_source)).append(' ').append(plex != null ? "Plex" : nz(addon).isEmpty() ? "?" : addon)
+                .append("  ·  ").append(nz(from.getScheme())).append("  ·  ").append(nz(from.getHost()));
+        if (sourceCount > 1) s.append("  ·  ").append(sourceNumber).append('/').append(sourceCount);
+        if (player != null) {
+            androidx.media3.common.Format v = player.getVideoFormat(), au = player.getAudioFormat();
+            s.append('\n').append(getString(R.string.diag_picture)).append(' ').append(v == null ? getString(R.string.diag_none)
+                    : nz(v.codecs != null ? v.codecs : v.sampleMimeType) + "  " + v.width + "×" + v.height + (v.colorInfo != null && v.colorInfo.colorTransfer == C.COLOR_TRANSFER_ST2084 ? "  HDR10" : v.colorInfo != null && v.colorInfo.colorTransfer == C.COLOR_TRANSFER_HLG ? "  HLG" : ""));
+            s.append('\n').append(getString(R.string.diag_sound)).append(' ').append(au == null ? getString(R.string.diag_none)
+                    : nz(au.codecs != null ? au.codecs : au.sampleMimeType) + "  " + au.channelCount + " ch");
+            s.append('\n').append(getString(R.string.diag_time)).append(' ').append(clock(position)).append(" / ").append(duration > 0 ? clock(duration) : "?")
+                    .append("  ·  +").append(Math.max(0, player.getTotalBufferedDuration() / 1000)).append("s  ·  ")
+                    .append(getString(severalConnections && plainFile() ? R.string.diag_several : R.string.diag_single));
+        }
+        s.append('\n').append(cards.factsState());
+        s.append('\n').append(getString(R.string.diag_end)).append(' ').append(cards.endCardState(position, duration));
+        return s.toString();
     }
 
     /** The name of an episode from the list the show brought along, or "". */
@@ -792,6 +839,7 @@ public final class PlayerActivity extends Activity {
         if (known && !seeking && !seek.isFocused()) seek.setProgress((int) (1000 * p / d));
         if (known && nextButton != null && d - p < 90_000) nextButton.setVisibility(View.VISIBLE);
         cards.onTick(p, known ? d : 0);
+        if (details != null) details.setText(describePlayback(p, known ? d : 0));
     }
 
     static String clock(long ms) {
@@ -835,7 +883,7 @@ public final class PlayerActivity extends Activity {
         saveProgress();
         Intent data = new Intent().putExtra(X_ID, id).putExtra(X_TYPE, type).putExtra(X_TITLE, title)
                 .putExtra(X_EPISODE, result == RESULT_NEXT ? nextEpisode : episodeId)
-                .putExtra(X_LABEL, result == RESULT_NEXT ? getIntent().getStringExtra(X_NEXT_LABEL) : label)
+                .putExtra(X_LABEL, result == RESULT_NEXT ? nextLabel : label)
                 .putExtra(X_ADDON, addon);
         setResult(result, data);
         finish();

@@ -121,6 +121,9 @@ final class Prefs {
     void setSkipButton(boolean on) { sp.edit().putBoolean("skipButton", on).apply(); }
     boolean openingCard() { return sp.getBoolean("openingCard", true); }
     void setOpeningCard(boolean on) { sp.edit().putBoolean("openingCard", on).apply(); }
+    /** A panel of what the player is doing, for finding out why something didn't happen. Off unless asked for. */
+    boolean playbackDetails() { return sp.getBoolean("playbackDetails", false); }
+    void setPlaybackDetails(boolean on) { sp.edit().putBoolean("playbackDetails", on).apply(); }
     boolean endCard() { return sp.getBoolean("endCard", true); }
     void setEndCard(boolean on) { sp.edit().putBoolean("endCard", on).apply(); }
 

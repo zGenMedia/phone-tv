@@ -17,8 +17,8 @@ android {
         // 25 = Android 7.1, which covers Fire OS 6 devices (Fire TV Stick 4K 1st gen, Cube)
         minSdk 25
         targetSdk 35
-        versionCode 42
-        versionName '0.18.2'
+        versionCode 43
+        versionName '0.19.0'
     }
 
     signingConfigs {
@@ -61,7 +61,7 @@ android {
 dependencies {
     // The built-in player (optional to use: titles still hand off to Stremio, Nuvio or Plex).
     // Media3 is Google's own player library, the same engine Nuvio and most Android TV apps use.
-    def media3 = '1.5.1'
+    def media3 = '1.11.1'
     implementation "androidx.media3:media3-exoplayer:$media3"
     implementation "androidx.media3:media3-exoplayer-hls:$media3"
     implementation "androidx.media3:media3-exoplayer-dash:$media3"
@@ -69,7 +69,7 @@ dependencies {
     implementation "androidx.core:core:1.8.0"
     // Software audio decoding (AC-3, E-AC-3, DTS, TrueHD…) for devices whose own decoders lack them:
     // most phones and PC emulators. Jellyfin's prebuilt of Media3's FFmpeg module; GPL-3.0, as this app is.
-    implementation "org.jellyfin.media3:media3-ffmpeg-decoder:1.5.0+1"
+    implementation "org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1"
     // Installs the baseline profile (src/main/baseline-prof.txt) on devices where no app store does it,
     // which is every Phone TV install: the app's code is compiled at install instead of warming up in use.
     implementation "androidx.profileinstaller:profileinstaller:1.3.1"

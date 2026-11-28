@@ -444,6 +444,8 @@ final class SettingsScreen implements Overlay {
                 () -> { prefs.setOpeningCard(!prefs.openingCard()); apply(PANE); });
         toggle(here, "endCard", R.string.set_end_card, R.string.set_end_card_hint, prefs.endCard(),
                 () -> { prefs.setEndCard(!prefs.endCard()); apply(PANE); });
+        toggle(here, "playbackDetails", R.string.set_playback_details, R.string.set_playback_details_hint, prefs.playbackDetails(),
+                () -> { prefs.setPlaybackDetails(!prefs.playbackDetails()); apply(PANE); });
         choice(here, "fastBuffering", R.string.set_fast_buffering, R.string.set_fast_buffering_hint,
                 names(R.string.fast_auto, R.string.fast_always, R.string.fast_off),
                 prefs.fastBuffering(), i -> { prefs.setFastBuffering(i); apply(PANE); });
